@@ -5,7 +5,6 @@ local ns_breakpoints = 'dap_breakpoints'
 local ns_pos = 'dap_pos'
 local Session = {}
 local session = nil
-local breakpoints_by_buf = {}
 
 vim.fn.sign_define('DapBreakpoint', {text='B', texthl='', linehl='', numhl=''})
 vim.fn.sign_define('DapPosition', {text='→', texthl='', linehl='', numhl=''})
@@ -77,7 +76,7 @@ function Session:event_initialized(err0, _)
     return
   end
   self.initialized = true
-  self:set_breakpoints()
+  self:set_breakpoints('')
 
   if self.capabilities.supportsConfigurationDoneRequest then
     -- TODO: does the client have to wait for setBreakpoints response and so on?
@@ -121,29 +120,26 @@ function Session:event_terminated()
 end
 
 
-function Session:set_breakpoints()
-  local source_breakpoints = {}
-  for _, breakpoints in pairs(breakpoints_by_buf) do
-    for linenr, _ in pairs(breakpoints) do
-      table.insert(source_breakpoints, {
-        line = linenr;
-      })
+function Session:set_breakpoints(bufexpr)
+  local bp_signs = vim.fn.sign_getplaced(bufexpr, {group = ns_breakpoints})
+  for _, buf_bp_signs in pairs(bp_signs) do
+    local breakpoints = {}
+    local bufnr = buf_bp_signs.bufnr
+    for _, bp in pairs(buf_bp_signs.signs) do
+      table.insert(breakpoints, { line = bp.lnum; })
     end
-  end
-  self:request('setBreakpoints', {
-      source = {
-        path = vim.fn.expand('%:p');
-      };
-      breakpoints = source_breakpoints;
-    },
-    function (err1, _)
-      if err1 then
-        print("Error setting breakpoints: " .. err1.message)
-        return
+    self:request('setBreakpoints', {
+        source = { path = vim.fn.expand('#' .. bufnr .. ':p'); };
+        breakpoints = breakpoints;
+      },
+      function (err1, _)
+        if err1 then
+          print("Error setting breakpoints: " .. err1.message)
+          return
+        end
       end
-      -- TODO: change signs to indicate that breakpoints are verified?
-    end
-  )
+    )
+  end
 end
 
 
@@ -269,6 +265,10 @@ function M.step_out()
 end
 
 function M.stop()
+  if session then
+    session:close()
+    session = nil
+  end
 end
 
 function M.restart()
@@ -276,29 +276,17 @@ end
 
 function M.toggle_breakpoint()
   local bufnr = api.nvim_get_current_buf()
-  local breakpoints = breakpoints_by_buf[bufnr]
-  if not breakpoints then
-    breakpoints = {}
-    breakpoints_by_buf[bufnr] = breakpoints
-    api.nvim_buf_attach(bufnr, false, {
-      on_detach = function(b)
-        vim.fn.sign_unplace(ns_breakpoints, {buffer = b})
-        breakpoints_by_buf[bufnr] = nil
-      end
-    })
-  end
   local row, _ = unpack(api.nvim_win_get_cursor(0))
-  if breakpoints[row] then
-    local sign_id = breakpoints[row]
-    vim.fn.sign_unplace(ns_breakpoints, { buffer = bufnr; id = sign_id; })
-    breakpoints[row] = nil
+  local signs = vim.fn.sign_getplaced(bufnr, { group = ns_breakpoints; lnum = row; })[1].signs
+  if signs and #signs > 0 then
+    for _, sign in pairs(signs) do
+      vim.fn.sign_unplace(ns_breakpoints, { buffer = bufnr; id = sign.id; })
+    end
   else
-    breakpoints[row] = vim.fn.sign_place(
-      0, ns_breakpoints, 'DapBreakpoint', api.nvim_get_current_buf(), { lnum = row })
+    vim.fn.sign_place(0, ns_breakpoints, 'DapBreakpoint', bufnr, { lnum = row })
   end
-
   if session and session.initialized then
-    session:set_breakpoints()
+    session:set_breakpoints(bufnr)
   end
 end
 

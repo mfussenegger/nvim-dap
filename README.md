@@ -8,6 +8,8 @@
 ## Features
 
 - [x] toggle breakpoints
+- [ ] set function breakpoints
+- [ ] set exception breakpoints
 - [x] attach to debug adapter
 - [x] step over, step into, step out
 
