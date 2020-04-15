@@ -70,11 +70,7 @@ local function parse_chunk_loop()
 end
 
 
-function Session:event_initialized(err0, _)
-  if err0 then
-    print("Error initializing debug adapter: " .. err0.message)
-    return
-  end
+function Session:event_initialized(_)
   self.initialized = true
   self:set_breakpoints('')
 
@@ -89,7 +85,7 @@ function Session:event_initialized(err0, _)
 end
 
 
-function Session:event_stopped(_, stopped)
+function Session:event_stopped(stopped)
   self.stopped_thread_id = stopped.threadId
   self:request('threads', nil, function() end)
   self:request('stackTrace', { threadId = stopped.threadId; }, function(_, frames)
@@ -147,24 +143,19 @@ function Session:handle_body(body)
   local decoded = vim.fn.json_decode(body)
   self.seq = decoded.seq + 1
   -- TODO: replace with logging print(vim.inspect(decoded))
-  local err
-  local result
-  if decoded.success == true or decoded.type == "event" then
-    err = nil
-    result = decoded.body
-  else
-    err = { message = decoded.message; body = decoded.body; }
-    result = nil
-  end
   if decoded.request_seq then
     local callback = self.message_callbacks[decoded.request_seq]
     if not callback then return end
     self.message_callbacks[decoded.request_seq] = nil
-    callback(err, result)
+    if decoded.success then
+      callback(nil, decoded.body)
+    else
+      callback({ message = decoded.message; body = decoded.body; }, nil)
+    end
   elseif decoded.event then
     local callback = self['event_' .. decoded.event]
     if callback then
-      callback(self, err, result)
+      callback(self, decoded.body)
     end
   end
 end
