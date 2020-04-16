@@ -111,6 +111,7 @@ function Session:event_stopped(stopped)
       for _, frame in pairs(frames_resp.stackFrames) do
         if not current_frame then
           current_frame = frame
+          threads.current_frame = frame
         end
         frames[frame.id] = frame
       end
@@ -253,6 +254,7 @@ function Session:close()
   self.message_callbacks = nil
   self.client:shutdown()
   self.client:close()
+  require('dap.repl').set_session(nil)
 end
 
 
@@ -278,6 +280,15 @@ end
 
 function Session:attach(config)
   self:request('attach', config)
+end
+
+
+function Session:evaluate(expression, fn)
+  self:request('evaluate', {
+    expression = expression;
+    context = 'repl';
+    frameId = ((threads or {}).current_frame or {}).id;
+  }, fn)
 end
 
 
@@ -349,11 +360,17 @@ function M.continue()
 end
 
 
+function M.repl()
+  require('dap.repl').open()
+end
+
+
 function M.attach(config)
   if session then
     session:close()
   end
   session = Session:connect(config)
+  require('dap.repl').set_session(session)
   session:request('initialize', {
     clientId = 'neovim';
     clientname = 'neovim';

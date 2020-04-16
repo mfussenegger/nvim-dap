@@ -17,10 +17,10 @@
 - [ ] step back, reverse continue
 - [ ] Goto
 - [x] restart
-- [ ] stop
-- [ ] evaluate expressions
-- [ ] REPL
-- [ ] threads, scopes and variables ui
+- [x] stop
+- [x] evaluate expressions
+- [x] REPL
+- [x] threads, scopes and variables ui (bare minimum, in desperate need of improvements)
 
 
 ## Motivation

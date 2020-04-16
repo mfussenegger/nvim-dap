@@ -6,12 +6,13 @@ local bufnr = nil
 local function new_win()
   vim.cmd("belowright new")
   winid = vim.fn.win_getid()
-  api.nvim_win_set_var(0, 'DAP-Threads', 1)
+  api.nvim_win_set_var(0, '[dap-threads]', 1)
   bufnr = api.nvim_get_current_buf()
   api.nvim_buf_set_option(bufnr, 'buftype', 'nofile')
   api.nvim_buf_set_option(bufnr, 'bufhidden', 'wipe')
   api.nvim_buf_set_option(bufnr, 'buflisted', false)
   api.nvim_buf_set_option(bufnr, 'swapfile', false)
+  api.nvim_buf_set_name(bufnr, '[dap-threads]')
   api.nvim_buf_attach(bufnr, false, {
     on_detach = function(_)
       winid = nil
@@ -61,5 +62,6 @@ function M.threads_clear()
   end
   api.nvim_buf_set_lines(bufnr, 0, -1, false, {})
 end
+
 
 return M
