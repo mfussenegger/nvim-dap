@@ -7,11 +7,20 @@
 
 ## Features
 
+- [ ] launch debug adapter
+- [x] attach to debug adapter
 - [x] toggle breakpoints
+- [ ] breakpoints with conditions
 - [ ] set function breakpoints
 - [ ] set exception breakpoints
-- [x] attach to debug adapter
 - [x] step over, step into, step out
+- [ ] step back, reverse continue
+- [ ] Goto
+- [x] restart
+- [ ] stop
+- [ ] evaluate expressions
+- [ ] REPL
+- [ ] threads, scopes and variables ui
 
 
 ## Motivation

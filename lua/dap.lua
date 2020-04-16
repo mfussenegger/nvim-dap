@@ -7,7 +7,7 @@ local Session = {}
 local session = nil
 
 vim.fn.sign_define('DapBreakpoint', {text='B', texthl='', linehl='', numhl=''})
-vim.fn.sign_define('DapPosition', {text='→', texthl='', linehl='', numhl=''})
+vim.fn.sign_define('DapStopped', {text='→', texthl='', linehl='debugPC', numhl=''})
 
 
 local function msg_with_content_length(msg)
@@ -94,7 +94,7 @@ function Session:event_stopped(stopped)
       if last_frame.source then
         local bufnr = vim.uri_to_bufnr(vim.uri_from_fname(last_frame.source.path))
         vim.fn.sign_unplace(ns_pos, { buffer = bufnr })
-        vim.fn.sign_place(0, ns_pos, 'DapPosition', bufnr, { lnum = last_frame.line; priority = 20 })
+        vim.fn.sign_place(0, ns_pos, 'DapStopped', bufnr, { lnum = last_frame.line; priority = 20 })
       end
 
       self:request('scopes', { frameId = last_frame.id }, function(_, scopes)
@@ -263,6 +263,18 @@ function M.stop()
 end
 
 function M.restart()
+  if not session then return end
+  if session.capabilities.supportsRestartRequest then
+    session:request('restart', nil, function(err0, _)
+      if err0 then
+        print('Error restarting debug adapter: ' .. err0.message)
+      else
+        print('Restarted debug adapter')
+      end
+    end)
+  else
+    print('Restart not supported')
+  end
 end
 
 function M.toggle_breakpoint()
