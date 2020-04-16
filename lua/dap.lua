@@ -1,10 +1,12 @@
 local uv = vim.loop
 local api = vim.api
+local log = require'dap.log'.create_logger('vim-dap.log')
 local M = {}
 local ns_breakpoints = 'dap_breakpoints'
 local ns_pos = 'dap_pos'
 local Session = {}
 local session = nil
+
 
 vim.fn.sign_define('DapBreakpoint', {text='B', texthl='', linehl='', numhl=''})
 vim.fn.sign_define('DapStopped', {text='→', texthl='', linehl='debugPC', numhl=''})
@@ -142,7 +144,7 @@ end
 function Session:handle_body(body)
   local decoded = vim.fn.json_decode(body)
   self.seq = decoded.seq + 1
-  -- TODO: replace with logging print(vim.inspect(decoded))
+  local _ = log.debug() and log.debug(decoded)
   if decoded.request_seq then
     local callback = self.message_callbacks[decoded.request_seq]
     if not callback then return end
@@ -219,7 +221,7 @@ function Session:request(command, arguments, callback)
     command = command;
     arguments = arguments
   }
-  -- TODO: replace with logging print(vim.inspect(payload))
+  local _ = log.debug() and log.debug(payload)
   local current_seq = self.seq
   self.seq = self.seq + 1
   vim.schedule(function()
@@ -325,6 +327,11 @@ function M.attach(config)
     session.capabilities = result
     session:attach(config)
   end)
+end
+
+
+function M.set_log_level(level)
+  log.set_level(level)
 end
 
 
