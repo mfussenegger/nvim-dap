@@ -1,11 +1,13 @@
 local uv = vim.loop
 local api = vim.api
-local log = require'dap.log'.create_logger('vim-dap.log')
+local log = require('dap.log').create_logger('vim-dap.log')
+local ui = require('dap.ui')
 local M = {}
 local ns_breakpoints = 'dap_breakpoints'
 local ns_pos = 'dap_pos'
 local Session = {}
 local session = nil
+local threads = nil
 
 
 vim.fn.sign_define('DapBreakpoint', {text='B', texthl='', linehl='', numhl=''})
@@ -89,32 +91,72 @@ end
 
 function Session:event_stopped(stopped)
   self.stopped_thread_id = stopped.threadId
-  self:request('threads', nil, function() end)
-  self:request('stackTrace', { threadId = stopped.threadId; }, function(_, frames)
-    if frames.stackFrames and #frames.stackFrames > 0 then
-      local last_frame = frames.stackFrames[1]
-      if last_frame.source then
-        local bufnr = vim.uri_to_bufnr(vim.uri_from_fname(last_frame.source.path))
+  self:request('threads', nil, function(err0, threads_resp)
+    if err0 then
+      print('Error retrieving threads: ' .. err0.message)
+      return
+    end
+    threads = {}
+    for _, thread in pairs(threads_resp.threads) do
+      threads[thread.id] = thread
+    end
+    self:request('stackTrace', { threadId = stopped.threadId; }, function(err1, frames_resp)
+      if err1 then
+        print('Error retrieving stack traces: ' .. err1.message)
+        return
+      end
+      local frames = {}
+      local current_frame = nil
+      threads[stopped.threadId].frames = frames
+      for _, frame in pairs(frames_resp.stackFrames) do
+        if not current_frame then
+          current_frame = frame
+        end
+        frames[frame.id] = frame
+      end
+      if not current_frame then
+        return
+      end
+      if current_frame.source then
+        local bufnr = vim.uri_to_bufnr(vim.uri_from_fname(current_frame.source.path))
         vim.fn.sign_unplace(ns_pos, { buffer = bufnr })
-        vim.fn.sign_place(0, ns_pos, 'DapStopped', bufnr, { lnum = last_frame.line; priority = 20 })
+        vim.fn.sign_place(0, ns_pos, 'DapStopped', bufnr, { lnum = current_frame.line; priority = 11 })
       end
 
-      self:request('scopes', { frameId = last_frame.id }, function(_, scopes)
-        if not scopes or not scopes.scopes or #scopes.scopes < 1 then return end
+      self:request('scopes', { frameId = current_frame.id }, function(_, scopes_resp)
+        if not scopes_resp or not scopes_resp.scopes then return end
 
-        local scope = scopes.scopes[1]
-        self:request('variables', { variablesReference = scope.variablesReference }, function(_, variables)
-          print(vim.inspect(variables))
-        end)
+        current_frame.scopes = {}
+        local remaining = #scopes_resp.scopes
+        for _, scope in pairs(scopes_resp.scopes) do
+
+          table.insert(current_frame.scopes, scope)
+          if not scope.expensive then
+            self:request('variables', { variablesReference = scope.variablesReference }, function(_, variables_resp)
+              if not variables_resp then return end
+
+              scope.variables = variables_resp.variables
+              -- TODO: does this work?
+              vim.schedule(function()
+                remaining = remaining - 1
+                if remaining == 0 then
+                  ui.threads_render(threads)
+                end
+              end)
+            end)
+          end
+        end
       end)
-    end
+    end)
   end)
 end
 
 
 function Session:event_terminated()
   self:close()
+  threads = nil
   session = nil
+  ui.threads_clear()
 end
 
 
@@ -315,7 +357,7 @@ function M.attach(config)
   session:request('initialize', {
     clientId = 'neovim';
     clientname = 'neovim';
-    adapterID = 'neovim';
+    adapterID = 'nvim-dap';
     pathFormat = 'path';
     columnsStartAt1 = false;
     locale = os.getenv('LANG') or 'en_US';
