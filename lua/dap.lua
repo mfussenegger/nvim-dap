@@ -316,7 +316,7 @@ function M.attach(config)
     adapterID = 'neovim';
     pathFormat = 'path';
     columnsStartAt1 = false;
-    locale = 'UTF-8';
+    locale = os.getenv('LANG') or 'en_US';
   }, function(err0, result)
     if err0 then
       print("Could not initialize debug adapter: " .. err0.message)
