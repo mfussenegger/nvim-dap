@@ -23,6 +23,9 @@
 - [x] threads, scopes and variables ui (bare minimum, in desperate need of improvements)
 
 
+![screenshot](images/screenshot.png)
+
+
 ## Motivation
 
 Why another DAP implementation for Neovim if there is already [Vimspector][2]?
