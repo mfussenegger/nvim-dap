@@ -137,11 +137,11 @@ function Session:event_stopped(stopped)
               if not variables_resp then return end
 
               scope.variables = variables_resp.variables
-              -- TODO: does this work?
               vim.schedule(function()
                 remaining = remaining - 1
                 if remaining == 0 then
-                  ui.threads_render(threads)
+                  -- TODO:
+                  -- ui.threads_render(threads)
                 end
               end)
             end)
@@ -292,10 +292,31 @@ function Session:evaluate(expression, fn)
 end
 
 
+function Session:continue()
+  if not self.stopped_thread_id then
+    print('No stopped thread. Cannot continue')
+    return
+  end
+  self:request('continue', { threadId = self.stopped_thread_id; }, function(err0, _)
+    if err0 then
+      print("Error continueing: " .. err0.message)
+    end
+  end)
+end
+
+
+function Session:next()
+  if not self.stopped_thread_id then
+    print('No stopped thread. Cannot move')
+    return
+  end
+  session:request('next', { threadId = session.stopped_thread_id })
+end
+
+
 function M.step_over()
   if not session then return end
-
-  session:request('next', { threadId = session.stopped_thread_id })
+  session:next()
 end
 
 function M.step_into()
@@ -351,12 +372,7 @@ end
 
 function M.continue()
   if not session then return end
-
-  session:request('continue', { threadId = session.stopped_thread_id; }, function(err0, _)
-    if err0 then
-      print("Error continueing: " .. err0.message)
-    end
-  end)
+  session:continue()
 end
 
 

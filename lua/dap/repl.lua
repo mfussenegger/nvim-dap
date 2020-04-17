@@ -31,32 +31,41 @@ function M.open()
 end
 
 
+local function append(line, lnum)
+  if buf then
+    vim.fn.appendbufline(buf, lnum or (vim.fn.line('$') - 1), line)
+  end
+  api.nvim_command('set nomodified')
+end
+
+
 function M.execute(text)
   if text == '' then
     api.nvim_command('set nomodified')
     return
   end
-  if text == 'exit' then
+  if text == 'exit' or text == '.exit' then
     api.nvim_command('set nomodified')
     api.nvim_command('close')
-  end
-  local function append(line)
-    if buf then
-      vim.fn.appendbufline(buf, vim.fn.line('$') - 1, line)
-    end
-    api.nvim_command('set nomodified')
   end
   if not session then
     append('No active debug session')
     return
   end
-  session:evaluate(text, function(err, resp)
-    if err then
-      append(err.message)
-    else
-      append(resp.result)
-    end
-  end)
+  local lnum = vim.fn.line('$') - 1
+  if text == '.continue' or text == '.c' then
+    session:continue()
+  elseif text == '.next' or text == '.n' then
+    session:next()
+  else
+    session:evaluate(text, function(err, resp)
+      if err then
+        append(err.message, lnum)
+      else
+        append(resp.result, lnum)
+      end
+    end)
+  end
 end
 
 
