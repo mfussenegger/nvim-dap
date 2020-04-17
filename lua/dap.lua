@@ -1,3 +1,6 @@
+dap = {} -- luacheck: ignore 111 - to support v:lua.dap... uses
+
+
 local uv = vim.loop
 local api = vim.api
 local log = require('dap.log').create_logger('vim-dap.log')
@@ -394,6 +397,80 @@ end
 
 function M.repl()
   require('dap.repl').open()
+end
+
+
+local function completions_to_items(completions, prefix)
+  local candidates = vim.tbl_filter(
+    function(item) return vim.startswith(item.text or item.label, prefix) end,
+    completions
+  )
+  if #candidates == 0 then
+    return {}
+  end
+
+  if candidates[1].sortText then
+    table.sort(candidates, function(a, b) return (a.sortText or 0) < (b.sortText or 0) end)
+  end
+
+  local items = {}
+  for _, candidate in pairs(candidates) do
+    table.insert(items, {
+      word = candidate.text or candidate.label;
+      abbr = candidate.label;
+      dup = 0;
+      icase = 1;
+    })
+  end
+  return items
+end
+
+
+function dap.omnifunc(findstart, base) -- luacheck: ignore 112
+  local supportsCompletionsRequest = ((session or {}).capabilities or {}).supportsCompletionsRequest;
+  local _ = log.debug() and log.debug('omnifunc.findstart', {
+    findstart = findstart;
+    base = base;
+    supportsCompletionsRequest = supportsCompletionsRequest;
+  })
+  if not supportsCompletionsRequest then
+    if findstart == 1 then
+      return -1
+    else
+      return {}
+    end
+  end
+  local col = api.nvim_win_get_cursor(0)[2]
+  local line = api.nvim_get_current_line()
+  local offset = vim.startswith(line, 'dap> ') and 5 or 0
+  local line_to_cursor = line:sub(offset + 1, col)
+  local text_match = vim.fn.match(line_to_cursor, '\\k*$')
+  local prefix = line_to_cursor:sub(text_match + 1)
+
+  local _ = log.debug() and log.debug('omnifunc.line', {
+    line = line;
+    col = col - offset;
+    line_to_cursor = line_to_cursor;
+    text_match = text_match + offset;
+    prefix = prefix;
+  })
+
+  session:request('completions', {
+    frameId = (session.threads.current_frame or {}).id;
+    text = line_to_cursor;
+    column = col - offset;
+  }, function(err, response)
+    if err then
+      local _ = log.error() and log.error('completions.callback', err.message)
+      return
+    end
+
+    local items = completions_to_items(response.targets, prefix)
+    vim.fn.complete(offset + text_match + 1, items)
+  end)
+
+  -- cancel but stay in completion mode for completion via `completions` callback
+  return -2
 end
 
 
