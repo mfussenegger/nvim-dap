@@ -123,8 +123,11 @@ function Session:event_stopped(stopped)
         vim.fn.sign_unplace(ns_pos, { buffer = bufnr })
         vim.fn.sign_place(0, ns_pos, 'DapStopped', bufnr, { lnum = current_frame.line; priority = 11 })
         if not stopped.preserveFocusHint then
-          api.nvim_set_current_buf(bufnr)
-          api.nvim_win_set_cursor(0, { current_frame.line, current_frame.column - 1 })
+          for _, win in pairs(api.nvim_list_wins()) do
+            if api.nvim_win_get_buf(win) == bufnr then
+              api.nvim_win_set_cursor(win, { current_frame.line, current_frame.column - 1 })
+            end
+          end
         end
       end
 
