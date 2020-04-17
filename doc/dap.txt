@@ -1,0 +1,171 @@
+*dap.txt* Debug Adapter Protocol support for neovim
+
+
+nvim-dap implements the Debug Adapter Protocol.
+
+  https://microsoft.github.io/debug-adapter-protocol/
+
+
+Neovim acts as the client for the debug adapter protocol and provides features
+to launch debug adapters, debugee's and to then step through code and explore
+the state of the application being debugged.
+
+
+                                      Type |gO| to see the table of contents.
+
+==============================================================================
+ADAPTER CONFIGURATION                                *dap-adapters*
+
+
+Neovim needs a debug-adapter with which it can communicate. Neovim can either
+launch the debug-adapter itself, or it can attach to an existing one.
+
+
+To tell Neovim if it should launch a debug adapter or connect to one, and if
+so, how, you need to configure them via the `dap.adapters` table. The key of
+the table is an arbitrary name that debug adapters are looked up by when using
+a |dap-configuration|.
+
+For example, to register a debug-adapter under the type `python`:
+
+>
+    lua << EOF
+    local dap = require('dap')
+    dap.adapters.python = {
+      type = 'executable';
+      command = os.getenv('HOME') .. '/.virtualenvs/tools/bin/python';
+      args = { '-m', 'debugpy.adapter' };
+    }
+    EOF
+
+
+`dap.adapters.<name>` is set to a `Adapter`.
+
+The `Adapter` needs to contain a `type`, which can be one of:
+
+- `executable`, to indicate that Neovim must launch the debug-adapter.
+- `server`, to indicate that Neovim can connect to an already running
+  debug-adapter.
+
+For `executable` the following options are supported:
+
+>
+    command: string     -- command to invoke
+    args:    string[]   -- arguments for the command
+    options?: {
+      env?: {}          -- Set the environment variables for the command
+      cwd?: string      -- Set the working directory for the command
+    }
+
+For `server` the following options are supported:
+
+>
+    host?: string       -- host to connect to, defaults to 127.0.0.1
+    port:  number       -- port to connect to
+
+
+
+==============================================================================
+DEBUGEE CONFIGURATION                                *dap-configuration*
+
+
+In addition to having to know how to (launch) and connect to a debug-adapter,
+Neovim needs to instruct the debug-adapter how to launch the debugee or how to
+connect to it. The debugee is the application you want to debug.
+
+This is configured via a `Configuration`, a `Configuration` has 3 required
+fields:
+
+>
+    type: string        -- References the Adapter to use
+    request: string     -- Either `attach` or `launch`, indicates if the
+                        -- debug-adapter in turn should launch a debugee or if
+                        -- it can attach to a debugee.
+    name: string        -- A user readable name for the configuration
+<
+
+It takes any number of further options which are debug-adapter specific.
+
+The configurations are set via the `dap.configurations` table. The keys are
+filetypes. If you run |dap-continue| it will look up configurations under the
+current files filetype.
+
+An example:
+
+>
+    lua << EOF
+    local dap = require('dap')
+    dap.configurations.python = {
+      {
+        type = 'python';
+        request = 'launch';
+        name = "Launch file";
+        program = "${file}";
+        pythonPath = function()
+          local cwd = vim.fn.getcwd()
+          if vim.fn.executable(cwd .. '/venv/bin/python') then
+            return cwd .. '/venv/bin/python'
+          elseif vim.fn.executable(cwd .. '/.venv/bin/python') then
+            return cwd .. '/.venv/bin/python'
+          else
+            return '/usr/bin/python'
+          end
+        end;
+      },
+    }
+    EOF
+
+
+Things to note:
+
+- Values for properties other than the 3 required properties can be functions,
+  they will be evaluated once the configuration is used.
+
+- Some variables are supported:
+
+  - `${file}`: Active filename
+
+
+==============================================================================
+MAPPINGS                                             *dap-mappings*
+
+
+Some example mappings:
+
+>
+    nnoremap <silent> <F5> :lua require'dap'.continue()<CR>
+    nnoremap <silent> <F10> :lua require'dap'.step_over()<CR>
+    nnoremap <silent> <F11> :lua require'dap'.step_into()<CR>
+    nnoremap <silent> <F12> :lua require'dap'.step_out()<CR>
+    nnoremap <silent> <leader>b :lua require'dap'.toggle_breakpoint()<CR>
+    nnoremap <silent> <leader>dr :lua require'dap'.repl()<CR>
+
+
+==============================================================================
+API                                                  *dap-api*
+
+Lua module: dap
+
+The API is currently unstable.
+
+(Incomplete)
+
+
+launch({adapter}, {config})                                      *dap.launch()*
+        Launch a new debug adapter and then initialize it with the given
+        |dap-configuration|
+
+        Parameters: ~
+            {adapter}   `Adapter` to launch, see |dap-adapters|, the `type` is
+                        not required in this case.
+            {config}    |dap-configuration|
+
+
+attach({host}, {port}, {config})                                 *dap.attach()*
+        Attach to a running debug adapter and then initialize it with the
+        given |dap-configuration|
+
+
+continue()                                                      *dap.continue()*
+        Continue execution of the debugee, or if no debug session is active,
+        start a new debug session based on available |dap-configuration|

@@ -7,7 +7,7 @@
 
 ## Features
 
-- [ ] launch debug adapter
+- [x] launch debug adapter
 - [x] attach to debug adapter
 - [x] toggle breakpoints
 - [ ] breakpoints with conditions
@@ -44,42 +44,21 @@ There may be a `nvim-dap-configs` project at some point, similar to [nvim-lsp][3
 
 ## Installation
 
-Don't, there is nothing usable here yet. Use [Vimspector][2] instead.
+- Requires [Neovim HEAD/nightly][6]
+- nvim-dap is a plugin. Install it like any other Vim plugin.
+- Call `:packadd nvim-dap` if you install `nvim-dap` to `'packpath'`.
 
 
 ## Usage
 
-Setup some mappings:
+See [:help dap](doc/dap.txt) and the [Debug-Adapter Installation][5] wiki.
+Keep in mind that the APIs are subject to change.
 
-```
-has('nvim-0.5')
-    packadd nvim-dap
-    nnoremap <silent> <F3> :lua require'dap'.stop()<CR>
-    nnoremap <silent> <F4> :lua require'dap'.restart()<CR>
-    nnoremap <silent> <F5> :lua require'dap'.continue()<CR>
-    nnoremap <silent> <F10> :lua require'dap'.step_over()<CR>
-    nnoremap <silent> <F11> :lua require'dap'.step_into()<CR>
-    nnoremap <silent> <F12> :lua require'dap'.step_out()<CR>
-    nnoremap <silent> <leader>b :lua require'dap'.toggle_breakpoint()<CR>
-endif
-```
-
-Launch a debug adapter, for example [debugpy][4]:
-
-```
-python -m debugpy --listen localhost:5678 --wait-for-client ./foo.py
-```
-
-
-To attach to the debug adapter, within neovim:
-
-
-```
-:lua require'dap'.attach({port=5678})
-```
 
 
 [1]: https://neovim.io/
 [2]: https://github.com/puremourning/vimspector
 [3]: https://github.com/neovim/nvim-lsp
 [4]: https://github.com/microsoft/debugpy
+[5]: https://github.com/mfussenegger/nvim-dap/wiki/Debug-Adapter-installation
+[6]: https://github.com/neovim/neovim/releases/tag/nightly

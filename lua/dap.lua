@@ -5,15 +5,112 @@ local uv = vim.loop
 local api = vim.api
 local log = require('dap.log').create_logger('vim-dap.log')
 local ui = require('dap.ui')
+local repl = require('dap.repl')
 local M = {}
 local ns_breakpoints = 'dap_breakpoints'
 local ns_pos = 'dap_pos'
 local Session = {}
 local session = nil
 
+--- For extension of language specific debug adapters.
+--
+-- `adapters.<type>` where <type> is specified in a configuration.
+--
+-- For example:
+--
+-- require('dap').adapters.python = {
+--    type = 'executable';
+--    command = '/path/to/python';
+--    args = {'-m', 'debugpy.adapter' };
+-- }
+--
+-- TODO:
+--  Support functions like:
+--
+--    require('dap').adapters.java = function(callback) ... end
+--
+M.adapters = {}
+
+
+--- Configurations for languages
+--
+-- Example:
+--
+-- require('dap').configurations.python = {
+--  {
+--    type = 'python';
+--    request = 'launch';
+--    name = "Launch file";
+--
+--    -- ${file} and ${workspaceFolder} variables are supported
+--    program = "${file}";
+--
+--    -- values other than type, request and name can be functions, they'll be evaluated when the configuration is used
+--    pythonPath = function()
+--      local cwd = vim.fn.getcwd()
+--      if vim.fn.executable(cwd .. '/venv/bin/python') then
+--        return cwd .. '/venv/bin/python'
+--      elseif vim.fn.executable(cwd .. '/.venv/bin/python') then
+--        return cwd .. '/.venv/bin/python'
+--      else
+--        return '/usr/bin/python'
+--      end
+--    end;
+--  }
+-- }
+--
+-- TODO:
+--  - config file support (like .vscode/launch.json)
+--  - dynamic configurations (In java you could have a mainclass discovery that creates launch configurations)
+M.configurations = {}
+
 
 vim.fn.sign_define('DapBreakpoint', {text='B', texthl='', linehl='', numhl=''})
 vim.fn.sign_define('DapStopped', {text='→', texthl='', linehl='debugPC', numhl=''})
+
+
+local function expand_config_variables(option)
+  if type(option) == 'function' then
+    option = option()
+  end
+  if type(option) ~= "string" then
+    return option
+  end
+  local variables = {
+    file = vim.fn.expand("%");
+    workspaceFolder = vim.fn.getcwd();
+  }
+  local ret = option
+  for key, val in pairs(variables) do
+    ret = ret:gsub('${' .. key .. '}', val)
+  end
+  return ret
+end
+
+
+local function launch_debug_adapter()
+  local filetype = api.nvim_buf_get_option(0, 'filetype')
+  local configurations = M.configurations[filetype] or {}
+  local configuration = ui.pick_one(configurations, "Configuration: ", function(i) return i.name end)
+  if not configuration then
+    print('No configuration found for ' .. filetype)
+    return
+  end
+
+  configuration = vim.tbl_map(expand_config_variables, configuration)
+  local adapter = M.adapters[configuration.type]
+  if type(adapter) == 'table' then
+    if adapter.type == 'executable' then
+      M.launch(adapter, configuration)
+    elseif adapter.type == 'server' then
+      M.attach(adapter.host, adapter.port, configuration)
+    else
+      print(string.format('Invalid adapter type %s, expected `executable` or `server`', adapter.type))
+    end
+  else
+    print(string.format('Invalid adapter: %q', adapter))
+  end
+end
 
 
 local function msg_with_content_length(msg)
@@ -24,6 +121,7 @@ local function msg_with_content_length(msg)
     msg
   }
 end
+
 
 -- Copied from neovim rpc.lua
 local function parse_headers(header)
@@ -150,7 +248,6 @@ function Session:event_stopped(stopped)
               vim.schedule(function()
                 remaining = remaining - 1
                 if remaining == 0 then
-                  -- TODO:
                   -- ui.threads_render(threads)
                 end
               end)
@@ -167,6 +264,16 @@ function Session:event_terminated()
   self:close()
   session = nil
   ui.threads_clear()
+end
+
+
+function Session:event_output(body) -- luacheck: ignore
+  -- No output window yet, log for now.
+  if body.category == 'stderr' then
+    local _ = log.error() and log.error(body.output)
+  else
+    local _ = log.info() and log.info(body.output)
+  end
 end
 
 
@@ -215,24 +322,21 @@ function Session:handle_body(body)
 end
 
 
-function Session:connect(config)
-  local port = tonumber(config.port)
-  local client = uv.new_tcp()
-  local o = {
+local function session_defaults()
+  return {
     message_callbacks = {};
     initialized = false;
-    client = client;
-    config = config;
     seq = 0;
     stopped_thread_id = nil;
     threads = {};
   }
-  client:connect('127.0.0.1', port, function(err)
-    if (err) then print(err) end
-  end)
+end
+
+
+local function create_read_loop(handle_body)
   local parse_chunk = coroutine.wrap(parse_chunk_loop)
   parse_chunk()
-  client:read_start(function (err, chunk)
+  return function (err, chunk)
     if err then
       print(err)
       return
@@ -244,16 +348,75 @@ function Session:connect(config)
       local headers, body = parse_chunk(chunk)
       if headers then
         vim.schedule(function()
-          session:handle_body(body)
+          handle_body(body)
         end)
         chunk = ''
       else
         break
       end
     end
-  end)
+  end
+end
+
+
+function Session:connect(host, port)
+  local o = session_defaults()
   setmetatable(o, self)
   self.__index = self
+
+  local client = uv.new_tcp()
+  o.client = {
+    write = function(line) client:write(line) end;
+    close = function()
+      client:shutdown()
+      client:close()
+    end;
+  }
+  client:connect(host or '127.0.0.1', tonumber(port), function(err)
+    if (err) then print(err) end
+  end)
+  client:read_start(create_read_loop(function(body) session:handle_body(body) end))
+  return o
+end
+
+
+function Session:spawn(adapter)
+  local o = session_defaults()
+  setmetatable(o, self)
+  self.__index = self
+
+  local stdin = uv.new_pipe(false)
+  local stdout = uv.new_pipe(false)
+  local stderr = uv.new_pipe(false)
+  local handle
+  local function onexit()
+    stdin:close()
+    stdout:close()
+    stderr:close()
+    handle:close()
+  end
+  local options = adapter.options or {}
+  handle = uv.spawn(adapter.command, {
+    args = adapter.args;
+    stdio = {stdin, stdout, stderr};
+    cwd = options.cwd;
+    env = options.env;
+  }, onexit)[1]
+  o.client = {
+    write = function(line) stdin:write(line) end;
+    close = function()
+      if handle then
+        handle:close()
+      end
+    end;
+  }
+  stdout:read_start(create_read_loop(function(body) session:handle_body(body) end))
+  stderr:read_start(function(err, chunk)
+    assert(not err, err)
+    if chunk then
+      local _ = log.error() and log.error("stderr", adapter, chunk)
+    end
+  end)
   return o
 end
 
@@ -262,9 +425,8 @@ function Session:close()
   vim.fn.sign_unplace(ns_pos)
   self.threads = {}
   self.message_callbacks = nil
-  self.client:shutdown()
-  self.client:close()
-  require('dap.repl').set_session(nil)
+  self.client.close()
+  repl.set_session(nil)
 end
 
 
@@ -280,7 +442,7 @@ function Session:request(command, arguments, callback)
   self.seq = self.seq + 1
   vim.schedule(function()
     local msg = msg_with_content_length(vim.fn.json_encode(payload))
-    self.client:write(msg)
+    self.client.write(msg)
     if callback then
       self.message_callbacks[current_seq] = vim.schedule_wrap(callback)
     end
@@ -288,8 +450,28 @@ function Session:request(command, arguments, callback)
 end
 
 
-function Session:attach(config)
-  self:request('attach', config)
+function Session:initialize(config)
+  self:request('initialize', {
+    clientId = 'neovim';
+    clientname = 'neovim';
+    adapterID = 'nvim-dap';
+    pathFormat = 'path';
+    columnsStartAt1 = false;
+    locale = os.getenv('LANG') or 'en_US';
+  }, function(err0, result)
+    if err0 then
+      print("Could not initialize debug adapter: " .. err0.message)
+      return
+    end
+    session.capabilities = result
+    session:request(config.request, config, function(err)
+      if err then
+        print(string.format('Error on %s: %s', config.request, err.message))
+        return
+      end
+      repl.set_session(session)
+    end)
+  end)
 end
 
 
@@ -390,8 +572,11 @@ end
 
 
 function M.continue()
-  if not session then return end
-  session:continue()
+  if not session then
+    launch_debug_adapter()
+  else
+    session:continue()
+  end
 end
 
 
@@ -474,27 +659,48 @@ function dap.omnifunc(findstart, base) -- luacheck: ignore 112
 end
 
 
-function M.attach(config)
+--- Attach to an existing debug-adapter running on host, port
+--  and then initialize it with config
+--
+-- Configuration:         -- Specifies how the debug adapter should conenct/launch the debugee
+--    request: string     -- attach or launch
+--    ...                 -- debug adapter specific options
+--
+function M.attach(host, port, config)
   if session then
     session:close()
   end
-  session = Session:connect(config)
-  require('dap.repl').set_session(session)
-  session:request('initialize', {
-    clientId = 'neovim';
-    clientname = 'neovim';
-    adapterID = 'nvim-dap';
-    pathFormat = 'path';
-    columnsStartAt1 = false;
-    locale = os.getenv('LANG') or 'en_US';
-  }, function(err0, result)
-    if err0 then
-      print("Could not initialize debug adapter: " .. err0.message)
-      return
-    end
-    session.capabilities = result
-    session:attach(config)
-  end)
+  if not config.request then
+    print('config needs the `request` property which must be one of `attach` or `launch`')
+    return
+  end
+  session = Session:connect(host, port)
+  session:initialize(config)
+  return session
+end
+
+
+--- Launch a new debug adapter and then initialize it with config
+--
+-- Adapter:
+--    command: string     -- command to invoke
+--    args:    string[]   -- arguments for the command
+--    options?: {
+--      env?: {}          -- Set the environment variables for the command
+--      cwd?: string      -- Set the working directory for the command
+--    }
+--
+--
+-- Configuration:         -- Specifies how the debug adapter should conenct/launch the debugee
+--    request: string     -- attach or launch
+--    ...                 -- debug adapter specific options
+--
+function M.launch(adapter, config)
+  if session then
+    session:close()
+  end
+  session = Session:spawn(adapter)
+  session:initialize(config)
   return session
 end
 
