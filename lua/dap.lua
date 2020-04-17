@@ -122,6 +122,10 @@ function Session:event_stopped(stopped)
         local bufnr = vim.uri_to_bufnr(vim.uri_from_fname(current_frame.source.path))
         vim.fn.sign_unplace(ns_pos, { buffer = bufnr })
         vim.fn.sign_place(0, ns_pos, 'DapStopped', bufnr, { lnum = current_frame.line; priority = 11 })
+        if not stopped.preserveFocusHint then
+          api.nvim_set_current_buf(bufnr)
+          api.nvim_win_set_cursor(0, { current_frame.line, current_frame.column - 1 })
+        end
       end
 
       self:request('scopes', { frameId = current_frame.id }, function(_, scopes_resp)
