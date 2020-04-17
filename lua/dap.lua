@@ -7,7 +7,6 @@ local ns_breakpoints = 'dap_breakpoints'
 local ns_pos = 'dap_pos'
 local Session = {}
 local session = nil
-local threads = nil
 
 
 vim.fn.sign_define('DapBreakpoint', {text='B', texthl='', linehl='', numhl=''})
@@ -96,7 +95,8 @@ function Session:event_stopped(stopped)
       print('Error retrieving threads: ' .. err0.message)
       return
     end
-    threads = {}
+    local threads = {}
+    self.threads = threads
     for _, thread in pairs(threads_resp.threads) do
       threads[thread.id] = thread
     end
@@ -155,7 +155,6 @@ end
 
 function Session:event_terminated()
   self:close()
-  threads = nil
   session = nil
   ui.threads_clear()
 end
@@ -216,6 +215,7 @@ function Session:connect(config)
     config = config;
     seq = 0;
     stopped_thread_id = nil;
+    threads = {};
   }
   client:connect('127.0.0.1', port, function(err)
     if (err) then print(err) end
@@ -250,7 +250,7 @@ end
 
 function Session:close()
   vim.fn.sign_unplace(ns_pos)
-
+  self.threads = {}
   self.message_callbacks = nil
   self.client:shutdown()
   self.client:close()
@@ -287,8 +287,16 @@ function Session:evaluate(expression, fn)
   self:request('evaluate', {
     expression = expression;
     context = 'repl';
-    frameId = ((threads or {}).current_frame or {}).id;
+    frameId = (self.threads.current_frame or {}).id;
   }, fn)
+end
+
+
+function Session:_reset_stopped()
+  local thread_id = self.stopped_thread_id
+  self.stopped_thread_id = nil
+  vim.fn.sign_unplace(ns_pos)
+  return thread_id
 end
 
 
@@ -297,20 +305,21 @@ function Session:continue()
     print('No stopped thread. Cannot continue')
     return
   end
-  self:request('continue', { threadId = self.stopped_thread_id; }, function(err0, _)
+  local thread_id = self:_reset_stopped()
+  self:request('continue', { threadId = thread_id; }, function(err0, _)
     if err0 then
       print("Error continueing: " .. err0.message)
     end
   end)
 end
 
-
 function Session:next()
   if not self.stopped_thread_id then
     print('No stopped thread. Cannot move')
     return
   end
-  session:request('next', { threadId = session.stopped_thread_id })
+  local thread_id = self:_reset_stopped()
+  session:request('next', { threadId = thread_id; })
 end
 
 
@@ -402,6 +411,7 @@ function M.attach(config)
     session.capabilities = result
     session:attach(config)
   end)
+  return session
 end
 
 

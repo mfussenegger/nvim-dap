@@ -52,12 +52,22 @@ function M.execute(text)
     append('No active debug session')
     return
   end
-  local lnum = vim.fn.line('$') - 1
   if text == '.continue' or text == '.c' then
     session:continue()
   elseif text == '.next' or text == '.n' then
     session:next()
+  elseif text == '.scopes' then
+    local frame = session.threads.current_frame
+    if frame then
+      for _, scope in pairs(frame.scopes) do
+        append(scope.name)
+        for _, variable in pairs(scope.variables) do
+          append(string.rep(' ', 2) .. variable.name .. ': ' .. variable.value)
+        end
+      end
+    end
   else
+    local lnum = vim.fn.line('$') - 1
     session:evaluate(text, function(err, resp)
       if err then
         append(err.message, lnum)
