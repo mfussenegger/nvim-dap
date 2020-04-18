@@ -266,13 +266,27 @@ function Session:event_terminated()
   ui.threads_clear()
 end
 
+function Session.event_exited()
+end
 
-function Session:event_output(body) -- luacheck: ignore
+function Session.event_module()
+end
+
+function Session.event_process()
+end
+
+function Session.event_thread()
+end
+
+function Session.event_continued()
+end
+
+function Session.event_output(_, body)
   -- No output window yet, log for now.
   if body.category == 'stderr' then
-    local _ = log.error() and log.error(body.output)
+    local _ = log.error() and log.error("output", body.output)
   else
-    local _ = log.info() and log.info(body.output)
+    local _ = log.info() and log.info("output", body.output)
   end
 end
 
@@ -317,6 +331,8 @@ function Session:handle_body(body)
     local callback = self['event_' .. decoded.event]
     if callback then
       callback(self, decoded.body)
+    else
+      local _ = log.warn() and log.warn('No event handler for ', decoded)
     end
   end
 end
@@ -457,6 +473,7 @@ function Session:initialize(config)
     adapterID = 'nvim-dap';
     pathFormat = 'path';
     columnsStartAt1 = false;
+    supportsRunInTerminalRequest = false;
     locale = os.getenv('LANG') or 'en_US';
   }, function(err0, result)
     if err0 then
