@@ -113,6 +113,35 @@ local function launch_debug_adapter()
 end
 
 
+function Session:run_in_terminal(request)
+  local body = request.arguments
+  -- env option is ignored without https://github.com/neovim/neovim/pull/11839
+  local opts = {
+    clear_env = false;
+    env = body.env;
+  }
+  local _ = log.debug() and log.debug('run_in_terminal', body.args, opts)
+  local win = api.nvim_get_current_win()
+  api.nvim_command('belowright new')
+  local jobid = vim.fn.termopen(body.args, opts)
+  api.nvim_set_current_win(win)
+  if jobid == 0 or jobid == -1 then
+    local _ = log.error() and log.error('Could not spawn terminal', jobid, request)
+    self:response(request, {
+      success = false;
+      message = 'Could not spawn terminal';
+    })
+  else
+    self:response(request, {
+      success = true;
+      body = {
+        processId = vim.fn.jobpid(jobid);
+      };
+    })
+  end
+end
+
+
 local function msg_with_content_length(msg)
   return table.concat {
     'Content-Length: ';
@@ -175,17 +204,18 @@ end
 
 
 function Session:event_initialized(_)
-  self.initialized = true
-  self:set_breakpoints('')
-
-  if self.capabilities.supportsConfigurationDoneRequest then
-    -- TODO: does the client have to wait for setBreakpoints response and so on?
-    self:request('configurationDone', nil, function(err1, _)
-      if err1 then
-        print(err1.message)
-      end
-    end)
-  end
+  self:set_breakpoints('', function()
+    if self.capabilities.supportsConfigurationDoneRequest then
+      self:request('configurationDone', nil, function(err1, _)
+        if err1 then
+          print(err1.message)
+        end
+        self.initialized = true
+      end)
+    else
+      self.initialized = true
+    end
+  end)
 end
 
 
@@ -291,8 +321,9 @@ function Session.event_output(_, body)
 end
 
 
-function Session:set_breakpoints(bufexpr)
+function Session:set_breakpoints(bufexpr, on_done)
   local bp_signs = vim.fn.sign_getplaced(bufexpr, {group = ns_breakpoints})
+  local num_bufs = #bp_signs
   for _, buf_bp_signs in pairs(bp_signs) do
     local breakpoints = {}
     local bufnr = buf_bp_signs.bufnr
@@ -304,9 +335,13 @@ function Session:set_breakpoints(bufexpr)
         breakpoints = breakpoints;
       },
       function (err1, _)
+        num_bufs = num_bufs - 1
         if err1 then
           print("Error setting breakpoints: " .. err1.message)
           return
+        end
+        if num_bufs == 0 then
+          on_done()
         end
       end
     )
@@ -334,6 +369,10 @@ function Session:handle_body(body)
     else
       local _ = log.warn() and log.warn('No event handler for ', decoded)
     end
+  elseif decoded.type == 'request' and decoded.command == 'runInTerminal' then
+    self:run_in_terminal(decoded)
+  else
+    local _ = log.warn() and log.warn('Received unexpected message', decoded)
   end
 end
 
@@ -453,7 +492,7 @@ function Session:request(command, arguments, callback)
     command = command;
     arguments = arguments
   }
-  local _ = log.debug() and log.debug(payload)
+  local _ = log.debug() and log.debug('request', payload)
   local current_seq = self.seq
   self.seq = self.seq + 1
   vim.schedule(function()
@@ -466,6 +505,20 @@ function Session:request(command, arguments, callback)
 end
 
 
+function Session:response(request, payload)
+  payload.seq = self.seq
+  self.seq = self.seq + 1
+  payload.type = 'response'
+  payload.request_seq = request.seq;
+  payload.command = request.command;
+  local _ = log.debug() and log.debug('response', payload)
+  vim.schedule(function()
+    local msg = msg_with_content_length(vim.fn.json_encode(payload))
+    self.client.write(msg)
+  end)
+end
+
+
 function Session:initialize(config)
   self:request('initialize', {
     clientId = 'neovim';
@@ -473,7 +526,7 @@ function Session:initialize(config)
     adapterID = 'nvim-dap';
     pathFormat = 'path';
     columnsStartAt1 = false;
-    supportsRunInTerminalRequest = false;
+    supportsRunInTerminalRequest = true;
     locale = os.getenv('LANG') or 'en_US';
   }, function(err0, result)
     if err0 then
