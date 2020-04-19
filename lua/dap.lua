@@ -535,7 +535,7 @@ function Session:initialize(config)
     clientname = 'neovim';
     adapterID = 'nvim-dap';
     pathFormat = 'path';
-    columnsStartAt1 = false;
+    columnsStartAt1 = true;
     supportsRunInTerminalRequest = true;
     locale = os.getenv('LANG') or 'en_US';
   }, function(err0, result)
