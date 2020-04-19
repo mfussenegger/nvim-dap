@@ -65,7 +65,7 @@ function M.execute(text)
     local frame = session.current_frame
     if frame then
       for _, scope in pairs(frame.scopes) do
-        append(scope.name)
+        append(string.format("%s  (frame: %s)", scope.name, frame.name))
         for _, variable in pairs(scope.variables) do
           append(string.rep(' ', 2) .. variable.name .. ': ' .. variable.value)
         end

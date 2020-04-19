@@ -229,6 +229,25 @@ function Session:event_initialized(_)
 end
 
 
+local function jump_to_frame(frame, preserve_focus_hint)
+  if not frame.source then
+    return
+  end
+  local bufnr = vim.uri_to_bufnr(vim.uri_from_fname(frame.source.path))
+  vim.fn.sign_unplace(ns_pos, { buffer = bufnr })
+  vim.fn.sign_place(0, ns_pos, 'DapStopped', bufnr, { lnum = frame.line; priority = 11 })
+  if preserve_focus_hint then
+    return
+  end
+  for _, win in pairs(api.nvim_list_wins()) do
+    if api.nvim_win_get_buf(win) == bufnr then
+      api.nvim_win_set_cursor(win, { frame.line, frame.column - 1 })
+      return
+    end
+  end
+end
+
+
 function Session:event_stopped(stopped)
   self.stopped_thread_id = stopped.threadId
   self:request('threads', nil, function(err0, threads_resp)
@@ -260,18 +279,7 @@ function Session:event_stopped(stopped)
       if not current_frame then
         return
       end
-      if current_frame.source then
-        local bufnr = vim.uri_to_bufnr(vim.uri_from_fname(current_frame.source.path))
-        vim.fn.sign_unplace(ns_pos, { buffer = bufnr })
-        vim.fn.sign_place(0, ns_pos, 'DapStopped', bufnr, { lnum = current_frame.line; priority = 11 })
-        if not stopped.preserveFocusHint then
-          for _, win in pairs(api.nvim_list_wins()) do
-            if api.nvim_win_get_buf(win) == bufnr then
-              api.nvim_win_set_cursor(win, { current_frame.line, current_frame.column - 1 })
-            end
-          end
-        end
-      end
+      jump_to_frame(current_frame, stopped.preserveFocusHint)
 
       self:request('scopes', { frameId = current_frame.id }, function(_, scopes_resp)
         if not scopes_resp or not scopes_resp.scopes then return end
