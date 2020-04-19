@@ -340,6 +340,19 @@ function Session.event_output(_, body)
 end
 
 
+local function remove_breakpoint_signs(bufnr, lnum)
+  local signs = vim.fn.sign_getplaced(bufnr, { group = ns_breakpoints; lnum = lnum; })[1].signs
+  if signs and #signs > 0 then
+    for _, sign in pairs(signs) do
+      vim.fn.sign_unplace(ns_breakpoints, { buffer = bufnr; id = sign.id; })
+    end
+    return true
+  else
+    return false
+  end
+end
+
+
 function Session:set_breakpoints(bufexpr, on_done)
   local bp_signs = vim.fn.sign_getplaced(bufexpr, {group = ns_breakpoints})
   local num_bufs = #bp_signs
@@ -349,18 +362,24 @@ function Session:set_breakpoints(bufexpr, on_done)
     for _, bp in pairs(buf_bp_signs.signs) do
       table.insert(breakpoints, { line = bp.lnum; })
     end
-    self:request('setBreakpoints', {
-        source = { path = vim.fn.expand('#' .. bufnr .. ':p'); };
-        breakpoints = breakpoints;
-      },
-      function (err1, _)
+    local payload = {
+      source = { path = vim.fn.expand('#' .. bufnr .. '.p'); };
+      breakpoints = breakpoints
+    }
+    self:request('setBreakpoints', payload, function (err1, resp)
         num_bufs = num_bufs - 1
+        if num_bufs == 0 and on_done then
+          on_done()
+        end
         if err1 then
           print("Error setting breakpoints: " .. err1.message)
           return
         end
-        if num_bufs == 0 and on_done then
-          on_done()
+        for _, bp in pairs(resp.breakpoints) do
+          if not bp.verified then
+            local _ = log.info() and log.info('Server rejected breakpoint at line', bp.line)
+            remove_breakpoint_signs(bufnr, bp.line)
+          end
         end
       end
     )
@@ -629,14 +648,9 @@ end
 
 function M.toggle_breakpoint()
   local bufnr = api.nvim_get_current_buf()
-  local row, _ = unpack(api.nvim_win_get_cursor(0))
-  local signs = vim.fn.sign_getplaced(bufnr, { group = ns_breakpoints; lnum = row; })[1].signs
-  if signs and #signs > 0 then
-    for _, sign in pairs(signs) do
-      vim.fn.sign_unplace(ns_breakpoints, { buffer = bufnr; id = sign.id; })
-    end
-  else
-    vim.fn.sign_place(0, ns_breakpoints, 'DapBreakpoint', bufnr, { lnum = row })
+  local lnum, _ = unpack(api.nvim_win_get_cursor(0))
+  if not remove_breakpoint_signs(bufnr, lnum) then
+    vim.fn.sign_place(0, ns_breakpoints, 'DapBreakpoint', bufnr, { lnum = lnum })
   end
   if session and session.initialized then
     session:set_breakpoints(bufnr)
