@@ -62,7 +62,7 @@ function M.execute(text)
   elseif text == '.out' then
     session:_step('stepOut')
   elseif text == '.scopes' then
-    local frame = session.threads.current_frame
+    local frame = session.current_frame
     if frame then
       for _, scope in pairs(frame.scopes) do
         append(scope.name)
@@ -70,6 +70,19 @@ function M.execute(text)
           append(string.rep(' ', 2) .. variable.name .. ': ' .. variable.value)
         end
       end
+    end
+  elseif text == '.threads' then
+    for _, thread in pairs(session.threads) do
+      if session.stopped_thread_id == thread.id then
+        append('→ ' .. thread.name)
+      else
+        append('  ' .. thread.name)
+      end
+    end
+  elseif text == '.frames' then
+    local frames = (session.threads[session.stopped_thread_id] or {}).frames
+    for _, frame in pairs(frames) do
+      append(frame.name)
     end
   else
     local lnum = vim.fn.line('$') - 1

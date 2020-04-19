@@ -248,11 +248,12 @@ function Session:event_stopped(stopped)
       end
       local frames = {}
       local current_frame = nil
+      self.current_frame = nil
       threads[stopped.threadId].frames = frames
       for _, frame in pairs(frames_resp.stackFrames) do
         if not current_frame then
           current_frame = frame
-          threads.current_frame = frame
+          self.current_frame = frame
         end
         frames[frame.id] = frame
       end
@@ -393,6 +394,7 @@ local function session_defaults()
     initialized = false;
     seq = 0;
     stopped_thread_id = nil;
+    current_frame = nil;
     threads = {};
   }
 end
@@ -559,7 +561,7 @@ function Session:evaluate(expression, fn)
   self:request('evaluate', {
     expression = expression;
     context = 'repl';
-    frameId = (self.threads.current_frame or {}).id;
+    frameId = (self.current_frame or {}).id;
   }, fn)
 end
 
@@ -704,7 +706,7 @@ function dap.omnifunc(findstart, base) -- luacheck: ignore 112
   })
 
   session:request('completions', {
-    frameId = (session.threads.current_frame or {}).id;
+    frameId = (session.current_frame or {}).id;
     text = line_to_cursor;
     column = col - offset;
   }, function(err, response)
