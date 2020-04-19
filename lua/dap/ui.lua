@@ -65,6 +65,9 @@ end
 
 
 function M.pick_one(items, prompt, label_fn)
+  if not items or #items == 0 then
+    return nil
+  end
   if #items == 1 then
     return items[1]
   end
