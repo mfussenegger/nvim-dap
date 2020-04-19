@@ -350,7 +350,7 @@ function Session:set_breakpoints(bufexpr, on_done)
           print("Error setting breakpoints: " .. err1.message)
           return
         end
-        if num_bufs == 0 then
+        if num_bufs == 0 and on_done then
           on_done()
         end
       end
