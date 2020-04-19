@@ -245,6 +245,15 @@ local function jump_to_frame(frame, preserve_focus_hint)
       return
     end
   end
+  -- Buffer isn't active in any window; use the first window that is not special
+  -- (Don't want to move to code in the REPL...)
+  for _, win in pairs(api.nvim_list_wins()) do
+    local winbuf = api.nvim_win_get_buf(win)
+    if api.nvim_buf_get_option(winbuf, 'buftype') == '' then
+      api.nvim_win_set_buf(win, bufnr)
+      api.nvim_win_set_cursor(win, { frame.line, frame.column - 1 })
+    end
+  end
 end
 
 
@@ -367,19 +376,19 @@ function Session:set_breakpoints(bufexpr, on_done)
       breakpoints = breakpoints
     }
     self:request('setBreakpoints', payload, function (err1, resp)
+        if err1 then
+          print("Error setting breakpoints: " .. err1.message)
+        else
+          for _, bp in pairs(resp.breakpoints) do
+            if not bp.verified then
+              local _ = log.info() and log.info('Server rejected breakpoint at line', bp.line)
+              remove_breakpoint_signs(bufnr, bp.line)
+            end
+          end
+        end
         num_bufs = num_bufs - 1
         if num_bufs == 0 and on_done then
           on_done()
-        end
-        if err1 then
-          print("Error setting breakpoints: " .. err1.message)
-          return
-        end
-        for _, bp in pairs(resp.breakpoints) do
-          if not bp.verified then
-            local _ = log.info() and log.info('Server rejected breakpoint at line', bp.line)
-            remove_breakpoint_signs(bufnr, bp.line)
-          end
         end
       end
     )
