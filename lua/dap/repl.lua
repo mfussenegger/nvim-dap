@@ -54,9 +54,13 @@ function M.execute(text)
     return
   end
   if text == '.continue' or text == '.c' then
-    session:continue()
+    session:_step('continue')
   elseif text == '.next' or text == '.n' then
-    session:next()
+    session:_step('next')
+  elseif text == '.into' then
+    session:_step('stepIn')
+  elseif text == '.out' then
+    session:_step('stepOut')
   elseif text == '.scopes' then
     local frame = session.threads.current_frame
     if frame then

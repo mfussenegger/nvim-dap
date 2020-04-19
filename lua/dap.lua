@@ -564,52 +564,35 @@ function Session:evaluate(expression, fn)
 end
 
 
-function Session:_reset_stopped()
-  local thread_id = self.stopped_thread_id
-  self.stopped_thread_id = nil
-  vim.fn.sign_unplace(ns_pos)
-  return thread_id
-end
-
-
-function Session:continue()
-  if not self.stopped_thread_id then
-    print('No stopped thread. Cannot continue')
-    return
-  end
-  local thread_id = self:_reset_stopped()
-  self:request('continue', { threadId = thread_id; }, function(err0, _)
-    if err0 then
-      print("Error continueing: " .. err0.message)
-    end
-  end)
-end
-
-function Session:next()
+function Session:_step(step)
   if not self.stopped_thread_id then
     print('No stopped thread. Cannot move')
     return
   end
-  local thread_id = self:_reset_stopped()
-  session:request('next', { threadId = thread_id; })
+  local thread_id = self.stopped_thread_id
+  self.stopped_thread_id = nil
+  vim.fn.sign_unplace(ns_pos)
+  session:request(step, { threadId = thread_id; }, function(err0, _)
+    if err0 then
+      print('Error on '.. step .. ': ' .. err0.message)
+    end
+  end)
 end
 
 
 function M.step_over()
   if not session then return end
-  session:next()
+  session:_step('next')
 end
 
 function M.step_into()
   if not session then return end
-
-  session:request('stepIn', { threadId = session.stopped_thread_id })
+  session:_step('stepIn')
 end
 
 function M.step_out()
   if not session then return end
-
-  session:request('stepOut', { threadId = session.stopped_thread_id })
+  session:_step('stepOut')
 end
 
 function M.stop()
@@ -655,7 +638,7 @@ function M.continue()
   if not session then
     launch_debug_adapter()
   else
-    session:continue()
+    session:_step('continue')
   end
 end
 
