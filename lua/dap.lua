@@ -88,6 +88,18 @@ local function expand_config_variables(option)
 end
 
 
+local function handle_adapter(adapter, configuration)
+  assert(type(adapter) == 'table', 'adapter must be a table, not' .. vim.inspect(adapter))
+  if adapter.type == 'executable' then
+    M.launch(adapter, configuration)
+  elseif adapter.type == 'server' then
+    M.attach(adapter.host, adapter.port, configuration)
+  else
+    print(string.format('Invalid adapter type %s, expected `executable` or `server`', adapter.type))
+  end
+end
+
+
 local function launch_debug_adapter()
   local filetype = api.nvim_buf_get_option(0, 'filetype')
   local configurations = M.configurations[filetype] or {}
@@ -100,13 +112,11 @@ local function launch_debug_adapter()
   configuration = vim.tbl_map(expand_config_variables, configuration)
   local adapter = M.adapters[configuration.type]
   if type(adapter) == 'table' then
-    if adapter.type == 'executable' then
-      M.launch(adapter, configuration)
-    elseif adapter.type == 'server' then
-      M.attach(adapter.host, adapter.port, configuration)
-    else
-      print(string.format('Invalid adapter type %s, expected `executable` or `server`', adapter.type))
-    end
+    handle_adapter(adapter, configuration)
+  elseif type(adapter) == 'function' then
+    adapter(function(resolved_adapter)
+      handle_adapter(resolved_adapter, configuration)
+    end)
   else
     print(string.format('Invalid adapter: %q', adapter))
   end

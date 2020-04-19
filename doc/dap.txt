@@ -64,6 +64,22 @@ For `server` the following options are supported:
     port:  number       -- port to connect to
 
 
+`dap.adapters.<name>` can also be set to a function which takes one argument.
+This argument is a callback which must be called with the adapter table.
+
+This can be used to defer the resolving of the values to when a configuration
+is used. An example use is java with eclipse.jdt.ls and java-debug, where the
+debug-adapter is spawned via a LSP command:
+>
+
+    dap.adapters.java = function(callback)
+      M.execute_command({command = 'vscode.java.startDebugSession'}, function(err0, port)
+        assert(not err0, vim.inspect(err0))
+
+        callback({ type = 'server'; host = '127.0.0.1'; port = port; })
+      end)
+    end
+<
 
 ==============================================================================
 DEBUGEE CONFIGURATION                                *dap-configuration*
