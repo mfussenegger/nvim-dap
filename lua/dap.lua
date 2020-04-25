@@ -109,13 +109,18 @@ local function launch_debug_adapter()
     return
   end
 
-  configuration = vim.tbl_map(expand_config_variables, configuration)
-  local adapter = M.adapters[configuration.type]
+  M.run(configuration)
+end
+
+
+function M.run(config)
+  config = vim.tbl_map(expand_config_variables, config)
+  local adapter = M.adapters[config.type]
   if type(adapter) == 'table' then
-    handle_adapter(adapter, configuration)
+    handle_adapter(adapter, config)
   elseif type(adapter) == 'function' then
     adapter(function(resolved_adapter)
-      handle_adapter(resolved_adapter, configuration)
+      handle_adapter(resolved_adapter, config)
     end)
   else
     print(string.format('Invalid adapter: %q', adapter))
