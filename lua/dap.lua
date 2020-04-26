@@ -579,6 +579,7 @@ function Session:initialize(config)
     adapterID = 'nvim-dap';
     pathFormat = 'path';
     columnsStartAt1 = true;
+    linesStartAt1 = true;
     supportsRunInTerminalRequest = true;
     locale = os.getenv('LANG') or 'en_US';
   }, function(err0, result)
