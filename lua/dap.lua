@@ -240,7 +240,7 @@ local function jump_to_frame(frame, preserve_focus_hint)
   end
   local bufnr = vim.uri_to_bufnr(vim.uri_from_fname(frame.source.path))
   vim.fn.sign_unplace(ns_pos, { buffer = bufnr })
-  vim.fn.sign_place(0, ns_pos, 'DapStopped', bufnr, { lnum = frame.line; priority = 11 })
+  vim.fn.sign_place(0, ns_pos, 'DapStopped', bufnr, { lnum = frame.line; priority = 12 })
   if preserve_focus_hint then
     return
   end
@@ -665,7 +665,7 @@ function M.toggle_breakpoint()
   local bufnr = api.nvim_get_current_buf()
   local lnum, _ = unpack(api.nvim_win_get_cursor(0))
   if not remove_breakpoint_signs(bufnr, lnum) then
-    vim.fn.sign_place(0, ns_breakpoints, 'DapBreakpoint', bufnr, { lnum = lnum })
+    vim.fn.sign_place(0, ns_breakpoints, 'DapBreakpoint', bufnr, { lnum = lnum; priority = 11; })
   end
   if session and session.initialized then
     session:set_breakpoints(bufnr)
