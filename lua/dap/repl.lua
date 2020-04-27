@@ -35,18 +35,18 @@ end
 local function append(line, lnum)
   if buf then
     vim.fn.appendbufline(buf, lnum or (vim.fn.line('$') - 1), line)
+    api.nvim_buf_set_option(buf, 'modified', false)
   end
-  api.nvim_command('set nomodified')
 end
 
 
 function M.execute(text)
   if text == '' then
-    api.nvim_command('set nomodified')
+    api.nvim_buf_set_option(buf, 'modified', false)
     return
   end
   if text == 'exit' or text == '.exit' then
-    api.nvim_command('set nomodified')
+    api.nvim_buf_set_option(buf, 'modified', false)
     api.nvim_command('close')
   end
   if not session then
