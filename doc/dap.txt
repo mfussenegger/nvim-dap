@@ -185,3 +185,35 @@ attach({host}, {port}, {config})                                 *dap.attach()*
 continue()                                                      *dap.continue()*
         Continue execution of the debugee, or if no debug session is active,
         start a new debug session based on available |dap-configuration|
+
+
+step_over()                                                    *dap.step_over()*
+        Requests the debugee to run again for one step.
+
+
+step_into()                                                    *dap.step_into()*
+        Requests the debugee to step into a function or method if possible.
+        If it cannot step into a function or method it behaves like
+        |dap.step_over()|.
+
+
+step_out()                                                      *dap.step_out()*
+        Requests the debugee to step out of a function or method if possible.
+
+
+repl()                                                              *dap.repl()*
+        Open a REPL / Debug-console.
+
+        The REPL can be used to evaluate expressions. A `omnifunc` is set to
+        support completion of expressions.
+
+        It supports the following special commands:
+
+          .exit               Closes the REPL
+          .c or .continue     Same as |dap.continue|
+          .n or .next         Same as |dap.step_over|
+          .into               Same as |dap.step_into|
+          .out                Same as |dap.step_out|
+          .scopes             Prints the variables in the current scopes
+          .threads            Prints all threads
+          .frames             Print the stack frames
