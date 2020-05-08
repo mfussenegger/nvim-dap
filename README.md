@@ -20,7 +20,7 @@
 - [x] stop
 - [x] evaluate expressions
 - [x] REPL
-- [x] threads, scopes and variables ui (bare minimum, in desperate need of improvements)
+- [x] threads, scopes and variables ui (via REPL commands)
 
 
 ![screenshot](images/screenshot.png)

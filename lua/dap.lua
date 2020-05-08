@@ -300,7 +300,6 @@ function Session:event_stopped(stopped)
         if not scopes_resp or not scopes_resp.scopes then return end
 
         current_frame.scopes = {}
-        local remaining = #scopes_resp.scopes
         for _, scope in pairs(scopes_resp.scopes) do
 
           table.insert(current_frame.scopes, scope)
@@ -309,12 +308,6 @@ function Session:event_stopped(stopped)
               if not variables_resp then return end
 
               scope.variables = variables_resp.variables
-              vim.schedule(function()
-                remaining = remaining - 1
-                if remaining == 0 then
-                  -- ui.threads_render(threads)
-                end
-              end)
             end)
           end
         end
@@ -327,7 +320,6 @@ end
 function Session:event_terminated()
   self:close()
   session = nil
-  ui.threads_clear()
 end
 
 function Session.event_exited()
