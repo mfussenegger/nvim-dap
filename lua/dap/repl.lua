@@ -32,9 +32,13 @@ function M.open()
 end
 
 
-local function append(line, lnum)
+function M.append(line, lnum)
   if buf then
-    vim.fn.appendbufline(buf, lnum or (vim.fn.line('$') - 1), line)
+    if api.nvim_get_current_win() == win and lnum == '$' then
+      lnum = nil
+    end
+    local lines = vim.split(line, '\n')
+    vim.fn.appendbufline(buf, lnum or (vim.fn.line('$') - 1), lines)
     api.nvim_buf_set_option(buf, 'modified', false)
   end
 end
@@ -50,7 +54,7 @@ function M.execute(text)
     api.nvim_command('close')
   end
   if not session then
-    append('No active debug session')
+    M.append('No active debug session')
     return
   end
   if text == '.continue' or text == '.c' then
@@ -65,32 +69,32 @@ function M.execute(text)
     local frame = session.current_frame
     if frame then
       for _, scope in pairs(frame.scopes) do
-        append(string.format("%s  (frame: %s)", scope.name, frame.name))
+        M.append(string.format("%s  (frame: %s)", scope.name, frame.name))
         for _, variable in pairs(scope.variables) do
-          append(string.rep(' ', 2) .. variable.name .. ': ' .. variable.value)
+          M.append(string.rep(' ', 2) .. variable.name .. ': ' .. variable.value)
         end
       end
     end
   elseif text == '.threads' then
     for _, thread in pairs(session.threads) do
       if session.stopped_thread_id == thread.id then
-        append('→ ' .. thread.name)
+        M.append('→ ' .. thread.name)
       else
-        append('  ' .. thread.name)
+        M.append('  ' .. thread.name)
       end
     end
   elseif text == '.frames' then
     local frames = (session.threads[session.stopped_thread_id] or {}).frames
     for _, frame in pairs(frames) do
-      append(frame.name)
+      M.append(frame.name)
     end
   else
     local lnum = vim.fn.line('$') - 1
     session:evaluate(text, function(err, resp)
       if err then
-        append(err.message, lnum)
+        M.append(err.message, lnum)
       else
-        append(resp.result, lnum)
+        M.append(resp.result, lnum)
       end
     end)
   end

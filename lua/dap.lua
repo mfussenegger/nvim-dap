@@ -346,12 +346,7 @@ function Session.event_continued()
 end
 
 function Session.event_output(_, body)
-  -- No output window yet, log for now.
-  if body.category == 'stderr' then
-    local _ = log.error() and log.error("output", body.output)
-  else
-    local _ = log.info() and log.info("output", body.output)
-  end
+  repl.append(body.output, '$')
 end
 
 
