@@ -684,7 +684,7 @@ end
 
 
 function M.repl()
-  require('dap.repl').open()
+  repl.open()
 end
 
 

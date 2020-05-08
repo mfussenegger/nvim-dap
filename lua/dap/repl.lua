@@ -99,6 +99,9 @@ end
 
 function M.set_session(s)
   session = s
+  if s and buf and api.nvim_buf_is_loaded(buf) then
+    api.nvim_buf_set_lines(buf, 0, -1, true, {})
+  end
 end
 
 
