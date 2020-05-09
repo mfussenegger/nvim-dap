@@ -5,6 +5,16 @@ local win = nil
 local buf = nil
 local session = nil
 
+M.commands = {
+  continue = {'.continue', '.c'},
+  next_ = {'.next', '.n'},
+  into = {'.into'},
+  out = {'.out'},
+  scopes = {'.scopes'},
+  threads = {'.threads'},
+  frames = {'.frames'},
+  exit = {'exit', '.exit'},
+}
 
 function M.open()
   if win and api.nvim_win_is_valid(win) and api.nvim_win_get_buf(win) == buf then
@@ -49,7 +59,7 @@ function M.execute(text)
     api.nvim_buf_set_option(buf, 'modified', false)
     return
   end
-  if text == 'exit' or text == '.exit' then
+  if vim.tbl_contains(M.commands.exit, text) then
     api.nvim_buf_set_option(buf, 'modified', false)
     api.nvim_command('close')
   end
@@ -57,15 +67,15 @@ function M.execute(text)
     M.append('No active debug session')
     return
   end
-  if text == '.continue' or text == '.c' then
+  if vim.tbl_contains(M.commands.continue, text) then
     session:_step('continue')
-  elseif text == '.next' or text == '.n' then
+  elseif vim.tbl_contains(M.commands.next_, text) then
     session:_step('next')
-  elseif text == '.into' then
+  elseif vim.tbl_contains(M.commands.into, text) then
     session:_step('stepIn')
-  elseif text == '.out' then
+  elseif vim.tbl_contains(M.commands.out, text) then
     session:_step('stepOut')
-  elseif text == '.scopes' then
+  elseif vim.tbl_contains(M.commands.scopes, text) then
     local frame = session.current_frame
     if frame then
       for _, scope in pairs(frame.scopes) do
@@ -75,7 +85,7 @@ function M.execute(text)
         end
       end
     end
-  elseif text == '.threads' then
+  elseif vim.tbl_contains(M.commands.threads, text) then
     for _, thread in pairs(session.threads) do
       if session.stopped_thread_id == thread.id then
         M.append('→ ' .. thread.name)
@@ -83,7 +93,7 @@ function M.execute(text)
         M.append('  ' .. thread.name)
       end
     end
-  elseif text == '.frames' then
+  elseif vim.tbl_contains(M.commands.frames, text) then
     local frames = (session.threads[session.stopped_thread_id] or {}).frames
     for _, frame in pairs(frames) do
       M.append(frame.name)

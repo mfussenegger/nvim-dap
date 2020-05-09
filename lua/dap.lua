@@ -12,6 +12,8 @@ local ns_pos = 'dap_pos'
 local Session = {}
 local session = nil
 
+M.repl = repl
+
 --- For extension of language specific debug adapters.
 --
 -- `adapters.<type>` where <type> is specified in a configuration.
@@ -667,11 +669,6 @@ function M.continue()
   else
     session:_step('continue')
   end
-end
-
-
-function M.repl()
-  repl.open()
 end
 
 
