@@ -200,6 +200,12 @@ step_into()                                                    *dap.step_into()*
 step_out()                                                      *dap.step_out()*
         Requests the debugee to step out of a function or method if possible.
 
+up()                                                                  *dap.up()*
+        Go up in current stacktrace without stepping.
+
+down()                                                              *dap.down()*
+        Go down in current stacktrace without stepping.
+
 
 repl.open()                                                    *dap.repl.open()*
         Open a REPL / Debug-console.
@@ -214,6 +220,8 @@ repl.open()                                                    *dap.repl.open()*
           .n or .next         Same as |dap.step_over|
           .into               Same as |dap.step_into|
           .out                Same as |dap.step_out|
+          .up                 Same as |dap.up|
+          .down               Same as |dap.down|
           .scopes             Prints the variables in the current scopes
           .threads            Prints all threads
           .frames             Print the stack frames
@@ -229,5 +237,7 @@ repl.open()                                                    *dap.repl.open()*
             threads = {'.threads'},
             frames = {'.frames'},
             exit = {'exit', '.exit'},
+            up = {'.up'},
+            down = {'.down'},
           }
 }

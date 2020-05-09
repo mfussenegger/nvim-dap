@@ -81,6 +81,14 @@ local function expand_config_variables(option)
   return ret
 end
 
+local function index_of(items, predicate)
+  for i, item in ipairs(items) do
+    if predicate(item) then
+      return i
+    end
+  end
+  return nil
+end
 
 local function handle_adapter(adapter, configuration)
   assert(type(adapter) == 'table', 'adapter must be a table, not' .. vim.inspect(adapter))
@@ -283,29 +291,14 @@ function Session:event_stopped(stopped)
           current_frame = frame
           self.current_frame = frame
         end
-        frames[frame.id] = frame
+        table.insert(frames, frame)
       end
       if not current_frame then
         return
       end
       jump_to_frame(current_frame, stopped.preserveFocusHint)
 
-      self:request('scopes', { frameId = current_frame.id }, function(_, scopes_resp)
-        if not scopes_resp or not scopes_resp.scopes then return end
-
-        current_frame.scopes = {}
-        for _, scope in pairs(scopes_resp.scopes) do
-
-          table.insert(current_frame.scopes, scope)
-          if not scope.expensive then
-            self:request('variables', { variablesReference = scope.variablesReference }, function(_, variables_resp)
-              if not variables_resp then return end
-
-              scope.variables = variables_resp.variables
-            end)
-          end
-        end
-      end)
+      self:_request_scopes(current_frame)
     end)
   end)
 end
@@ -335,6 +328,39 @@ function Session.event_output(_, body)
   repl.append(body.output, '$')
 end
 
+function Session:_request_scopes(current_frame)
+  self:request('scopes', { frameId = current_frame.id }, function(_, scopes_resp)
+    if not scopes_resp or not scopes_resp.scopes then return end
+
+    current_frame.scopes = {}
+    for _, scope in pairs(scopes_resp.scopes) do
+
+      table.insert(current_frame.scopes, scope)
+      if not scope.expensive then
+        self:request('variables', { variablesReference = scope.variablesReference }, function(_, variables_resp)
+          if not variables_resp then return end
+
+          scope.variables = variables_resp.variables
+        end)
+      end
+    end
+  end)
+end
+
+function Session:_frame_delta(delta)
+  if self.stopped_thread_id and self.threads[self.stopped_thread_id].frames then
+    local frames = self.threads[self.stopped_thread_id].frames
+    local current_frame_index = index_of(frames, function(i) return i.id == self.current_frame.id end)
+
+    current_frame_index = current_frame_index + delta
+    if 0 < current_frame_index and current_frame_index <= #frames then
+      self.current_frame = frames[current_frame_index]
+
+      jump_to_frame(self.current_frame, true)
+      self:_request_scopes(self.current_frame)
+    end
+  end
+end
 
 local function remove_breakpoint_signs(bufnr, lnum)
   local signs = vim.fn.sign_getplaced(bufnr, { group = ns_breakpoints; lnum = lnum; })[1].signs
@@ -625,6 +651,18 @@ function M.stop()
   if session then
     session:close()
     session = nil
+  end
+end
+
+function M.up()
+  if session then
+    session:_frame_delta(1)
+  end
+end
+
+function M.down()
+  if session then
+    session:_frame_delta(-1)
   end
 end
 

@@ -14,7 +14,20 @@ M.commands = {
   threads = {'.threads'},
   frames = {'.frames'},
   exit = {'exit', '.exit'},
+  up = {'.up'},
+  down = {'.down'},
 }
+
+function M.print_stackframes()
+  local frames = (session.threads[session.stopped_thread_id] or {}).frames
+  for _, frame in pairs(frames) do
+    if frame.id == session.current_frame.id then
+       M.append('→ '..frame.name)
+    else
+       M.append('  '..frame.name)
+    end
+  end
+end
 
 function M.open()
   if win and api.nvim_win_is_valid(win) and api.nvim_win_get_buf(win) == buf then
@@ -75,6 +88,12 @@ function M.execute(text)
     session:_step('stepIn')
   elseif vim.tbl_contains(M.commands.out, text) then
     session:_step('stepOut')
+  elseif vim.tbl_contains(M.commands.up, text) then
+    session:_frame_delta(1)
+    M.print_stackframes()
+  elseif vim.tbl_contains(M.commands.down, text) then
+    session:_frame_delta(-1)
+    M.print_stackframes()
   elseif vim.tbl_contains(M.commands.scopes, text) then
     local frame = session.current_frame
     if frame then
@@ -94,10 +113,7 @@ function M.execute(text)
       end
     end
   elseif vim.tbl_contains(M.commands.frames, text) then
-    local frames = (session.threads[session.stopped_thread_id] or {}).frames
-    for _, frame in pairs(frames) do
-      M.append(frame.name)
-    end
+    M.print_stackframes()
   else
     local lnum = vim.fn.line('$') - 1
     session:evaluate(text, function(err, resp)
