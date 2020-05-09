@@ -26,11 +26,6 @@ M.repl = repl
 --    args = {'-m', 'debugpy.adapter' };
 -- }
 --
--- TODO:
---  Support functions like:
---
---    require('dap').adapters.java = function(callback) ... end
---
 M.adapters = {}
 
 
@@ -61,9 +56,6 @@ M.adapters = {}
 --  }
 -- }
 --
--- TODO:
---  - config file support (like .vscode/launch.json)
---  - dynamic configurations (In java you could have a mainclass discovery that creates launch configurations)
 M.configurations = {}
 
 
