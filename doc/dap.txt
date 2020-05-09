@@ -154,7 +154,7 @@ Some example mappings:
     nnoremap <silent> <F11> :lua require'dap'.step_into()<CR>
     nnoremap <silent> <F12> :lua require'dap'.step_out()<CR>
     nnoremap <silent> <leader>b :lua require'dap'.toggle_breakpoint()<CR>
-    nnoremap <silent> <leader>dr :lua require'dap'.repl()<CR>
+    nnoremap <silent> <leader>dr :lua require'dap'.repl.open()<CR>
 
 
 ==============================================================================
@@ -201,7 +201,7 @@ step_out()                                                      *dap.step_out()*
         Requests the debugee to step out of a function or method if possible.
 
 
-repl()                                                              *dap.repl()*
+repl.open()                                                    *dap.repl.open()*
         Open a REPL / Debug-console.
 
         The REPL can be used to evaluate expressions. A `omnifunc` is set to
@@ -217,3 +217,17 @@ repl()                                                              *dap.repl()*
           .scopes             Prints the variables in the current scopes
           .threads            Prints all threads
           .frames             Print the stack frames
+
+        You can customize the commands by overriding `dap.repl.commands`:
+        >
+          dap.repl.commands = {
+            continue = {'.continue', '.c'},
+            next_ = {'.next', '.n'},
+            into = {'.into'},
+            out = {'.out'},
+            scopes = {'.scopes'},
+            threads = {'.threads'},
+            frames = {'.frames'},
+            exit = {'exit', '.exit'},
+          }
+}
