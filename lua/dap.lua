@@ -339,7 +339,7 @@ function Session:event_stopped(stopped)
       jump_to_frame(current_frame, stopped.preserveFocusHint)
 
       if vim.g.dap_virtual_text == 'all frames' then
-        virtual_text.clear_virtual_text()
+        virtual_text.clear_virtual_text(current_frame)
         local requested_functions = {}
         for _, f in pairs(frames) do
           -- Ensure to evaluate the same function only once to avoid race conditions
@@ -382,10 +382,10 @@ function Session.event_output(_, body)
 end
 
 function Session:_request_scopes(current_frame)
-  if vim.g.dap_virtual_text ~= 'all frames' then
-    virtual_text.clear_virtual_text()
-  end
   self:request('scopes', { frameId = current_frame.id }, function(_, scopes_resp)
+    if vim.g.dap_virtual_text ~= 'all frames' then
+      virtual_text.clear_virtual_text(current_frame)
+    end
     if not scopes_resp or not scopes_resp.scopes then return end
 
     current_frame.scopes = {}
