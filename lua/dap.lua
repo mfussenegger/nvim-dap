@@ -6,6 +6,7 @@ local api = vim.api
 local log = require('dap.log').create_logger('vim-dap.log')
 local ui = require('dap.ui')
 local repl = require('dap.repl')
+local virtual_text = require('dap.virtual_text')
 local M = {}
 local ns_breakpoints = 'dap_breakpoints'
 local ns_pos = 'dap_pos'
@@ -15,6 +16,7 @@ local bp_conditions = {}
 local last_config = nil
 
 M.repl = repl
+M.virtual_text = virtual_text
 
 --- For extension of language specific debug adapters.
 --
@@ -336,7 +338,20 @@ function Session:event_stopped(stopped)
       end
       jump_to_frame(current_frame, stopped.preserveFocusHint)
 
-      self:_request_scopes(current_frame)
+      if vim.g.dap_virtual_text == 'all frames' then
+        virtual_text.clear_virtual_text()
+        local requested_functions = {}
+        for _, f in pairs(frames) do
+          -- Ensure to evaluate the same function only once to avoid race conditions
+          if not requested_functions[f.name] then
+            self:_request_scopes(f)
+            requested_functions[f.name] = true
+          end
+        end
+
+      else
+        self:_request_scopes(current_frame)
+      end
     end)
   end)
 end
@@ -367,6 +382,9 @@ function Session.event_output(_, body)
 end
 
 function Session:_request_scopes(current_frame)
+  if vim.g.dap_virtual_text ~= 'all frames' then
+    virtual_text.clear_virtual_text()
+  end
   self:request('scopes', { frameId = current_frame.id }, function(_, scopes_resp)
     if not scopes_resp or not scopes_resp.scopes then return end
 
@@ -379,6 +397,9 @@ function Session:_request_scopes(current_frame)
           if not variables_resp then return end
 
           scope.variables = variables_resp.variables
+          if vim.g.dap_virtual_text then
+            virtual_text.set_virtual_text(current_frame)
+          end
         end)
       end
     end
@@ -653,6 +674,7 @@ function Session:close()
   self.message_callbacks = nil
   self.client.close()
   repl.set_session(nil)
+  virtual_text.clear_virtual_text()
 end
 
 
