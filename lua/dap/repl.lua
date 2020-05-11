@@ -73,8 +73,12 @@ function M.execute(text)
     return
   end
   if vim.tbl_contains(M.commands.exit, text) then
+    if session then
+      session:disconnect()
+    end
     api.nvim_buf_set_option(buf, 'modified', false)
     api.nvim_command('close')
+    return
   end
   if not session then
     M.append('No active debug session')

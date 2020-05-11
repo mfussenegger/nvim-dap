@@ -526,7 +526,11 @@ function Session:spawn(adapter)
       end
     end;
   }
-  stdout:read_start(create_read_loop(function(body) session:handle_body(body) end))
+  stdout:read_start(create_read_loop(function(body)
+    if session then
+      session:handle_body(body)
+    end
+  end))
   stderr:read_start(function(err, chunk)
     assert(not err, err)
     if chunk then
@@ -613,6 +617,14 @@ function Session:evaluate(expression, fn)
     context = 'repl';
     frameId = (self.current_frame or {}).id;
   }, fn)
+end
+
+
+function Session:disconnect()
+  self:request('disconnect', {
+    restart = false,
+    terminateDebuggee = true;
+  })
 end
 
 
