@@ -357,6 +357,35 @@ function Session:_request_scopes(current_frame)
   end)
 end
 
+--- Goto specified line (source and col are optional)
+function Session:_goto(line, source, col)
+  local frame = self.current_frame
+  if not frame then
+    return
+  end
+  if not self.capabilities.supportsGotoTargetsRequest then
+    print("Debug Adapter doesn't support GotoTargetRequest")
+    return
+  end
+  self:request('gotoTargets',  {source = source or frame.source, line = line, col = col}, function(err, response)
+    if err then
+      print('Error getting gotoTargets: ' .. err.message)
+      return
+    end
+    if not response or not response.targets then
+      print("No goto targets available. Can't execute goto")
+      return
+    end
+    local params = {threadId = session.stopped_thread_id, targetId = response.targets[1].id }
+    self:request('goto', params, function(err1, _)
+      if err1 then
+        print('Error executing goto: ' .. err1.message)
+      end
+    end)
+  end)
+
+end
+
 function Session:_frame_delta(delta)
   if not self.stopped_thread_id then
     print('Cannot move frame if not stopped')
@@ -711,6 +740,18 @@ end
 function M.down()
   if session then
     session:_frame_delta(-1)
+  end
+end
+
+function M.goto_(line)
+  if session then
+    local source, col
+    if not line then
+      line, col = unpack(api.nvim_win_get_cursor(0))
+      col = col + 1
+      source = { path = vim.uri_from_bufnr(0) }
+    end
+    session:_goto(line, source, col)
   end
 end
 

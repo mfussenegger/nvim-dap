@@ -17,6 +17,7 @@ M.commands = {
   exit = {'exit', '.exit'},
   up = {'.up'},
   down = {'.down'},
+  goto_ = {'.goto'}
 }
 
 function M.print_stackframes()
@@ -105,6 +106,11 @@ function M.execute(text)
   elseif vim.tbl_contains(M.commands.down, text) then
     session:_frame_delta(-1)
     M.print_stackframes()
+  elseif vim.tbl_contains(M.commands.goto_, vim.split(text, ' ')[1]) then
+    local split = vim.split(text, ' ')
+    if split[2] then
+      session:_goto(tonumber(split[2]))
+    end
   elseif vim.tbl_contains(M.commands.scopes, text) then
     local frame = session.current_frame
     if frame then

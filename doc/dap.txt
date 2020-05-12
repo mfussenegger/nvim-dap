@@ -207,6 +207,13 @@ down()                                                              *dap.down()*
         Go down in current stacktrace without stepping.
 
 
+goto_({line})                                                      *dap.goto_()*
+        Let the debugger jump to a specific line or line under cursor.
+
+        Parameters: ~
+            {line}  Line number or line under cursor if nil.
+
+
 repl.open()                                                    *dap.repl.open()*
         Open a REPL / Debug-console.
 
