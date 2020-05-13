@@ -357,18 +357,24 @@ function Session:_request_scopes(current_frame)
 end
 
 function Session:_frame_delta(delta)
-  if self.stopped_thread_id and self.threads[self.stopped_thread_id].frames then
-    local frames = self.threads[self.stopped_thread_id].frames
-    local current_frame_index = index_of(frames, function(i) return i.id == self.current_frame.id end)
-
-    current_frame_index = current_frame_index + delta
-    if 0 < current_frame_index and current_frame_index <= #frames then
-      self.current_frame = frames[current_frame_index]
-
-      jump_to_frame(self.current_frame, true)
-      self:_request_scopes(self.current_frame)
-    end
+  if not self.stopped_thread_id then
+    print('Cannot move frame if not stopped')
+    return
   end
+  local frames = self.threads[self.stopped_thread_id].frames
+  assert(frames, 'Stopped thread must have frames')
+  local current_frame_index = index_of(frames, function(i) return i.id == self.current_frame.id end)
+  assert(current_frame_index, 'id of current frame must be present in frames')
+
+  current_frame_index = current_frame_index + delta
+  if current_frame_index < 1 then
+    current_frame_index = #frames
+  elseif current_frame_index > #frames then
+    current_frame_index = 1
+  end
+  self.current_frame = frames[current_frame_index]
+  jump_to_frame(self.current_frame, true)
+  self:_request_scopes(self.current_frame)
 end
 
 local function remove_breakpoint_signs(bufnr, lnum)
