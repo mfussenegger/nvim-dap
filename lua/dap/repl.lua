@@ -4,6 +4,7 @@ local M = {}
 local win = nil
 local buf = nil
 local session = nil
+local last_cmd = nil
 
 M.commands = {
   continue = {'.continue', '.c'},
@@ -69,8 +70,14 @@ end
 
 function M.execute(text)
   if text == '' then
-    api.nvim_buf_set_option(buf, 'modified', false)
-    return
+    if last_cmd then
+      text = last_cmd
+    else
+      api.nvim_buf_set_option(buf, 'modified', false)
+      return
+    end
+  else
+    last_cmd = text
   end
   if vim.tbl_contains(M.commands.exit, text) then
     if session then
@@ -133,6 +140,7 @@ end
 
 function M.set_session(s)
   session = s
+  last_cmd = nil
   if s and buf and api.nvim_buf_is_loaded(buf) then
     api.nvim_buf_set_lines(buf, 0, -1, true, {})
   end
