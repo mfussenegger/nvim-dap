@@ -240,11 +240,21 @@ local function jump_to_frame(frame, preserve_focus_hint)
   if not frame.source then
     return
   end
-  local bufnr = vim.uri_to_bufnr(vim.uri_from_fname(frame.source.path))
-  vim.fn.sign_unplace(ns_pos, { buffer = bufnr })
-  vim.fn.sign_place(0, ns_pos, 'DapStopped', bufnr, { lnum = frame.line; priority = 12 })
+  local scheme = frame.source.path:match('^([a-z]+)://.*')
+  local bufnr
+  if scheme then
+    bufnr = vim.uri_to_bufnr(frame.source.path)
+  else
+    bufnr = vim.uri_to_bufnr(vim.uri_from_fname(frame.source.path))
+  end
+  vim.fn.sign_unplace(ns_pos)
   if preserve_focus_hint then
     return
+  end
+  vim.fn.bufload(bufnr)
+  local ok, failure = pcall(vim.fn.sign_place, 0, ns_pos, 'DapStopped', bufnr, { lnum = frame.line; priority = 12 })
+  if not ok then
+    print(failure)
   end
   for _, win in pairs(api.nvim_list_wins()) do
     if api.nvim_win_get_buf(win) == bufnr then
@@ -257,7 +267,6 @@ local function jump_to_frame(frame, preserve_focus_hint)
   for _, win in pairs(api.nvim_list_wins()) do
     local winbuf = api.nvim_win_get_buf(win)
     if api.nvim_buf_get_option(winbuf, 'buftype') == '' then
-      vim.fn.bufload(bufnr)
       api.nvim_win_set_buf(win, bufnr)
       api.nvim_win_set_cursor(win, { frame.line, frame.column - 1 })
     end
