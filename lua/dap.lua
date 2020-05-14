@@ -90,6 +90,7 @@ local function index_of(items, predicate)
   return nil
 end
 
+
 local function handle_adapter(adapter, configuration)
   assert(type(adapter) == 'table', 'adapter must be a table, not' .. vim.inspect(adapter))
   if adapter.type == 'executable' then
@@ -221,7 +222,7 @@ end
 
 
 function Session:event_initialized(_)
-  self:set_breakpoints('', function()
+  self:set_breakpoints(nil, function()
     if self.capabilities.supportsConfigurationDoneRequest then
       self:request('configurationDone', nil, function(err1, _)
         if err1 then
@@ -390,9 +391,29 @@ local function remove_breakpoint_signs(bufnr, lnum)
 end
 
 
+local function get_breakpoint_signs(bufexpr)
+  if bufexpr then
+    return vim.fn.sign_getplaced(bufexpr, {group = ns_breakpoints})
+  end
+  local bufs_with_signs = vim.fn.sign_getplaced()
+  local result = {}
+  for _, buf_signs in ipairs(bufs_with_signs) do
+    buf_signs = vim.fn.sign_getplaced(buf_signs.bufnr, {group = ns_breakpoints})[1]
+    if #buf_signs.signs > 0 then
+      table.insert(result, buf_signs)
+    end
+  end
+  return result
+end
+
+
 function Session:set_breakpoints(bufexpr, on_done)
-  local bp_signs = vim.fn.sign_getplaced(bufexpr, {group = ns_breakpoints})
+  local bp_signs = get_breakpoint_signs(bufexpr)
   local num_bufs = #bp_signs
+  if num_bufs == 0 then
+    on_done()
+    return
+  end
   for _, buf_bp_signs in pairs(bp_signs) do
     local breakpoints = {}
     local bufnr = buf_bp_signs.bufnr
@@ -403,7 +424,7 @@ function Session:set_breakpoints(bufexpr, on_done)
       source = { path = vim.fn.expand('#' .. bufnr .. '.p'); };
       breakpoints = breakpoints
     }
-    self:request('setBreakpoints', payload, function (err1, resp)
+    self:request('setBreakpoints', payload, function(err1, resp)
         if err1 then
           print("Error setting breakpoints: " .. err1.message)
         else

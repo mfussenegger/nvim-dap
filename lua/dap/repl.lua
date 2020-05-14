@@ -20,7 +20,7 @@ M.commands = {
 }
 
 function M.print_stackframes()
-  local frames = (session.threads[session.stopped_thread_id] or {}).frames
+  local frames = (session.threads[session.stopped_thread_id] or {}).frames or {}
   for _, frame in pairs(frames) do
     if frame.id == session.current_frame.id then
        M.append('→ '..frame.name)
