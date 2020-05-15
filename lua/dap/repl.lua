@@ -37,6 +37,8 @@ function M.open()
   end
   if not buf then
     buf = api.nvim_create_buf(true, true)
+    vim.cmd('autocmd TextChanged <buffer='..buf..'> :setlocal nomodified')
+    vim.cmd('autocmd TextChangedI <buffer='..buf..'> :setlocal nomodified')
     api.nvim_buf_set_name(buf, '[dap-repl]')
     api.nvim_buf_set_option(buf, 'buftype', 'prompt')
     api.nvim_buf_set_option(buf, 'omnifunc', 'v:lua.dap.omnifunc')
@@ -150,6 +152,7 @@ function M.set_session(s)
   if s and buf and api.nvim_buf_is_loaded(buf) then
     api.nvim_buf_set_lines(buf, 0, -1, true, {})
   end
+  api.nvim_buf_set_option(buf, 'modified', false)
 end
 
 
