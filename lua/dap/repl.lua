@@ -43,6 +43,12 @@ function M.open()
     vim.fn.prompt_setprompt(buf, 'dap> ')
     vim.fn.prompt_setcallback(buf, 'dap#repl_execute')
     api.nvim_buf_attach(buf, false, {
+      on_lines = function(b)
+        api.nvim_buf_set_option(b, 'modified', false)
+      end;
+      on_changedtick = function(b)
+        api.nvim_buf_set_option(b, 'modified', false)
+      end;
       on_detach = function()
         buf = nil
         return true
@@ -64,7 +70,6 @@ function M.append(line, lnum)
     end
     local lines = vim.split(line, '\n')
     vim.fn.appendbufline(buf, lnum or (vim.fn.line('$') - 1), lines)
-    api.nvim_buf_set_option(buf, 'modified', false)
   end
 end
 
@@ -74,7 +79,6 @@ function M.execute(text)
     if last_cmd then
       text = last_cmd
     else
-      api.nvim_buf_set_option(buf, 'modified', false)
       return
     end
   else
@@ -84,7 +88,6 @@ function M.execute(text)
     if session then
       session:disconnect()
     end
-    api.nvim_buf_set_option(buf, 'modified', false)
     api.nvim_command('close')
     return
   end
