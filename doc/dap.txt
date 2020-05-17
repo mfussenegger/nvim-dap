@@ -229,6 +229,7 @@ repl.open()                                                    *dap.repl.open()*
           .out                Same as |dap.step_out|
           .up                 Same as |dap.up|
           .down               Same as |dap.down|
+          .goto               Same as |dap.goto_|
           .scopes             Prints the variables in the current scopes
           .threads            Prints all threads
           .frames             Print the stack frames
@@ -246,5 +247,6 @@ repl.open()                                                    *dap.repl.open()*
             exit = {'exit', '.exit'},
             up = {'.up'},
             down = {'.down'},
+            goto_ = {'.goto'},
           }
 }
