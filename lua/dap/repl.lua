@@ -4,7 +4,13 @@ local M = {}
 local win = nil
 local buf = nil
 local session = nil
-local last_cmd = nil
+
+
+local history = {
+  last = nil,
+  entries = {},
+  idx = 1
+}
 
 
 local frames_ns = api.nvim_create_namespace('dap.repl.frames')
@@ -55,6 +61,8 @@ function M.open()
     api.nvim_buf_set_option(buf, 'buftype', 'prompt')
     api.nvim_buf_set_option(buf, 'omnifunc', 'v:lua.dap.omnifunc')
     api.nvim_buf_set_keymap(buf, 'n', '<CR>', "<Cmd>lua require('dap').repl.on_enter()<CR>", {})
+    api.nvim_buf_set_keymap(buf, 'i', '<up>', "<Cmd>lua require('dap').repl.on_up()<CR>", {})
+    api.nvim_buf_set_keymap(buf, 'i', '<down>', "<Cmd>lua require('dap').repl.on_down()<CR>", {})
     vim.fn.prompt_setprompt(buf, 'dap> ')
     vim.fn.prompt_setcallback(buf, 'dap#repl_execute')
     api.nvim_buf_attach(buf, false, {
@@ -95,6 +103,31 @@ function M.on_enter()
 end
 
 
+local function select_history(delta)
+  if not buf then
+    return
+  end
+  history.idx = history.idx + delta
+  if history.idx < 1 then
+    history.idx = #history.entries
+  elseif history.idx > #history.entries then
+    history.idx = 1
+  end
+  local text = history.entries[history.idx]
+  local lnum = vim.fn.line('$') - 1
+  api.nvim_buf_set_lines(buf, lnum, lnum + 1, true, {'dap> ' .. text })
+end
+
+
+function M.on_up()
+  select_history(-1)
+end
+
+function M.on_down()
+  select_history(1)
+end
+
+
 function M.append(line, lnum)
   if buf then
     if api.nvim_get_current_win() == win and lnum == '$' then
@@ -111,13 +144,15 @@ end
 
 function M.execute(text)
   if text == '' then
-    if last_cmd then
-      text = last_cmd
+    if history.last then
+      text = history.last
     else
       return
     end
   else
-    last_cmd = text
+    history.last = text
+    table.insert(history.entries, text)
+    history.idx = #history.entries + 1
   end
   if vim.tbl_contains(M.commands.exit, text) then
     if session then
@@ -184,7 +219,9 @@ end
 
 function M.set_session(s)
   session = s
-  last_cmd = nil
+  history.last = nil
+  history.entries = {}
+  history.idx = 1
   if s and buf and api.nvim_buf_is_loaded(buf) then
     api.nvim_buf_set_lines(buf, 0, -1, true, {})
   end
