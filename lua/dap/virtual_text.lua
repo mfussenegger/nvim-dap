@@ -4,28 +4,11 @@ M = {}
 local hl_namespace
 local api = vim.api
 
-local require_ok, locals = pcall(require, "nvim-treesitter.locals")
-local require_ok, utils = pcall(require, "nvim-treesitter.utils")
+local _, locals = pcall(require, "nvim-treesitter.locals")
+local require_ok, utils = pcall(require, "nvim-treesitter.ts_utils")
 
 if not hl_namespace then
   hl_namespace = api.nvim_create_namespace("dap.treesitter")
-end
-
-local function is_in_node_range(node, line, col)
-  local start_line, start_col, end_line, end_col = node:range()
-  if line >= start_line and line <= end_line then
-    if line == start_line and line == end_line then
-      return col >= start_col and col < end_col
-    elseif line == start_line then
-      return col >= start_col
-    elseif line == end_line then
-      return col < end_col
-    else
-      return true
-    end
-  else
-    return false
-  end
 end
 
 function M.set_virtual_text(stackframe)
@@ -49,7 +32,7 @@ function M.set_virtual_text(stackframe)
 
   local virtual_text = {}
   for _, d in pairs(definition_nodes) do
-    if d and d.var then -- is definition and is variable definition?
+    if d and d.var and d.var.node then -- is definition and is variable definition?
       local node = d.var.node
       local name = utils.get_node_text(node, buf)[1]
       local var_line, var_col = node:start()
@@ -60,7 +43,7 @@ function M.set_virtual_text(stackframe)
         -- is this name really the local or is it in another scope?
         local in_scope = true
         for _, scope in ipairs(scope_nodes) do
-          if is_in_node_range(scope, var_line, var_col) and not is_in_node_range(scope, stackframe.line - 1, 0) then
+          if utils.is_in_node_range(scope, var_line, var_col) and not utils.is_in_node_range(scope, stackframe.line - 1, 0) then
             in_scope = false
             break
           end
