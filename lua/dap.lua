@@ -413,7 +413,7 @@ function Session:_frame_delta(delta)
   elseif current_frame_index > #frames then
     current_frame_index = 1
   end
-  self._set_frame(frames[current_frame_index])
+  self:_frame_set(frames[current_frame_index])
 end
 
 local function remove_breakpoint_signs(bufnr, lnum)
