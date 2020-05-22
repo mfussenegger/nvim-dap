@@ -403,7 +403,7 @@ function Session:_frame_delta(delta)
     current_frame_index = 1
   end
   self.current_frame = frames[current_frame_index]
-  jump_to_frame(self.current_frame, true)
+  jump_to_frame(self.current_frame, false)
   self:_request_scopes(self.current_frame)
 end
 
