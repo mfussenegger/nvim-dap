@@ -249,7 +249,7 @@ local function jump_to_frame(frame, preserve_focus_hint)
     bufnr = vim.uri_to_bufnr(vim.uri_from_fname(frame.source.path))
   end
   vim.fn.sign_unplace(ns_pos)
-  if preserve_focus_hint then
+  if preserve_focus_hint or frame.line < 0 then
     return
   end
   vim.fn.bufload(bufnr)
@@ -386,6 +386,17 @@ function Session:_goto(line, source, col)
 
 end
 
+
+function Session:_frame_set(frame)
+  if not frame then
+    return
+  end
+  self.current_frame = frame
+  jump_to_frame(self.current_frame, false)
+  self:_request_scopes(self.current_frame)
+end
+
+
 function Session:_frame_delta(delta)
   if not self.stopped_thread_id then
     print('Cannot move frame if not stopped')
@@ -402,9 +413,7 @@ function Session:_frame_delta(delta)
   elseif current_frame_index > #frames then
     current_frame_index = 1
   end
-  self.current_frame = frames[current_frame_index]
-  jump_to_frame(self.current_frame, false)
-  self:_request_scopes(self.current_frame)
+  self._set_frame(frames[current_frame_index])
 end
 
 local function remove_breakpoint_signs(bufnr, lnum)

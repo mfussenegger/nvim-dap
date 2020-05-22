@@ -6,6 +6,10 @@ local buf = nil
 local session = nil
 local last_cmd = nil
 
+
+local frames_ns = api.nvim_create_namespace('dap.repl.frames')
+local frames_marks = {}
+
 M.commands = {
   continue = {'.continue', '.c'},
   next_ = {'.next', '.n'},
@@ -22,11 +26,21 @@ M.commands = {
 
 function M.print_stackframes()
   local frames = (session.threads[session.stopped_thread_id] or {}).frames or {}
+  frames_marks = {}
+  if buf then
+    api.nvim_buf_clear_namespace(buf, frames_ns, 0, -1)
+  end
   for _, frame in pairs(frames) do
+    local line
     if frame.id == session.current_frame.id then
-       M.append('→ '..frame.name)
+      line = '→ ' .. frame.name
     else
-       M.append('  '..frame.name)
+      line = '  ' .. frame.name
+    end
+    local lnum = M.append(line)
+    if lnum and buf then
+      local mark = api.nvim_buf_set_extmark(buf, frames_ns, 0, lnum, 0, {})
+      frames_marks[mark] = frame
     end
   end
 end
@@ -40,6 +54,7 @@ function M.open()
     api.nvim_buf_set_name(buf, '[dap-repl]')
     api.nvim_buf_set_option(buf, 'buftype', 'prompt')
     api.nvim_buf_set_option(buf, 'omnifunc', 'v:lua.dap.omnifunc')
+    api.nvim_buf_set_keymap(buf, 'n', '<CR>', "<Cmd>lua require('dap').repl.on_enter()<CR>", {})
     vim.fn.prompt_setprompt(buf, 'dap> ')
     vim.fn.prompt_setcallback(buf, 'dap#repl_execute')
     api.nvim_buf_attach(buf, false, {
@@ -63,14 +78,34 @@ function M.open()
 end
 
 
+function M.on_enter()
+  if not buf or not session then
+    return
+  end
+  local lnum = api.nvim_win_get_cursor(0)[1]
+  local start = {lnum - 1, 0}
+  local frame_marks = api.nvim_buf_get_extmarks(buf, frames_ns, start, start, {})
+  if #frame_marks > 0 then
+    local mark_id = frame_marks[1][1]
+    local frame = frames_marks[mark_id]
+    if frame then
+      session:_frame_set(frame)
+    end
+  end
+end
+
+
 function M.append(line, lnum)
   if buf then
     if api.nvim_get_current_win() == win and lnum == '$' then
       lnum = nil
     end
     local lines = vim.split(line, '\n')
-    vim.fn.appendbufline(buf, lnum or (vim.fn.line('$') - 1), lines)
+    lnum = lnum or (vim.fn.line('$') - 1)
+    vim.fn.appendbufline(buf, lnum, lines)
+    return lnum
   end
+  return nil
 end
 
 
