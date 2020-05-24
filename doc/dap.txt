@@ -314,6 +314,13 @@ step_into()                                                    *dap.step_into()*
 step_out()                                                      *dap.step_out()*
         Requests the debugee to step out of a function or method if possible.
 
+step_back()                                                    *dap.step_back()*
+        Steps one step back. Debug adapter must support reverse debugging.
+
+reverse_continue()                                      *dap.reverse_continue()*
+        Continues execution reverse in time until last breakpoint.
+        Debug adapter must support reverse debugging.
+
 up()                                                                  *dap.up()*
         Go up in current stacktrace without stepping.
 
@@ -354,12 +361,17 @@ repl.open({winopts})                                           *dap.repl.open()*
           .threads            Prints all threads
           .frames             Print the stack frames
           .capabilities       Print the capabilities of the debug adapter
+          .b or .back         Same as |dap.step_back|
+          .rc or
+          .reverse-continue   Same as |dap.reverse_continue|
 
         You can customize the commands by overriding `dap.repl.commands`:
         >
           dap.repl.commands = vim.tbl_extend('force', dap.repl.commands, {
             continue = {'.continue', '.c'},
             next_ = {'.next', '.n'},
+            back = {'.back', '.b'},
+            reverse_continue = {'.reverse-continue', '.rc'},
             into = {'.into'},
             out = {'.out'},
             scopes = {'.scopes'},

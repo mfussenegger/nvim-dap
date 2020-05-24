@@ -19,6 +19,8 @@ local frames_marks = {}
 M.commands = {
   continue = {'.continue', '.c'},
   next_ = {'.next', '.n'},
+  step_back = {'.back', '.b'},
+  reverse_continue = {'.reverse-continue', '.rc'},
   into = {'.into'},
   out = {'.out'},
   scopes = {'.scopes'},
@@ -93,6 +95,10 @@ local function execute(text)
   elseif vim.tbl_contains(M.commands.up, text) then
     session:_frame_delta(1)
     M.print_stackframes()
+  elseif vim.tbl_contains(M.commands.step_back, text) then
+    session:_step('stepBack')
+  elseif vim.tbl_contains(M.commands.reverse_continue, text) then
+    session:_step('reverseContinue')
   elseif vim.tbl_contains(M.commands.down, text) then
     session:_frame_delta(-1)
     M.print_stackframes()

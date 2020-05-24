@@ -935,6 +935,10 @@ end
 
 
 function Session:_step(step)
+  if vim.tbl_contains({"stepBack", "reverseContinue"}, step) and not session.capabilities.supportsStepBack then
+    print("Debug Adapter does not support "..step.."!")
+    return
+  end
   if not self.stopped_thread_id then
     print('No stopped thread. Cannot move')
     return
@@ -963,6 +967,16 @@ end
 function M.step_out()
   if not session then return end
   session:_step('stepOut')
+end
+
+function M.reverse_continue()
+  if not session then return end
+  session:_step('reverseContinue')
+end
+
+function M.step_back()
+  if not session then return end
+  session:_step('stepBack')
 end
 
 function M.stop()
