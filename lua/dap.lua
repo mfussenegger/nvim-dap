@@ -276,6 +276,11 @@ end
 
 
 function Session:event_stopped(stopped)
+  if self.stopped_thread_id then
+    log.debug('Thread stopped, but another thread is already stopped, telling thread to continue')
+    session:request('continue', { threadId = stopped.threadId })
+    return
+  end
   self.stopped_thread_id = stopped.threadId
   self:request('threads', nil, function(err0, threads_resp)
     if err0 then
