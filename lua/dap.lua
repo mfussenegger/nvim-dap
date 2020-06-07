@@ -1,6 +1,3 @@
-dap = {} -- luacheck: ignore 111 - to support v:lua.dap... uses
-
-
 local uv = vim.loop
 local api = vim.api
 local log = require('dap.log').create_logger('vim-dap.log')
@@ -831,7 +828,7 @@ local function completions_to_items(completions, prefix)
 end
 
 
-function dap.omnifunc(findstart, base) -- luacheck: ignore 112
+function M.omnifunc(findstart, base) -- luacheck: ignore 112
   local supportsCompletionsRequest = ((session or {}).capabilities or {}).supportsCompletionsRequest;
   local _ = log.debug() and log.debug('omnifunc.findstart', {
     findstart = findstart;
