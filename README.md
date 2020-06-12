@@ -10,7 +10,7 @@
 - [x] launch debug adapter
 - [x] attach to debug adapter
 - [x] toggle breakpoints
-- [ ] breakpoints with conditions
+- [x] breakpoints with conditions
 - [ ] set function breakpoints
 - [ ] set exception breakpoints
 - [x] step over, step into, step out

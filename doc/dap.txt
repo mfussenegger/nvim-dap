@@ -154,6 +154,7 @@ Some example mappings:
     nnoremap <silent> <F11> :lua require'dap'.step_into()<CR>
     nnoremap <silent> <F12> :lua require'dap'.step_out()<CR>
     nnoremap <silent> <leader>b :lua require'dap'.toggle_breakpoint()<CR>
+    nnoremap <silent> <leader>B :lua require'dap'.toggle_breakpoint(vim.fn.input('Breakpoint condition: '))<CR>
     nnoremap <silent> <leader>dr :lua require'dap'.repl.open()<CR>
 
 
@@ -181,6 +182,14 @@ attach({host}, {port}, {config})                                 *dap.attach()*
         Attach to a running debug adapter and then initialize it with the
         given |dap-configuration|
 
+
+toggle_breakpoint(condition)                          *dap.toggle_breakpoint()*
+
+        Creates or removes a breakpoint at the current line.
+
+        Parameters: ~
+            {condition}   Optional condition that must be met for the debugger
+                          to stop at the breakpoint.
 
 continue()                                                      *dap.continue()*
         Continue execution of the debugee, or if no debug session is active,

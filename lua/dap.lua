@@ -11,6 +11,7 @@ local ns_breakpoints = 'dap_breakpoints'
 local ns_pos = 'dap_pos'
 local Session = {}
 local session = nil
+local bp_conditions = {}
 
 M.repl = repl
 
@@ -426,6 +427,7 @@ local function remove_breakpoint_signs(bufnr, lnum)
   if signs and #signs > 0 then
     for _, sign in pairs(signs) do
       vim.fn.sign_unplace(ns_breakpoints, { buffer = bufnr; id = sign.id; })
+      bp_conditions[sign.id] = nil
     end
     return true
   else
@@ -461,7 +463,10 @@ function Session:set_breakpoints(bufexpr, on_done)
     local breakpoints = {}
     local bufnr = buf_bp_signs.bufnr
     for _, bp in pairs(buf_bp_signs.signs) do
-      table.insert(breakpoints, { line = bp.lnum; })
+      table.insert(breakpoints, { line = bp.lnum; condition = bp_conditions[bp.id]; })
+    end
+    if #bp_conditions > 0 and not self.capabilities.supportsConditionalBreakpoints then
+      print("Debug adapter doesn't support breakpoints with conditions")
     end
     local payload = {
       source = { path = vim.fn.expand('#' .. bufnr .. '.p'); };
@@ -784,11 +789,20 @@ function M.restart()
   end
 end
 
-function M.toggle_breakpoint()
+function M.toggle_breakpoint(condition)
   local bufnr = api.nvim_get_current_buf()
   local lnum, _ = unpack(api.nvim_win_get_cursor(0))
   if not remove_breakpoint_signs(bufnr, lnum) then
-    vim.fn.sign_place(0, ns_breakpoints, 'DapBreakpoint', bufnr, { lnum = lnum; priority = 11; })
+    local sign_id = vim.fn.sign_place(
+      0,
+      ns_breakpoints,
+      'DapBreakpoint',
+      bufnr,
+      { lnum = lnum; priority = 11; }
+    )
+    if condition and sign_id ~= -1 then
+      bp_conditions[sign_id] = condition
+    end
   end
   if session and session.initialized then
     session:set_breakpoints(bufnr)
