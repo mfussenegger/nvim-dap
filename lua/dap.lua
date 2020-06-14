@@ -701,6 +701,8 @@ function Session:initialize(config)
     session:request(config.request, config, function(err)
       if err then
         print(string.format('Error on %s: %s', config.request, err.message))
+        session:close()
+        session = nil
         return
       end
       repl.set_session(session)
