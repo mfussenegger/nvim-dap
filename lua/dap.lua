@@ -12,6 +12,7 @@ local ns_pos = 'dap_pos'
 local Session = {}
 local session = nil
 local bp_conditions = {}
+local last_config = nil
 
 M.repl = repl
 
@@ -64,22 +65,24 @@ vim.fn.sign_define('DapBreakpoint', {text='B', texthl='', linehl='', numhl=''})
 vim.fn.sign_define('DapStopped', {text='→', texthl='', linehl='debugPC', numhl=''})
 
 
-local function expand_config_variables(option)
-  if type(option) == 'function' then
-    option = option()
+local function expand_config_variables(adapter)
+  return function(option)
+    if type(option) == 'function' then
+      option = option(adapter)
+    end
+    if type(option) ~= "string" then
+      return option
+    end
+    local variables = {
+      file = vim.fn.expand("%");
+      workspaceFolder = vim.fn.getcwd();
+    }
+    local ret = option
+    for key, val in pairs(variables) do
+      ret = ret:gsub('${' .. key .. '}', val)
+    end
+    return ret
   end
-  if type(option) ~= "string" then
-    return option
-  end
-  local variables = {
-    file = vim.fn.expand("%");
-    workspaceFolder = vim.fn.getcwd();
-  }
-  local ret = option
-  for key, val in pairs(variables) do
-    ret = ret:gsub('${' .. key .. '}', val)
-  end
-  return ret
 end
 
 local function index_of(items, predicate)
@@ -118,16 +121,27 @@ end
 
 
 function M.run(config)
-  config = vim.tbl_map(expand_config_variables, config)
+  last_config = config
   local adapter = M.adapters[config.type]
   if type(adapter) == 'table' then
+    config = vim.tbl_map(expand_config_variables(adapter), config)
     handle_adapter(adapter, config)
   elseif type(adapter) == 'function' then
     adapter(function(resolved_adapter)
+      config = vim.tbl_map(expand_config_variables(resolved_adapter), config)
       handle_adapter(resolved_adapter, config)
     end)
   else
     print(string.format('Invalid adapter: %q', adapter))
+  end
+end
+
+
+function M.run_last()
+  if last_config then
+    M.run(last_config)
+  else
+    print('No configuration available to re-run')
   end
 end
 
