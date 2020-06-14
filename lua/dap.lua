@@ -12,7 +12,7 @@ local ns_pos = 'dap_pos'
 local Session = {}
 local session = nil
 local bp_conditions = {}
-local last_config = nil
+local last_run = nil
 
 M.repl = repl
 
@@ -65,25 +65,24 @@ vim.fn.sign_define('DapBreakpoint', {text='B', texthl='', linehl='', numhl=''})
 vim.fn.sign_define('DapStopped', {text='→', texthl='', linehl='debugPC', numhl=''})
 
 
-local function expand_config_variables(adapter)
-  return function(option)
-    if type(option) == 'function' then
-      option = option(adapter)
-    end
-    if type(option) ~= "string" then
-      return option
-    end
-    local variables = {
-      file = vim.fn.expand("%");
-      workspaceFolder = vim.fn.getcwd();
-    }
-    local ret = option
-    for key, val in pairs(variables) do
-      ret = ret:gsub('${' .. key .. '}', val)
-    end
-    return ret
+local function expand_config_variables(option)
+  if type(option) == 'function' then
+    option = option()
   end
+  if type(option) ~= "string" then
+    return option
+  end
+  local variables = {
+    file = vim.fn.expand("%");
+    workspaceFolder = vim.fn.getcwd();
+  }
+  local ret = option
+  for key, val in pairs(variables) do
+    ret = ret:gsub('${' .. key .. '}', val)
+  end
+  return ret
 end
+
 
 local function index_of(items, predicate)
   for i, item in ipairs(items) do
@@ -95,16 +94,16 @@ local function index_of(items, predicate)
 end
 
 
-local function handle_adapter(adapter, configuration)
+local function handle_adapter(adapter, configuration, opts)
   assert(type(adapter) == 'table', 'adapter must be a table, not' .. vim.inspect(adapter))
   assert(
     adapter.type,
     'Adapter for ' .. configuration.type .. ' must have the `type` property set to `executable` or `server`'
   )
   if adapter.type == 'executable' then
-    M.launch(adapter, configuration)
+    M.launch(adapter, configuration, opts)
   elseif adapter.type == 'server' then
-    M.attach(adapter.host, adapter.port, configuration)
+    M.attach(adapter.host, adapter.port, configuration, opts)
   else
     print(string.format('Invalid adapter type %s, expected `executable` or `server`', adapter.type))
   end
@@ -124,16 +123,23 @@ local function launch_debug_adapter()
 end
 
 
-function M.run(config)
-  last_config = config
+function M.run(config, opts)
+  opts = opts or {}
+  last_run = {
+    config = config,
+    opts = opts,
+  }
+  if opts.before then
+    config = opts.before(config)
+  end
   local adapter = M.adapters[config.type]
   if type(adapter) == 'table' then
-    config = vim.tbl_map(expand_config_variables(adapter), config)
-    handle_adapter(adapter, config)
+    config = vim.tbl_map(expand_config_variables, config)
+    handle_adapter(adapter, config, opts)
   elseif type(adapter) == 'function' then
     adapter(function(resolved_adapter)
-      config = vim.tbl_map(expand_config_variables(resolved_adapter), config)
-      handle_adapter(resolved_adapter, config)
+      config = vim.tbl_map(expand_config_variables, config)
+      handle_adapter(resolved_adapter, config, opts)
     end)
   else
     print(string.format('Invalid adapter: %q', adapter))
@@ -142,8 +148,8 @@ end
 
 
 function M.run_last()
-  if last_config then
-    M.run(last_config)
+  if last_run then
+    M.run(last_run.config, last_run.opts)
   else
     print('No configuration available to re-run')
   end
@@ -343,6 +349,9 @@ end
 
 function Session:event_terminated()
   self:close()
+  if self.handlers.after then
+    self.handlers.after()
+  end
   session = nil
 end
 
@@ -520,7 +529,10 @@ function Session:handle_body(body)
   local _ = log.debug() and log.debug(decoded)
   if decoded.request_seq then
     local callback = self.message_callbacks[decoded.request_seq]
-    if not callback then return end
+    if not callback then
+      log.warn('No callback for ', decoded)
+      return
+    end
     self.message_callbacks[decoded.request_seq] = nil
     if decoded.success then
       callback(nil, decoded.body)
@@ -532,7 +544,7 @@ function Session:handle_body(body)
     if callback then
       callback(self, decoded.body)
     else
-      local _ = log.warn() and log.warn('No event handler for ', decoded)
+      log.warn('No event handler for ', decoded)
     end
   elseif decoded.type == 'request' and decoded.command == 'runInTerminal' then
     self:run_in_terminal(decoded)
@@ -542,8 +554,11 @@ function Session:handle_body(body)
 end
 
 
-local function session_defaults()
+local function session_defaults(opts)
+  local handlers = {}
+  handlers.after = opts.after
   return {
+    handlers = handlers;
     message_callbacks = {};
     initialized = false;
     seq = 0;
@@ -580,8 +595,8 @@ local function create_read_loop(handle_body)
 end
 
 
-function Session:connect(host, port)
-  local o = session_defaults()
+function Session:connect(host, port, opts)
+  local o = session_defaults(opts or {})
   setmetatable(o, self)
   self.__index = self
 
@@ -601,8 +616,8 @@ function Session:connect(host, port)
 end
 
 
-function Session:spawn(adapter)
-  local o = session_defaults()
+function Session:spawn(adapter, opts)
+  local o = session_defaults(opts or {})
   setmetatable(o, self)
   self.__index = self
 
@@ -934,7 +949,7 @@ end
 --    request: string     -- attach or launch
 --    ...                 -- debug adapter specific options
 --
-function M.attach(host, port, config)
+function M.attach(host, port, config, opts)
   if session then
     session:close()
   end
@@ -942,7 +957,7 @@ function M.attach(host, port, config)
     print('config needs the `request` property which must be one of `attach` or `launch`')
     return
   end
-  session = Session:connect(host, port)
+  session = Session:connect(host, port, opts)
   session:initialize(config)
   return session
 end
@@ -963,11 +978,11 @@ end
 --    request: string     -- attach or launch
 --    ...                 -- debug adapter specific options
 --
-function M.launch(adapter, config)
+function M.launch(adapter, config, opts)
   if session then
     session:close()
   end
-  session = Session:spawn(adapter)
+  session = Session:spawn(adapter, opts)
   session:initialize(config)
   return session
 end

@@ -135,8 +135,7 @@ An example:
 Things to note:
 
 - Values for properties other than the 3 required properties can be functions,
-  they will be evaluated once the configuration is used. The function receives
-  the resolved adapter as argument.
+  they will be evaluated once the configuration is used.
 
 - Some variables are supported:
 
