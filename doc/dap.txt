@@ -273,4 +273,24 @@ repl.open()                                                    *dap.repl.open()*
             down = {'.down'},
             goto_ = {'.goto'},
           }
-}
+
+set_log_level(level)                                       *dap.set_log_level()*
+        Sets the log level. Defaults to `INFO`  >
+
+            :lua require('dap').set_log_level('TRACE')
+<
+
+        Available log levels:
+
+          TRACE
+          DEBUG
+          INFO
+          WARN
+          ERROR
+
+        The log file is in the |stdpath| `data` folder.
+        To print the location:  >
+
+            :lua print(vim.fn.stdpath('data'))
+<
+        The filename is `nvim-dap.log`
