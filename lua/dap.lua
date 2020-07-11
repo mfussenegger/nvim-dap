@@ -256,6 +256,10 @@ local function jump_to_frame(frame, preserve_focus_hint)
   if not frame.source then
     return
   end
+  if not frame.source.path then
+    print('Source path not available, cannot jump to frame')
+    return
+  end
   local scheme = frame.source.path:match('^([a-z]+)://.*')
   local bufnr
   if scheme then
