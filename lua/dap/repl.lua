@@ -51,6 +51,82 @@ function M.print_stackframes()
   end
 end
 
+
+local function execute(text)
+  if text == '' then
+    if history.last then
+      text = history.last
+    else
+      return
+    end
+  else
+    history.last = text
+    table.insert(history.entries, text)
+    history.idx = #history.entries + 1
+  end
+  if vim.tbl_contains(M.commands.exit, text) then
+    if session then
+      session:disconnect()
+    end
+    api.nvim_command('close')
+    return
+  end
+  if not session then
+    M.append('No active debug session')
+    return
+  end
+  if vim.tbl_contains(M.commands.continue, text) then
+    session:_step('continue')
+  elseif vim.tbl_contains(M.commands.next_, text) then
+    session:_step('next')
+  elseif vim.tbl_contains(M.commands.into, text) then
+    session:_step('stepIn')
+  elseif vim.tbl_contains(M.commands.out, text) then
+    session:_step('stepOut')
+  elseif vim.tbl_contains(M.commands.up, text) then
+    session:_frame_delta(1)
+    M.print_stackframes()
+  elseif vim.tbl_contains(M.commands.down, text) then
+    session:_frame_delta(-1)
+    M.print_stackframes()
+  elseif vim.tbl_contains(M.commands.goto_, vim.split(text, ' ')[1]) then
+    local split = vim.split(text, ' ')
+    if split[2] then
+      session:_goto(tonumber(split[2]))
+    end
+  elseif vim.tbl_contains(M.commands.scopes, text) then
+    local frame = session.current_frame
+    if frame then
+      for _, scope in pairs(frame.scopes) do
+        M.append(string.format("%s  (frame: %s)", scope.name, frame.name))
+        for _, variable in pairs(scope.variables) do
+          M.append(string.rep(' ', 2) .. variable.name .. ': ' .. variable.value)
+        end
+      end
+    end
+  elseif vim.tbl_contains(M.commands.threads, text) then
+    for _, thread in pairs(session.threads) do
+      if session.stopped_thread_id == thread.id then
+        M.append('→ ' .. thread.name)
+      else
+        M.append('  ' .. thread.name)
+      end
+    end
+  elseif vim.tbl_contains(M.commands.frames, text) then
+    M.print_stackframes()
+  else
+    local lnum = vim.fn.line('$') - 1
+    session:evaluate(text, function(err, resp)
+      if err then
+        M.append(err.message, lnum)
+      else
+        M.append(resp.result, lnum)
+      end
+    end)
+  end
+end
+
+
 function M.open()
   if win and api.nvim_win_is_valid(win) and api.nvim_win_get_buf(win) == buf then
     return
@@ -64,7 +140,7 @@ function M.open()
     api.nvim_buf_set_keymap(buf, 'i', '<up>', "<Cmd>lua require('dap').repl.on_up()<CR>", {})
     api.nvim_buf_set_keymap(buf, 'i', '<down>', "<Cmd>lua require('dap').repl.on_down()<CR>", {})
     vim.fn.prompt_setprompt(buf, 'dap> ')
-    vim.fn.prompt_setcallback(buf, 'dap#repl_execute')
+    vim.fn.prompt_setcallback(buf, execute)
     api.nvim_buf_attach(buf, false, {
       on_lines = function(b)
         api.nvim_buf_set_option(b, 'modified', false)
@@ -152,81 +228,6 @@ function M.append(line, lnum)
     return lnum
   end
   return nil
-end
-
-
-function M.execute(text)
-  if text == '' then
-    if history.last then
-      text = history.last
-    else
-      return
-    end
-  else
-    history.last = text
-    table.insert(history.entries, text)
-    history.idx = #history.entries + 1
-  end
-  if vim.tbl_contains(M.commands.exit, text) then
-    if session then
-      session:disconnect()
-    end
-    api.nvim_command('close')
-    return
-  end
-  if not session then
-    M.append('No active debug session')
-    return
-  end
-  if vim.tbl_contains(M.commands.continue, text) then
-    session:_step('continue')
-  elseif vim.tbl_contains(M.commands.next_, text) then
-    session:_step('next')
-  elseif vim.tbl_contains(M.commands.into, text) then
-    session:_step('stepIn')
-  elseif vim.tbl_contains(M.commands.out, text) then
-    session:_step('stepOut')
-  elseif vim.tbl_contains(M.commands.up, text) then
-    session:_frame_delta(1)
-    M.print_stackframes()
-  elseif vim.tbl_contains(M.commands.down, text) then
-    session:_frame_delta(-1)
-    M.print_stackframes()
-  elseif vim.tbl_contains(M.commands.goto_, vim.split(text, ' ')[1]) then
-    local split = vim.split(text, ' ')
-    if split[2] then
-      session:_goto(tonumber(split[2]))
-    end
-  elseif vim.tbl_contains(M.commands.scopes, text) then
-    local frame = session.current_frame
-    if frame then
-      for _, scope in pairs(frame.scopes) do
-        M.append(string.format("%s  (frame: %s)", scope.name, frame.name))
-        for _, variable in pairs(scope.variables) do
-          M.append(string.rep(' ', 2) .. variable.name .. ': ' .. variable.value)
-        end
-      end
-    end
-  elseif vim.tbl_contains(M.commands.threads, text) then
-    for _, thread in pairs(session.threads) do
-      if session.stopped_thread_id == thread.id then
-        M.append('→ ' .. thread.name)
-      else
-        M.append('  ' .. thread.name)
-      end
-    end
-  elseif vim.tbl_contains(M.commands.frames, text) then
-    M.print_stackframes()
-  else
-    local lnum = vim.fn.line('$') - 1
-    session:evaluate(text, function(err, resp)
-      if err then
-        M.append(err.message, lnum)
-      else
-        M.append(resp.result, lnum)
-      end
-    end)
-  end
 end
 
 
