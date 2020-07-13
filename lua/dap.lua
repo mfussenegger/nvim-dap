@@ -97,6 +97,10 @@ end
 
 local function handle_adapter(adapter, configuration)
   assert(type(adapter) == 'table', 'adapter must be a table, not' .. vim.inspect(adapter))
+  assert(
+    adapter.type,
+    'Adapter for ' .. configuration.type .. ' must have the `type` property set to `executable` or `server`'
+  )
   if adapter.type == 'executable' then
     M.launch(adapter, configuration)
   elseif adapter.type == 'server' then
