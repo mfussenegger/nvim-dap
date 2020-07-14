@@ -155,7 +155,7 @@ function M.open()
     })
   end
   local current_win = api.nvim_get_current_win()
-  api.nvim_command('belowright new')
+  api.nvim_command('belowright split')
   win = api.nvim_get_current_win()
   api.nvim_win_set_buf(win, buf)
   api.nvim_set_current_win(current_win)
