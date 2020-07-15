@@ -238,13 +238,19 @@ goto_({line})                                                      *dap.goto_()*
             {line}  Line number or line under cursor if nil.
 
 
-repl.open()                                                    *dap.repl.open()*
+repl.open({winopts})                                           *dap.repl.open()*
         Open a REPL / Debug-console.
 
-        The REPL can be used to evaluate expressions. A `omnifunc` is set to
-        support completion of expressions.
+        Parameters: ~
+            {winopts}  optional table which may include:
+                        `height` to set the window height
+                        `width` to set the window width
+                        Any other key/value pair, that will be treated as window
+                        option.
 
-        It supports the following special commands:
+        The REPL can be used to evaluate expressions. A `omnifunc` is set to
+        support completion of expressions. It supports the following special
+        commands:
 
           .exit               Closes the REPL
           .c or .continue     Same as |dap.continue|
@@ -273,6 +279,17 @@ repl.open()                                                    *dap.repl.open()*
             down = {'.down'},
             goto_ = {'.goto'},
           }
+
+
+repl.toggle({winopts})                                       *dap.repl.toggle()*
+        Opens the REPL if it is closed, otherwise closes it.
+
+        See |dap.repl.open| for a description of the argument.
+
+
+repl.close()                                                  *dap.repl.close()*
+        Closes the REPL if it is open.
+
 
 set_log_level(level)                                       *dap.set_log_level()*
         Sets the log level. Defaults to `INFO`  >

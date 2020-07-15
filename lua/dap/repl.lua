@@ -66,6 +66,7 @@ local function execute(text)
   end
   if vim.tbl_contains(M.commands.exit, text) then
     if session then
+      -- Should result in a `terminated` event which closes the session and sets it to nil
       session:disconnect()
     end
     api.nvim_command('close')
@@ -127,7 +128,31 @@ local function execute(text)
 end
 
 
---- Toggle the REPL
+--- Close the REPL if it is open.
+--
+-- Does not disconnect an active session.
+--
+-- Returns true if the REPL was open and got closed. false otherwise
+function M.close()
+  local closed
+  if win and api.nvim_win_is_valid(win) and api.nvim_win_get_buf(win) == buf then
+    api.nvim_win_close(win, true)
+    win = nil
+    closed = true
+  else
+    closed = false
+  end
+
+  if buf then
+    vim.cmd('bd' .. buf)
+    buf = nil
+  end
+
+  return closed
+end
+
+
+--- Open the REPL
 --
 --@param winopts  optional table which may include:
 --                  `height` to set the window height
@@ -181,6 +206,14 @@ function M.open(winopts)
         api.nvim_win_set_option(win, k, v)
       end
     end
+  end
+end
+
+
+--- Open the REPL if it is closed, close it if it is open.
+function M.toggle(winopts)
+  if not M.close() then
+    M.open(winopts)
   end
 end
 

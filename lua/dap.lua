@@ -341,7 +341,6 @@ function Session:event_stopped(stopped)
   end)
 end
 
-
 function Session:event_terminated()
   self:close()
   session = nil
@@ -839,6 +838,17 @@ function M.continue()
     launch_debug_adapter()
   else
     session:_step('continue')
+  end
+end
+
+
+--- Disconnects an active session
+function M.disconnect()
+  if session then
+    -- Should result in a `terminated` event which closes the session and sets it to nil
+    session:disconnect()
+  else
+    print('No active session. Doing nothing.')
   end
 end
 
