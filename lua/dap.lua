@@ -556,6 +556,59 @@ function Session:set_breakpoints(bufexpr, on_done)
   end
 end
 
+--interface SetExceptionBreakpointsRequest extends Request {
+--command: 'setExceptionBreakpoints';
+--arguments: SetExceptionBreakpointsArguments;
+--}
+--
+--interface SetExceptionBreakpointsArguments {
+--/**
+ --* IDs of checked exception options. The set of IDs is returned via the 'exceptionBreakpointFilters' capability.
+ --*/
+--filters: string[];
+
+--/**
+ --* Configuration options for selected exceptions.
+ --* The attribute is only honored by a debug adapter if the capability 'supportsExceptionOptions' is true.
+ --*/
+--exceptionOptions?: ExceptionOptions[];
+--}
+--
+--interface ExceptionOptions {
+  --/**
+   --* A path that selects a single or multiple exceptions in a tree. If 'path' is missing, the whole tree is selected.
+   --* By convention the first segment of the path is a category that is used to group exceptions in the UI.
+   --*/
+  --path?: ExceptionPathSegment[];
+
+  --/**
+   --* Condition when a thrown exception should result in a break.
+   --*/
+  --breakMode: ExceptionBreakMode;
+--}
+--
+--interface SetExceptionBreakpointsResponse extends Response {
+--}
+function Session:set_exception_breakpoints(filters)
+  if not self.capabilities.exceptionBreakpointFilters then
+      print("Debug adapter doesn't support exception breakpoints")
+      return
+  end
+
+  if not filters then
+    local possible_filters = {}
+    for _, f in ipairs(self.capabilities.exceptionBreakpointFilters) do
+      table.insert(possible_filters, f.filter)
+    end
+    filters = vim.split(vim.fn.input("Exception breakpoint filters: ", table.concat(possible_filters, ' ')), ' ')
+  end
+
+  self:request('setExceptionBreakpoints', {filters = filters}, function(err, _)
+    if err then
+      print("Error setting exception breakpoints: "..err.message)
+    end
+  end)
+end
 
 function Session:handle_body(body)
   local decoded = vim.fn.json_decode(body)
@@ -942,6 +995,15 @@ function M.toggle_breakpoint(condition, hit_condition, log_message, replace_old)
   end
   if vim.fn.getqflist({context = DAP_QUICKFIX_CONTEXT}).context == DAP_QUICKFIX_CONTEXT then
     M.list_breakpoints(false)
+  end
+end
+
+
+function M.set_exception_breakpoints(filters)
+  if session then
+    session:set_exception_breakpoints(filters)
+  else
+    print('Cannot set exception breakpoints: No active session!')
   end
 end
 

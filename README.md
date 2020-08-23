@@ -13,7 +13,7 @@
 - [x] breakpoints with conditions
 - [x] logpoints
 - [ ] set function breakpoints
-- [ ] set exception breakpoints
+- [x] set exception breakpoints
 - [x] step over, step into, step out
 - [ ] step back, reverse continue
 - [x] Goto

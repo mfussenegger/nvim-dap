@@ -228,6 +228,28 @@ list_breakpoints()                                       *dap.list_breakpoints()
 
         Lists all breakpoints and log points in quickfix window.
 
+set_exception_breakpoints({filters})           *dap.set_exception_breakpoints()*
+
+    Sets breakpoints on exceptions filtered by `filters`. If `filters` is not
+    provided it will prompt the user to choose from the available filters of the
+    debug adapter.
+
+    Parameters: ~
+        {filters}  A list of exception types to stop on (optional).
+                   For most debug adapters you can use `uncaught` and `raised`
+                   to filter the exceptions.
+         
+    >
+        -- Ask user to stop on which kinds of exceptions
+        require'dap'.set_exception_breakpoints()
+        -- don't stop on exceptions
+        require'dap'.set_exception_breakpoints({})
+        -- stop only on uncaughted exceptions
+        require'dap'.set_exception_breakpoints({"uncaughted"})
+        -- stop on all exceptions
+        require'dap'.set_exception_breakpoints({"raised", "uncaught"})
+    <
+
 step_over()                                                    *dap.step_over()*
         Requests the debugee to run again for one step.
 
