@@ -15,6 +15,18 @@ local bp_conditions = {}
 local last_run = nil
 
 M.repl = repl
+M.custom_event_handlers = setmetatable({}, {
+  __index = function(tbl, key)
+    rawset(tbl, key, {})
+    return rawget(tbl, key)
+  end
+})
+M.custom_response_handlers = setmetatable({}, {
+  __index = function(tbl, key)
+    rawset(tbl, key, {})
+    return rawget(tbl, key)
+  end
+})
 
 --- For extension of language specific debug adapters.
 --
@@ -536,6 +548,9 @@ function Session:handle_body(body)
     self.message_callbacks[decoded.request_seq] = nil
     if decoded.success then
       callback(nil, decoded.body)
+      for _, c in pairs(M.custom_response_handlers[decoded.command]) do
+        c(self, decoded.body)
+      end
     else
       callback({ message = decoded.message; body = decoded.body; }, nil)
     end
@@ -543,6 +558,9 @@ function Session:handle_body(body)
     local callback = self['event_' .. decoded.event]
     if callback then
       callback(self, decoded.body)
+      for _, c in pairs(M.custom_event_handlers['event_' .. decoded.event]) do
+        c(self, decoded.body)
+      end
     else
       log.warn('No event handler for ', decoded)
     end
