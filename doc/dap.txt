@@ -236,8 +236,11 @@ set_exception_breakpoints({filters})           *dap.set_exception_breakpoints()*
 
     Parameters: ~
         {filters}  A list of exception types to stop on (optional).
-                   For most debug adapters you can use `uncaught` and `raised`
-                   to filter the exceptions.
+                   For most debug adapters you can use `"uncaught"` and
+                   `"raised`" to filter the exceptions.
+                   If set to "default" instead of a table, the
+                   default options as recommended by the debug adapter are
+                   used.
          
     >
         -- Ask user to stop on which kinds of exceptions
@@ -248,6 +251,8 @@ set_exception_breakpoints({filters})           *dap.set_exception_breakpoints()*
         require'dap'.set_exception_breakpoints({"uncaughted"})
         -- stop on all exceptions
         require'dap'.set_exception_breakpoints({"raised", "uncaught"})
+        -- use default settings of debug adapter
+        require'dap'.set_exception_breakpoints("default")
     <
 
 step_over()                                                    *dap.step_over()*

@@ -266,7 +266,7 @@ end
 
 
 function Session:event_initialized(_)
-  self:set_breakpoints(nil, function()
+  local function on_done()
     if self.capabilities.supportsConfigurationDoneRequest then
       self:request('configurationDone', nil, function(err1, _)
         if err1 then
@@ -276,6 +276,14 @@ function Session:event_initialized(_)
       end)
     else
       self.initialized = true
+    end
+  end
+
+  self:set_breakpoints(nil, function()
+    if self.capabilities.exceptionBreakpointFilters then
+      self:set_exception_breakpoints('default', on_done)
+    else
+      on_done()
     end
   end)
 end
@@ -589,10 +597,20 @@ end
 --
 --interface SetExceptionBreakpointsResponse extends Response {
 --}
-function Session:set_exception_breakpoints(filters)
+function Session:set_exception_breakpoints(filters, on_done)
   if not self.capabilities.exceptionBreakpointFilters then
       print("Debug adapter doesn't support exception breakpoints")
       return
+  end
+
+  if filters == 'default' then
+    local default_filters = {}
+    for _, f in pairs(self.capabilities.exceptionBreakpointFilters) do
+      if f.default then
+        table.insert(default_filters, f.filter)
+      end
+    end
+    filters = default_filters
   end
 
   if not filters then
@@ -606,6 +624,9 @@ function Session:set_exception_breakpoints(filters)
   self:request('setExceptionBreakpoints', {filters = filters}, function(err, _)
     if err then
       print("Error setting exception breakpoints: "..err.message)
+    end
+    if on_done then
+       on_done()
     end
   end)
 end
