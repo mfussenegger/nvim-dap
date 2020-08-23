@@ -164,11 +164,18 @@ function M.open(winopts)
     return
   end
   if not buf then
+    local prev_buf = api.nvim_get_current_buf()
+
     buf = api.nvim_create_buf(true, true)
     api.nvim_buf_set_name(buf, '[dap-repl]')
     api.nvim_buf_set_option(buf, 'buftype', 'prompt')
     api.nvim_buf_set_option(buf, 'filetype', 'dap-repl')
     api.nvim_buf_set_option(buf, 'omnifunc', 'v:lua.dap.omnifunc')
+    local ok, path = pcall(api.nvim_buf_get_option, prev_buf, 'path')
+    if ok then
+      api.nvim_buf_set_option(buf, 'path', path)
+    end
+
     api.nvim_buf_set_keymap(buf, 'n', '<CR>', "<Cmd>lua require('dap').repl.on_enter()<CR>", {})
     api.nvim_buf_set_keymap(buf, 'i', '<up>', "<Cmd>lua require('dap').repl.on_up()<CR>", {})
     api.nvim_buf_set_keymap(buf, 'i', '<down>', "<Cmd>lua require('dap').repl.on_down()<CR>", {})
