@@ -281,7 +281,7 @@ function Session:event_initialized(_)
 
   self:set_breakpoints(nil, function()
     if self.capabilities.exceptionBreakpointFilters then
-      self:set_exception_breakpoints('default', on_done)
+      self:set_exception_breakpoints('default', nil, on_done)
     else
       on_done()
     end
@@ -333,6 +333,50 @@ local function jump_to_frame(frame, preserve_focus_hint)
   end
 end
 
+function Session:_show_exception_info()
+  if not self.capabilities.supportsExceptionInfoRequest then return end
+
+  -- exceptionInfo (https://microsoft.github.io/debug-adapter-protocol/specification#Requests_ExceptionInfo)
+  --- threadId: number
+  self:request('exceptionInfo', {threadId = self.stopped_thread_id}, function(err, response)
+    if err then
+      print("Error getting exception info: "..err.message)
+    end
+
+    -- ExceptionInfoResponse
+    --- exceptionId: string
+    --- description?: string
+    --- breakMode: ExceptionBreakMode (https://microsoft.github.io/debug-adapter-protocol/specification#Types_ExceptionBreakMode)
+    --- details?: ExceptionDetails (https://microsoft.github.io/debug-adapter-protocol/specification#Types_ExceptionDetails)
+    if response then
+      local exception_type = response.details and response.details.typeName
+      local of_type = exception_type and ' of type '..exception_type or ''
+      repl.append('Thread stopped due to exception'..of_type..' ('..response.breakMode..')')
+      if response.description then
+        repl.append('Description: '..response.description)
+      end
+      -- ExceptionDetails (https://microsoft.github.io/debug-adapter-protocol/specification#Types_ExceptionDetails)
+      --- message?: string
+      --- typeName?: string
+      --- fullTypeName?: string
+      --- evaluateName?: string
+      --- stackTrace?: string
+      --- innerException?: ExceptionDetails[]
+      if response.details then
+        if response.details.stackTrace then
+          repl.append("Stack trace:")
+          repl.append(response.details.stackTrace)
+        end
+        if response.details.innerException then
+          repl.append("Inner Exceptions:")
+          for _, e in pairs(response.details.innerException) do
+            repl.append(vim.inspect(e))
+          end
+        end
+      end
+    end
+  end)
+end
 
 function Session:event_stopped(stopped)
   if self.stopped_thread_id then
@@ -351,6 +395,11 @@ function Session:event_stopped(stopped)
     for _, thread in pairs(threads_resp.threads) do
       threads[thread.id] = thread
     end
+
+    if stopped.reason == 'exception' then
+      self:_show_exception_info()
+    end
+
     self:request('stackTrace', { threadId = stopped.threadId; }, function(err1, frames_resp)
       if err1 then
         print('Error retrieving stack traces: ' .. err1.message)
@@ -564,40 +613,7 @@ function Session:set_breakpoints(bufexpr, on_done)
   end
 end
 
---interface SetExceptionBreakpointsRequest extends Request {
---command: 'setExceptionBreakpoints';
---arguments: SetExceptionBreakpointsArguments;
---}
---
---interface SetExceptionBreakpointsArguments {
---/**
- --* IDs of checked exception options. The set of IDs is returned via the 'exceptionBreakpointFilters' capability.
- --*/
---filters: string[];
-
---/**
- --* Configuration options for selected exceptions.
- --* The attribute is only honored by a debug adapter if the capability 'supportsExceptionOptions' is true.
- --*/
---exceptionOptions?: ExceptionOptions[];
---}
---
---interface ExceptionOptions {
-  --/**
-   --* A path that selects a single or multiple exceptions in a tree. If 'path' is missing, the whole tree is selected.
-   --* By convention the first segment of the path is a category that is used to group exceptions in the UI.
-   --*/
-  --path?: ExceptionPathSegment[];
-
-  --/**
-   --* Condition when a thrown exception should result in a break.
-   --*/
-  --breakMode: ExceptionBreakMode;
---}
---
---interface SetExceptionBreakpointsResponse extends Response {
---}
-function Session:set_exception_breakpoints(filters, on_done)
+function Session:set_exception_breakpoints(filters, exceptionOptions, on_done)
   if not self.capabilities.exceptionBreakpointFilters then
       print("Debug adapter doesn't support exception breakpoints")
       return
@@ -621,7 +637,17 @@ function Session:set_exception_breakpoints(filters, on_done)
     filters = vim.split(vim.fn.input("Exception breakpoint filters: ", table.concat(possible_filters, ' ')), ' ')
   end
 
-  self:request('setExceptionBreakpoints', {filters = filters}, function(err, _)
+  if exceptionOptions and not self.capabilities.supportsExceptionOptions then
+    print("Debug adapter does not support ExceptionOptions")
+    return
+  end
+
+  -- setExceptionBreakpoints (https://microsoft.github.io/debug-adapter-protocol/specification#Requests_SetExceptionBreakpoints)
+  --- filters: string[]
+  --- exceptionOptions: exceptionOptions?: ExceptionOptions[] (https://microsoft.github.io/debug-adapter-protocol/specification#Types_ExceptionOptions)
+  self:request('setExceptionBreakpoints',
+               { filters = filters, exceptionOptions = exceptionOptions },
+               function(err, _)
     if err then
       print("Error setting exception breakpoints: "..err.message)
     end
@@ -1020,9 +1046,12 @@ function M.toggle_breakpoint(condition, hit_condition, log_message, replace_old)
 end
 
 
-function M.set_exception_breakpoints(filters)
+-- setExceptionBreakpoints (https://microsoft.github.io/debug-adapter-protocol/specification#Requests_SetExceptionBreakpoints)
+--- filters: string[]
+--- exceptionOptions: exceptionOptions?: ExceptionOptions[] (https://microsoft.github.io/debug-adapter-protocol/specification#Types_ExceptionOptions)
+function M.set_exception_breakpoints(filters, exceptionOptions)
   if session then
-    session:set_exception_breakpoints(filters)
+    session:set_exception_breakpoints(filters, exceptionOptions)
   else
     print('Cannot set exception breakpoints: No active session!')
   end
