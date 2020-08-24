@@ -154,7 +154,8 @@ Some example mappings:
     nnoremap <silent> <F11> :lua require'dap'.step_into()<CR>
     nnoremap <silent> <F12> :lua require'dap'.step_out()<CR>
     nnoremap <silent> <leader>b :lua require'dap'.toggle_breakpoint()<CR>
-    nnoremap <silent> <leader>B :lua require'dap'.toggle_breakpoint(vim.fn.input('Breakpoint condition: '))<CR>
+    nnoremap <silent> <leader>B :lua require'dap'.set_breakpoint(vim.fn.input('Breakpoint condition: '))<CR>
+    nnoremap <silent> <leader>lp :lua require'dap'.set_breakpoint(nil, nil, vim.fn.input('Log point message: '))<CR>
     nnoremap <silent> <leader>dr :lua require'dap'.repl.open()<CR>
     nnoremap <silent> <leader>dl :lua require'dap'.repl.run_last()<CR>
 
@@ -202,13 +203,30 @@ attach({host}, {port}, {config})                                 *dap.attach()*
         given |dap-configuration|
 
 
-toggle_breakpoint(condition)                          *dap.toggle_breakpoint()*
+set_breakpoint({condition}, {hit_condition}, {log_message})
+                                                          *dap.set_breakpoint()*
+
+        Same as |toggle_breakpoint|, but is guaranteed to overwrite previous 
+        breakpoint.
+
+toggle_breakpoint({condition}, {hit_condition}, {log_message})
+                                                       *dap.toggle_breakpoint()*
 
         Creates or removes a breakpoint at the current line.
 
         Parameters: ~
-            {condition}   Optional condition that must be met for the debugger
-                          to stop at the breakpoint.
+            {condition}     Optional condition that must be met for the debugger
+                            to stop at the breakpoint.
+            {hit_condition} Optional hit condition, e.g. a number as a string
+                            that tells how often this breakpoint should be visited
+                            to stop.
+            {log_message}   Optional log message. This transforms the breakpoint 
+                            into a log point. Variable interpolation with {foo} is
+                            supported within the message.
+
+list_breakpoints()                                       *dap.list_breakpoints()*
+
+        Lists all breakpoints and log points in quickfix window.
 
 step_over()                                                    *dap.step_over()*
         Requests the debugee to run again for one step.
