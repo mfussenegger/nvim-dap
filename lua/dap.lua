@@ -11,7 +11,7 @@ local ns_breakpoints = 'dap_breakpoints'
 local ns_pos = 'dap_pos'
 local Session = {}
 local session = nil
-local bp_conditions = {}
+local bp_info = {}
 local last_run = nil
 
 M.repl = repl
@@ -74,6 +74,7 @@ M.configurations = {}
 
 
 vim.fn.sign_define('DapBreakpoint', {text='B', texthl='', linehl='', numhl=''})
+vim.fn.sign_define('DapLogPoint', {text='L', texthl='', linehl='', numhl=''})
 vim.fn.sign_define('DapStopped', {text='→', texthl='', linehl='debugPC', numhl=''})
 
 
@@ -102,7 +103,10 @@ local function index_of(items, predicate)
       return i
     end
   end
-  return nil
+end
+
+local function non_empty_sequence(object)
+  return object and #object > 0
 end
 
 
@@ -472,7 +476,7 @@ local function remove_breakpoint_signs(bufnr, lnum)
   if signs and #signs > 0 then
     for _, sign in pairs(signs) do
       vim.fn.sign_unplace(ns_breakpoints, { buffer = bufnr; id = sign.id; })
-      bp_conditions[sign.id] = nil
+      bp_info[sign.id] = nil
     end
     return true
   else
@@ -508,10 +512,21 @@ function Session:set_breakpoints(bufexpr, on_done)
     local breakpoints = {}
     local bufnr = buf_bp_signs.bufnr
     for _, bp in pairs(buf_bp_signs.signs) do
-      table.insert(breakpoints, { line = bp.lnum; condition = bp_conditions[bp.id]; })
+      table.insert(breakpoints, {
+        line = bp.lnum;
+        condition = bp_info[bp.id].condition;
+        hitCondition = bp_info[bp.id].hitCondition;
+        logMessage = bp_info[bp.id].logMessage;
+      })
     end
-    if #bp_conditions > 0 and not self.capabilities.supportsConditionalBreakpoints then
+    if non_empty_sequence(bp_info.condition) and not self.capabilities.supportsConditionalBreakpoints then
       print("Debug adapter doesn't support breakpoints with conditions")
+    end
+    if non_empty_sequence(bp_info.hitCondition) and not self.capabilities.supportsHitConditionalBreakpoints then
+      print("Debug adapter doesn't support breakpoints with hit conditions")
+    end
+    if non_empty_sequence(bp_info.logMessage) and not self.capabilities.supportsLogPoints then
+      print("Debug adapter doesn't support log points")
     end
     local payload = {
       source = { path = vim.fn.expand('#' .. bufnr .. '.p'); };
@@ -848,19 +863,23 @@ function M.restart()
   end
 end
 
-function M.toggle_breakpoint(condition)
+function M.toggle_breakpoint(condition, hit_condition, log_message)
   local bufnr = api.nvim_get_current_buf()
   local lnum, _ = unpack(api.nvim_win_get_cursor(0))
   if not remove_breakpoint_signs(bufnr, lnum) then
     local sign_id = vim.fn.sign_place(
       0,
       ns_breakpoints,
-      'DapBreakpoint',
+      non_empty_sequence(log_message) and 'DapLogPoint' or 'DapBreakpoint',
       bufnr,
       { lnum = lnum; priority = 11; }
     )
-    if condition and sign_id ~= -1 then
-      bp_conditions[sign_id] = condition
+    if sign_id ~= -1 then
+      bp_info[sign_id] = {
+        condition = condition,
+        logMessage = log_message,
+        hitCondition = hit_condition
+      }
     end
   end
   if session and session.initialized then
