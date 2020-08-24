@@ -309,8 +309,11 @@ local function jump_to_frame(frame, preserve_focus_hint)
   for _, win in pairs(api.nvim_list_wins()) do
     local winbuf = api.nvim_win_get_buf(win)
     if api.nvim_buf_get_option(winbuf, 'buftype') == '' then
-      api.nvim_win_set_buf(win, bufnr)
-      api.nvim_win_set_cursor(win, { frame.line, frame.column - 1 })
+      local ok, _ = pcall(api.nvim_win_set_buf, win, bufnr)
+      if ok then
+        api.nvim_win_set_cursor(win, { frame.line, frame.column - 1 })
+        return
+      end
     end
   end
 end
