@@ -11,6 +11,7 @@
 - [x] attach to debug adapter
 - [x] toggle breakpoints
 - [x] breakpoints with conditions
+- [x] logpoints
 - [ ] set function breakpoints
 - [ ] set exception breakpoints
 - [x] step over, step into, step out
