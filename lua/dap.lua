@@ -28,6 +28,9 @@ M.custom_response_handlers = setmetatable({}, {
   end
 })
 
+local DAP_QUICKFIX_TITLE = "DAP Breakpoints"
+local DAP_QUICKFIX_CONTEXT = DAP_QUICKFIX_TITLE
+
 --- For extension of language specific debug adapters.
 --
 -- `adapters.<type>` where <type> is specified in a configuration.
@@ -863,10 +866,49 @@ function M.restart()
   end
 end
 
-function M.toggle_breakpoint(condition, hit_condition, log_message)
+function M.list_breakpoints(open_quickfix)
+  local bp_signs = get_breakpoint_signs()
+  local num_bufs = #bp_signs
+  local qf_list = {}
+  for _, buf_bp_signs in pairs(bp_signs) do
+    local bufnr = buf_bp_signs.bufnr
+    for _, bp in pairs(buf_bp_signs.signs) do
+      local condition = bp_info[bp.id].condition;
+      local hitCondition = bp_info[bp.id].hitCondition;
+      local logMessage = bp_info[bp.id].logMessage;
+      local text = table.concat({
+               unpack(api.nvim_buf_get_lines(bufnr, bp.lnum - 1, bp.lnum, false), 1),
+               non_empty_sequence(logMessage) and "Log message: "..logMessage,
+               non_empty_sequence(condition) and "Condition: "..condition,
+               non_empty_sequence(hitCondition) and "Hit condition: "..hitCondition,
+             }, ', ')
+      table.insert(qf_list, {
+        bufnr = bufnr,
+        lnum = bp.lnum,
+        col = 0,
+        text = text,
+      })
+    end
+  end
+
+  vim.fn.setqflist({}, 'r', {items = qf_list, context = DAP_QUICKFIX_CONTEXT, title = DAP_QUICKFIX_TITLE })
+  if open_quickfix ~= false then
+    if num_bufs == 0 then
+      print('No breakpoints set!')
+    else
+      api.nvim_command('copen')
+    end
+  end
+end
+
+function M.set_breakpoint(condition, hit_condition, log_message)
+  M.toggle_breakpoint(condition, hit_condition, log_message, true)
+end
+
+function M.toggle_breakpoint(condition, hit_condition, log_message, replace_old)
   local bufnr = api.nvim_get_current_buf()
   local lnum, _ = unpack(api.nvim_win_get_cursor(0))
-  if not remove_breakpoint_signs(bufnr, lnum) then
+  if not remove_breakpoint_signs(bufnr, lnum) or replace_old then
     local sign_id = vim.fn.sign_place(
       0,
       ns_breakpoints,
@@ -884,6 +926,9 @@ function M.toggle_breakpoint(condition, hit_condition, log_message)
   end
   if session and session.initialized then
     session:set_breakpoints(bufnr)
+  end
+  if vim.fn.getqflist({context = DAP_QUICKFIX_CONTEXT}).context == DAP_QUICKFIX_CONTEXT then
+    M.list_breakpoints(false)
   end
 end
 
