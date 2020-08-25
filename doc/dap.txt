@@ -280,10 +280,11 @@ repl.open({winopts})                                           *dap.repl.open()*
           .scopes             Prints the variables in the current scopes
           .threads            Prints all threads
           .frames             Print the stack frames
+          .capabilities       Print the capabilities of the debug adapter
 
         You can customize the commands by overriding `dap.repl.commands`:
         >
-          dap.repl.commands = {
+          dap.repl.commands = vim.tbl_extend('force', dap.repl.commands, {
             continue = {'.continue', '.c'},
             next_ = {'.next', '.n'},
             into = {'.into'},
@@ -295,7 +296,16 @@ repl.open({winopts})                                           *dap.repl.open()*
             up = {'.up'},
             down = {'.down'},
             goto_ = {'.goto'},
+            capabilities = {'.capabilities'},
+            -- add your own commands
+            custom_commands = {
+              ['.echo'] = function(text)
+                dap.repl.append(text)
+              end
+            },
           }
+
+        <
 
 
 repl.toggle({winopts})                                       *dap.repl.toggle()*

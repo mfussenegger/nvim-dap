@@ -29,6 +29,7 @@ M.commands = {
   down = {'.down'},
   goto_ = {'.goto'},
   capabilities = {'.capabilities'},
+  custom_commands = {}
 }
 
 function M.print_stackframes()
@@ -65,6 +66,8 @@ local function execute(text)
     table.insert(history.entries, text)
     history.idx = #history.entries + 1
   end
+
+  local splitted_text = vim.split(text, ' ')
   if vim.tbl_contains(M.commands.exit, text) then
     if session then
       -- Should result in a `terminated` event which closes the session and sets it to nil
@@ -93,10 +96,9 @@ local function execute(text)
   elseif vim.tbl_contains(M.commands.down, text) then
     session:_frame_delta(-1)
     M.print_stackframes()
-  elseif vim.tbl_contains(M.commands.goto_, vim.split(text, ' ')[1]) then
-    local split = vim.split(text, ' ')
-    if split[2] then
-      session:_goto(tonumber(split[2]))
+  elseif vim.tbl_contains(M.commands.goto_, splitted_text[1]) then
+    if splitted_text[2] then
+      session:_goto(tonumber(splitted_text[2]))
     end
   elseif vim.tbl_contains(M.commands.scopes, text) then
     local frame = session.current_frame
@@ -118,6 +120,9 @@ local function execute(text)
     end
   elseif vim.tbl_contains(M.commands.frames, text) then
     M.print_stackframes()
+  elseif M.commands.custom_commands[splitted_text[1]] then
+    local command = table.remove(splitted_text, 1)
+    M.commands.custom_commands[command](text)
   else
     local lnum = vim.fn.line('$') - 1
     session:evaluate(text, function(err, resp)
