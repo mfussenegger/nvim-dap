@@ -27,7 +27,8 @@ M.commands = {
   exit = {'exit', '.exit'},
   up = {'.up'},
   down = {'.down'},
-  goto_ = {'.goto'}
+  goto_ = {'.goto'},
+  capabilities = {'.capabilities'},
 }
 
 function M.print_stackframes()
@@ -80,6 +81,8 @@ local function execute(text)
     session:_step('continue')
   elseif vim.tbl_contains(M.commands.next_, text) then
     session:_step('next')
+  elseif vim.tbl_contains(M.commands.capabilities, text) then
+    M.append(vim.inspect(session.capabilities))
   elseif vim.tbl_contains(M.commands.into, text) then
     session:_step('stepIn')
   elseif vim.tbl_contains(M.commands.out, text) then
