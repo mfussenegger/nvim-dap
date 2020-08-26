@@ -703,7 +703,7 @@ end
 function Session:close()
   vim.fn.sign_unplace(ns_pos)
   self.threads = {}
-  self.message_callbacks = nil
+  self.message_callbacks = {}
   self.client.close()
   repl.set_session(nil)
 end
