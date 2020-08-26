@@ -562,16 +562,18 @@ function Session:handle_body(body)
   local _ = log.debug() and log.debug(decoded)
   if decoded.request_seq then
     local callback = self.message_callbacks[decoded.request_seq]
+    local request = self.message_requests[decoded.request_seq]
     if not callback then
       log.warn('No callback for ', decoded)
       return
     end
     self.message_callbacks[decoded.request_seq] = nil
+    self.message_requests[decoded.request_seq] = nil
     if decoded.success then
       vim.schedule_wrap(function()
         callback(nil, decoded.body)
         for _, c in pairs(M.custom_response_handlers[decoded.command]) do
-          c(self, decoded.body)
+          c(self, decoded.body, request)
         end
       end)()
     else
@@ -605,6 +607,7 @@ local function session_defaults(opts)
   return {
     handlers = handlers;
     message_callbacks = {};
+    message_requests = {};
     initialized = false;
     seq = 0;
     stopped_thread_id = nil;
@@ -710,6 +713,7 @@ function Session:close()
   vim.fn.sign_unplace(ns_pos)
   self.threads = {}
   self.message_callbacks = {}
+  self.message_requests = {}
   self.client.close()
   repl.set_session(nil)
 end
@@ -730,6 +734,7 @@ function Session:request(command, arguments, callback)
     self.client.write(msg)
     if callback then
       self.message_callbacks[current_seq] = callback
+      self.message_requests[current_seq] = arguments
     end
   end)
 end
