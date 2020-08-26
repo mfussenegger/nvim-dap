@@ -570,26 +570,26 @@ function Session:handle_body(body)
     self.message_callbacks[decoded.request_seq] = nil
     self.message_requests[decoded.request_seq] = nil
     if decoded.success then
-      vim.schedule_wrap(function()
+      vim.schedule(function()
         callback(nil, decoded.body)
         for _, c in pairs(M.custom_response_handlers[decoded.command]) do
           c(self, decoded.body, request)
         end
-      end)()
+      end)
     else
-      vim.schedule_wrap(function()
+      vim.schedule(function()
         callback({ message = decoded.message; body = decoded.body; }, nil)
-      end)()
+      end)
     end
   elseif decoded.event then
     local callback = self['event_' .. decoded.event]
     if callback then
-      vim.schedule_wrap(function()
+      vim.schedule(function()
         callback(self, decoded.body)
         for _, c in pairs(M.custom_event_handlers['event_' .. decoded.event]) do
           c(self, decoded.body)
         end
-      end)()
+      end)
     else
       log.warn('No event handler for ', decoded)
     end
