@@ -274,8 +274,10 @@ local function select_history(delta)
     history.idx = 1
   end
   local text = history.entries[history.idx]
-  local lnum = vim.fn.line('$') - 1
-  api.nvim_buf_set_lines(buf, lnum, lnum + 1, true, {'dap> ' .. text })
+  if text then
+    local lnum = vim.fn.line('$') - 1
+    api.nvim_buf_set_lines(buf, lnum, lnum + 1, true, {'dap> ' .. text })
+  end
 end
 
 
