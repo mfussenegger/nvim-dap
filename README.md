@@ -23,9 +23,11 @@
 - [x] REPL
 - [x] threads, scopes and variables ui (via REPL commands)
 
-
 ![screenshot](images/screenshot.png)
 
+## Extensions
+
+- [nvim-dap-virtual-text][7] - Inlines the values for variables as virtual text using treesitter.
 
 ## Motivation
 
@@ -63,3 +65,4 @@ Keep in mind that the APIs are subject to change.
 [4]: https://github.com/microsoft/debugpy
 [5]: https://github.com/mfussenegger/nvim-dap/wiki/Debug-Adapter-installation
 [6]: https://github.com/neovim/neovim/releases/tag/nightly
+[7]: https://github.com/theHamsta/nvim-dap-virtual-text
