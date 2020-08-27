@@ -515,11 +515,12 @@ function Session:set_breakpoints(bufexpr, on_done)
     local breakpoints = {}
     local bufnr = buf_bp_signs.bufnr
     for _, bp in pairs(buf_bp_signs.signs) do
+      local bp_entry = bp_info[bp.id] or {}
       table.insert(breakpoints, {
         line = bp.lnum;
-        condition = bp_info[bp.id].condition;
-        hitCondition = bp_info[bp.id].hitCondition;
-        logMessage = bp_info[bp.id].logMessage;
+        condition = bp_entry.condition;
+        hitCondition = bp_entry.hitCondition;
+        logMessage = bp_entry.logMessage;
       })
     end
     if non_empty_sequence(bp_info.condition) and not self.capabilities.supportsConditionalBreakpoints then
@@ -884,9 +885,10 @@ function M.list_breakpoints(open_quickfix)
   for _, buf_bp_signs in pairs(bp_signs) do
     local bufnr = buf_bp_signs.bufnr
     for _, bp in pairs(buf_bp_signs.signs) do
-      local condition = bp_info[bp.id].condition;
-      local hitCondition = bp_info[bp.id].hitCondition;
-      local logMessage = bp_info[bp.id].logMessage;
+      local bp_entry = bp_info[bp.id] or {}
+      local condition = bp_entry.condition;
+      local hitCondition = bp_entry.hitCondition;
+      local logMessage = bp_entry.logMessage;
       local text = table.concat({
                unpack(api.nvim_buf_get_lines(bufnr, bp.lnum - 1, bp.lnum, false), 1),
                non_empty_sequence(logMessage) and "Log message: "..logMessage,
