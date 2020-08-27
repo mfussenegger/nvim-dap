@@ -989,12 +989,12 @@ function M.list_breakpoints(open_quickfix)
       local condition = bp_entry.condition;
       local hitCondition = bp_entry.hitCondition;
       local logMessage = bp_entry.logMessage;
-      local text = table.concat({
+      local text = table.concat(vim.tbl_filter(function(v) return v end, {
                unpack(api.nvim_buf_get_lines(bufnr, bp.lnum - 1, bp.lnum, false), 1),
                non_empty_sequence(logMessage) and "Log message: "..logMessage,
                non_empty_sequence(condition) and "Condition: "..condition,
                non_empty_sequence(hitCondition) and "Hit condition: "..hitCondition,
-             }, ', ')
+             }), ', ')
       table.insert(qf_list, {
         bufnr = bufnr,
         lnum = bp.lnum,
