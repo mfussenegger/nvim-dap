@@ -324,8 +324,8 @@ local function jump_to_frame(frame, preserve_focus_hint)
   for _, win in pairs(api.nvim_list_wins()) do
     local winbuf = api.nvim_win_get_buf(win)
     if api.nvim_buf_get_option(winbuf, 'buftype') == '' then
-      local ok, _ = pcall(api.nvim_win_set_buf, win, bufnr)
-      if ok then
+      local bufchanged, _ = pcall(api.nvim_win_set_buf, win, bufnr)
+      if bufchanged then
         api.nvim_win_set_cursor(win, { frame.line, frame.column - 1 })
         return
       end
@@ -645,15 +645,16 @@ function Session:set_exception_breakpoints(filters, exceptionOptions, on_done)
   -- setExceptionBreakpoints (https://microsoft.github.io/debug-adapter-protocol/specification#Requests_SetExceptionBreakpoints)
   --- filters: string[]
   --- exceptionOptions: exceptionOptions?: ExceptionOptions[] (https://microsoft.github.io/debug-adapter-protocol/specification#Types_ExceptionOptions)
-  self:request('setExceptionBreakpoints',
-               { filters = filters, exceptionOptions = exceptionOptions },
-               function(err, _)
-    if err then
-      print("Error setting exception breakpoints: "..err.message)
-    end
-    if on_done then
-       on_done()
-    end
+  self:request(
+    'setExceptionBreakpoints',
+    { filters = filters, exceptionOptions = exceptionOptions },
+    function(err, _)
+      if err then
+        print("Error setting exception breakpoints: "..err.message)
+      end
+      if on_done then
+        on_done()
+      end
   end)
 end
 
@@ -989,12 +990,18 @@ function M.list_breakpoints(open_quickfix)
       local condition = bp_entry.condition;
       local hitCondition = bp_entry.hitCondition;
       local logMessage = bp_entry.logMessage;
-      local text = table.concat(vim.tbl_filter(function(v) return v end, {
-               unpack(api.nvim_buf_get_lines(bufnr, bp.lnum - 1, bp.lnum, false), 1),
-               non_empty_sequence(logMessage) and "Log message: "..logMessage,
-               non_empty_sequence(condition) and "Condition: "..condition,
-               non_empty_sequence(hitCondition) and "Hit condition: "..hitCondition,
-             }), ', ')
+      local text = table.concat(
+        vim.tbl_filter(
+          function(v) return v end,
+          {
+            unpack(api.nvim_buf_get_lines(bufnr, bp.lnum - 1, bp.lnum, false), 1),
+            non_empty_sequence(logMessage) and "Log message: "..logMessage,
+            non_empty_sequence(condition) and "Condition: "..condition,
+            non_empty_sequence(hitCondition) and "Hit condition: "..hitCondition,
+          }
+        ),
+        ', '
+      )
       table.insert(qf_list, {
         bufnr = bufnr,
         lnum = bp.lnum,
