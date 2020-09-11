@@ -799,12 +799,14 @@ function Session:spawn(adapter, opts)
     handle:close()
   end
   local options = adapter.options or {}
-  handle = uv.spawn(adapter.command, {
+  local pid_or_err
+  handle, pid_or_err = uv.spawn(adapter.command, {
     args = adapter.args;
     stdio = {stdin, stdout, stderr};
     cwd = options.cwd;
     env = options.env;
-  }, onexit)[1]
+  }, onexit)
+  assert(handle, 'Error running ' .. adapter.command .. ': ' .. pid_or_err)
   o.client = {
     write = function(line) stdin:write(line) end;
     close = function()
