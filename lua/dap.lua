@@ -85,6 +85,9 @@ local function expand_config_variables(option)
   if type(option) == 'function' then
     option = option()
   end
+  if type(option) == "table" and vim.tbl_islist(option) then
+    return vim.tbl_map(expand_config_variables, option)
+  end
   if type(option) ~= "string" then
     return option
   end
@@ -113,12 +116,7 @@ local function non_empty_sequence(object)
 end
 
 
-local function handle_adapter(adapter, configuration, opts)
-  assert(type(adapter) == 'table', 'adapter must be a table, not' .. vim.inspect(adapter))
-  assert(
-    adapter.type,
-    'Adapter for ' .. configuration.type .. ' must have the `type` property set to `executable` or `server`'
-  )
+local function run_adapter(adapter, configuration, opts)
   if adapter.type == 'executable' then
     M.launch(adapter, configuration, opts)
   elseif adapter.type == 'server' then
@@ -129,7 +127,27 @@ local function handle_adapter(adapter, configuration, opts)
 end
 
 
-local function launch_debug_adapter()
+local function maybe_enrich_config_and_run(adapter, configuration, opts)
+  assert(type(adapter) == 'table', 'adapter must be a table, not' .. vim.inspect(adapter))
+  assert(
+    adapter.type,
+    'Adapter for ' .. configuration.type .. ' must have the `type` property set to `executable` or `server`'
+  )
+  if adapter.enrich_config then
+    assert(
+      type(adapter.enrich_config) == 'function',
+      '`enrich_config` property of adapter must be a function: ' .. vim.inspect(adapter)
+    )
+    adapter.enrich_config(configuration, function(config)
+      run_adapter(adapter, config, opts)
+    end)
+  else
+    run_adapter(adapter, configuration, opts)
+  end
+end
+
+
+local function select_config_and_run()
   local filetype = api.nvim_buf_get_option(0, 'filetype')
   local configurations = M.configurations[filetype] or {}
   local configuration = ui.pick_one(configurations, "Configuration: ", function(i) return i.name end)
@@ -137,7 +155,6 @@ local function launch_debug_adapter()
     print('No configuration found for ' .. filetype)
     return
   end
-
   M.run(configuration)
 end
 
@@ -154,11 +171,11 @@ function M.run(config, opts)
   local adapter = M.adapters[config.type]
   if type(adapter) == 'table' then
     config = vim.tbl_map(expand_config_variables, config)
-    handle_adapter(adapter, config, opts)
+    maybe_enrich_config_and_run(adapter, config, opts)
   elseif type(adapter) == 'function' then
     adapter(function(resolved_adapter)
       config = vim.tbl_map(expand_config_variables, config)
-      handle_adapter(resolved_adapter, config, opts)
+      maybe_enrich_config_and_run(resolved_adapter, config, opts)
     end)
   else
     print(string.format('Invalid adapter: %q', adapter))
@@ -1067,7 +1084,7 @@ end
 
 function M.continue()
   if not session then
-    launch_debug_adapter()
+    select_config_and_run()
   else
     session:_step('continue')
   end

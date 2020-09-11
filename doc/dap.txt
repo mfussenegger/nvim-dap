@@ -81,6 +81,32 @@ debug-adapter is spawned via a LSP command:
     end
 <
 
+
+There is an additional `enrich_config` property available for both adapter
+types. This property is a function which allows an adapter to enrich a
+configuration with additional information. It receives a configuration as first
+argument, and a callback that must be called with the final configuration as
+second argument.
+
+An example use-case of this is the Java Debug Adapter, which can resolve
+classPaths or modulePaths dynamically, so that users don't have to do that.
+
+>
+
+
+    local adapter = {
+      type = 'server';
+      host = '127.0.0.1';
+      port = 8080;
+      enrich_config = function(config, on_config)
+        local final_config = vim.deepcopy(config)
+        final_config.extra_property = 'This got injected by the adapter'
+        on_config(final_config)
+      end;
+    }
+
+<
+
 ==============================================================================
 DEBUGEE CONFIGURATION                                *dap-configuration*
 
