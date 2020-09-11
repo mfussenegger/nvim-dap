@@ -140,7 +140,25 @@ Things to note:
 - Some variables are supported:
 
   - `${file}`: Active filename
+  - `${workspaceFolder}`: The current working directory of Neovim
 
+
+==============================================================================
+DEBUGEE CONFIGURATION via launch.json                *dap-launch.json*
+
+nvim-dap supports a small subset of the `launch.json` file that is used to
+configure debug adapters in Visual Studio Code.
+
+To load the configurations, add the following in `init.vim`:
+
+>
+
+  lua require('dap.ext.vscode').load_launchjs()
+
+<
+
+This extends `dap.configurations` each time it is called, so make sure to only
+call it once.
 
 ==============================================================================
 MAPPINGS                                             *dap-mappings*
