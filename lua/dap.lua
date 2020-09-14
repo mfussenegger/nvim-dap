@@ -333,6 +333,7 @@ local function jump_to_frame(frame, preserve_focus_hint)
   for _, win in pairs(api.nvim_list_wins()) do
     if api.nvim_win_get_buf(win) == bufnr then
       api.nvim_win_set_cursor(win, { frame.line, frame.column - 1 })
+      api.nvim_feedkeys('zv', 'n', true)
       return
     end
   end
@@ -344,6 +345,7 @@ local function jump_to_frame(frame, preserve_focus_hint)
       local bufchanged, _ = pcall(api.nvim_win_set_buf, win, bufnr)
       if bufchanged then
         api.nvim_win_set_cursor(win, { frame.line, frame.column - 1 })
+        api.nvim_feedkeys('zv', 'n', true)
         return
       end
     end
