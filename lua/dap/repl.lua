@@ -56,6 +56,35 @@ function M.print_stackframes()
 end
 
 
+local function evaluate_input(text, lnum)
+  session:evaluate(text, function(err, resp)
+    if err then
+      M.append(err.message, lnum)
+      return
+    end
+    if resp.variablesReference == 0 then
+      M.append(resp.result, lnum)
+      return
+    end
+
+    local params = {
+      variablesReference = resp.variablesReference
+    }
+    session:request('variables', params, function(err1, v_resp)
+      if err1 then
+        M.append(err1.message, lnum)
+        return
+      end
+
+      M.append(resp.result, lnum)
+      for _, val in ipairs(v_resp.variables) do
+        M.append('  ' .. val.name .. ': ' .. val.value)
+      end
+    end)
+  end)
+end
+
+
 local function execute(text)
   if text == '' then
     if history.last then
@@ -131,13 +160,7 @@ local function execute(text)
     M.commands.custom_commands[command](text)
   else
     local lnum = vim.fn.line('$') - 1
-    session:evaluate(text, function(err, resp)
-      if err then
-        M.append(err.message, lnum)
-      else
-        M.append(resp.result, lnum)
-      end
-    end)
+    evaluate_input(text, lnum)
   end
 end
 
