@@ -28,7 +28,7 @@ function M.create_logger(filename)
   end
   local logfilename = path_join(vim.fn.stdpath('data'), filename)
 
-  local current_log_level = M.levels.WARN
+  local current_log_level = M.levels.INFO
 
   function logger.set_level(level)
     current_log_level = assert(
