@@ -330,6 +330,12 @@ local function jump_to_frame(frame, preserve_focus_hint)
   if not ok then
     print(failure)
   end
+  -- vscode-go sends columns with 0
+  -- That would cause a "Column value outside range" error calling nvim_win_set_cursor
+  -- nvim-dap says "columnsStartAt1 = true" on initialize :/
+  if frame.column == 0 then
+    frame.column = 1
+  end
   for _, win in pairs(api.nvim_list_wins()) do
     if api.nvim_win_get_buf(win) == bufnr then
       api.nvim_win_set_cursor(win, { frame.line, frame.column - 1 })
@@ -608,9 +614,14 @@ function Session:set_breakpoints(bufexpr, on_done)
     if non_empty_sequence(bp_info.logMessage) and not self.capabilities.supportsLogPoints then
       print("Debug adapter doesn't support log points")
     end
+    local path = api.nvim_buf_get_name(bufnr)
     local payload = {
-      source = { path = vim.fn.expand('#' .. bufnr .. '.p'); };
-      breakpoints = breakpoints
+      source = {
+        path = path;
+        name = vim.fn.fnamemodify(path, ':t')
+      };
+      breakpoints = breakpoints;
+      lines = vim.tbl_map(function(x) return x.line end, breakpoints);
     }
     self:request('setBreakpoints', payload, function(err1, resp)
         if err1 then
@@ -618,7 +629,7 @@ function Session:set_breakpoints(bufexpr, on_done)
         else
           for _, bp in pairs(resp.breakpoints) do
             if not bp.verified then
-              local _ = log.info() and log.info('Server rejected breakpoint at line', bp.line)
+              log.info('Server rejected breakpoint', bp)
               remove_breakpoint_signs(bufnr, bp.line)
             end
           end
@@ -813,7 +824,7 @@ function Session:spawn(adapter, opts)
     write = function(line) stdin:write(line) end;
     close = function()
       if handle then
-        handle:close()
+        pcall(handle.close, handle)
       end
     end;
   }
