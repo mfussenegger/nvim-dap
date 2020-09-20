@@ -111,7 +111,7 @@ local function execute(text)
     if frame then
       for _, scope in pairs(frame.scopes) do
         M.append(string.format("%s  (frame: %s)", scope.name, frame.name))
-        for _, variable in pairs(scope.variables) do
+        for _, variable in pairs(scope.variables or {}) do
           M.append(string.rep(' ', 2) .. variable.name .. ': ' .. variable.value)
         end
       end
