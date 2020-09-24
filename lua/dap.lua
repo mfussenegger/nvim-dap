@@ -152,6 +152,13 @@ local function select_config_and_run()
   local configurations = M.configurations[filetype] or {}
   local configuration = ui.pick_one(configurations, "Configuration: ", function(i) return i.name end)
   if not configuration then
+    assert(
+      vim.tbl_islist(configurations),
+      'configurations for '
+        .. filetype
+        .. ' must be a list of config objects, not a table: '
+        .. vim.inspect(configurations)
+    )
     print('No configuration found for ' .. filetype)
     return
   end
