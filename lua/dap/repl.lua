@@ -49,7 +49,7 @@ function M.print_stackframes()
     end
     local lnum = M.append(line)
     if lnum and buf then
-      local mark = api.nvim_buf_set_extmark(buf, frames_ns, 0, lnum, 0, {})
+      local mark = api.nvim_buf_set_extmark(buf, frames_ns, lnum, 0, {})
       frames_marks[mark] = frame
     end
   end
@@ -253,14 +253,14 @@ function M.on_enter()
       session:_frame_set(frame)
       local new_marks = {}
       for m, f in pairs(frames_marks) do
-        local mark = api.nvim_buf_get_extmark_by_id(buf, frames_ns, m)
+        local mark = api.nvim_buf_get_extmark_by_id(buf, frames_ns, m, {})
         local line =  mark[1]
         if f.id == frame.id then
           api.nvim_buf_set_lines(buf, line, line + 1, true, {'→ '..f.name})
         else
           api.nvim_buf_set_lines(buf, line, line + 1, true, {'  '..f.name})
         end
-        local new_mark = api.nvim_buf_set_extmark(buf, frames_ns, 0, line, 0, {})
+        local new_mark = api.nvim_buf_set_extmark(buf, frames_ns, line, 0, {})
         new_marks[new_mark] = f
       end
       frames_marks = new_marks
