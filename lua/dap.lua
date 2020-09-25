@@ -313,6 +313,15 @@ function Session:event_initialized(_)
 end
 
 
+local function with_win(win, fn, ...)
+  local cur_win = api.nvim_get_current_win()
+  api.nvim_set_current_win(win)
+  local ok, err = pcall(fn, ...)
+  api.nvim_set_current_win(cur_win)
+  assert(ok, err)
+end
+
+
 local function jump_to_frame(frame, preserve_focus_hint)
   if not frame.source then
     return
@@ -346,7 +355,7 @@ local function jump_to_frame(frame, preserve_focus_hint)
   for _, win in pairs(api.nvim_list_wins()) do
     if api.nvim_win_get_buf(win) == bufnr then
       api.nvim_win_set_cursor(win, { frame.line, frame.column - 1 })
-      api.nvim_command('normal zv')
+      with_win(win, api.nvim_command, 'normal zv')
       return
     end
   end
@@ -358,7 +367,7 @@ local function jump_to_frame(frame, preserve_focus_hint)
       local bufchanged, _ = pcall(api.nvim_win_set_buf, win, bufnr)
       if bufchanged then
         api.nvim_win_set_cursor(win, { frame.line, frame.column - 1 })
-        api.nvim_command('normal zv')
+        with_win(win, api.nvim_command, 'normal zv')
         return
       end
     end
