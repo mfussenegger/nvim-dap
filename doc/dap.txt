@@ -317,6 +317,11 @@ step_out()                                                      *dap.step_out()*
 step_back()                                                    *dap.step_back()*
         Steps one step back. Debug adapter must support reverse debugging.
 
+pause({thread_id})                                                 *dap.pause()*
+        Requests debug adapter to pause a thread. If there are multiple threads
+        it stops `thread_id` from the optional parameter or asks the user which
+        thread to pause.
+
 reverse_continue()                                      *dap.reverse_continue()*
         Continues execution reverse in time until last breakpoint.
         Debug adapter must support reverse debugging.

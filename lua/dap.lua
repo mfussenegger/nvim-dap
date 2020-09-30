@@ -460,7 +460,11 @@ function Session:event_stopped(stopped)
       if not current_frame then
         return
       end
-      jump_to_frame(current_frame, stopped.preserveFocusHint)
+      local preserve_focus
+      if stopped.reason ~= 'pause' then
+        preserve_focus = stopped.preserveFocusHint
+      end
+      jump_to_frame(current_frame, preserve_focus)
 
       self:_request_scopes(current_frame)
     end)
@@ -950,6 +954,33 @@ function Session:disconnect()
 end
 
 
+function Session:_pause(thread_id)
+  if self.stopped_thread_id then
+    print('One thread is already stopped. Cannot pause!')
+    return
+  end
+
+  self:request('threads', nil, function(err0, response)
+    if err0 then
+      print('Error requesting threads: ' .. err0.message)
+    end
+    if not thread_id then
+      local answer = ui.pick_one(response.threads, "Which thread?: ", function(t) return t.name end)
+      if not answer or not answer.id then
+        print('No thread to stop. Not pausing...')
+        return
+      end
+      thread_id = answer.id
+    end
+    session:request('pause', { threadId = thread_id; }, function(err1, _)
+      if err1 then
+        print('Error pausing: ' .. err1.message)
+      end
+    end)
+  end)
+end
+
+
 function Session:_step(step)
   if vim.tbl_contains({"stepBack", "reverseContinue"}, step) and not session.capabilities.supportsStepBack then
     print("Debug Adapter does not support "..step.."!")
@@ -993,6 +1024,12 @@ end
 function M.step_back()
   if not session then return end
   session:_step('stepBack')
+end
+
+function M.pause(thread_id)
+  if session then
+    session:_pause(thread_id)
+  end
 end
 
 function M.stop()

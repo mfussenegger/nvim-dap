@@ -19,6 +19,7 @@ things may break.
 - [x] Goto
 - [x] restart
 - [x] stop
+- [x] pause
 - [x] evaluate expressions
 - [x] REPL (incl. commands to show threads, frames and scopes)
 

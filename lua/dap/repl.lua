@@ -30,6 +30,7 @@ M.commands = {
   up = {'.up'},
   down = {'.down'},
   goto_ = {'.goto'},
+  pause = {'.pause', '.p'},
   capabilities = {'.capabilities'},
   custom_commands = {}
 }
@@ -126,6 +127,8 @@ local function execute(text)
     M.print_stackframes()
   elseif vim.tbl_contains(M.commands.step_back, text) then
     session:_step('stepBack')
+  elseif vim.tbl_contains(M.commands.pause, text) then
+    session:_pause()
   elseif vim.tbl_contains(M.commands.reverse_continue, text) then
     session:_step('reverseContinue')
   elseif vim.tbl_contains(M.commands.down, text) then
