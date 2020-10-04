@@ -451,14 +451,19 @@ function Session:event_stopped(stopped)
       self.current_frame = nil
       threads[stopped.threadId].frames = frames
       for _, frame in pairs(frames_resp.stackFrames) do
-        if not current_frame then
+        if not current_frame and frame.source and frame.source.path then
           current_frame = frame
           self.current_frame = frame
         end
         table.insert(frames, frame)
       end
       if not current_frame then
-        return
+        if #frames > 0 then
+          current_frame = frames[1]
+          self.current_frame = current_frame
+        else
+          return
+        end
       end
       local preserve_focus
       if stopped.reason ~= 'pause' then
