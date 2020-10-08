@@ -352,7 +352,7 @@ local function jump_to_frame(frame, preserve_focus_hint)
   if frame.column == 0 then
     frame.column = 1
   end
-  for _, win in pairs(api.nvim_list_wins()) do
+  for _, win in pairs(api.nvim_tabpage_list_wins(0)) do
     if api.nvim_win_get_buf(win) == bufnr then
       api.nvim_win_set_cursor(win, { frame.line, frame.column - 1 })
       with_win(win, api.nvim_command, 'normal zv')
@@ -361,7 +361,7 @@ local function jump_to_frame(frame, preserve_focus_hint)
   end
   -- Buffer isn't active in any window; use the first window that is not special
   -- (Don't want to move to code in the REPL...)
-  for _, win in pairs(api.nvim_list_wins()) do
+  for _, win in pairs(api.nvim_tabpage_list_wins(0)) do
     local winbuf = api.nvim_win_get_buf(win)
     if api.nvim_buf_get_option(winbuf, 'buftype') == '' then
       local bufchanged, _ = pcall(api.nvim_win_set_buf, win, bufnr)
