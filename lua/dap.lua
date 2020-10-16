@@ -150,19 +150,33 @@ end
 local function select_config_and_run()
   local filetype = api.nvim_buf_get_option(0, 'filetype')
   local configurations = M.configurations[filetype] or {}
-  local configuration = ui.pick_one(configurations, "Configuration: ", function(i) return i.name end)
-  if not configuration then
-    assert(
-      vim.tbl_islist(configurations),
-      'configurations for '
-        .. filetype
-        .. ' must be a list of config objects, not a table: '
-        .. vim.inspect(configurations)
-    )
+  if #configurations == 1 then
+    M.run(configurations[1])
+    return
+  end
+  if #configurations == 0 then
     print('No configuration found for ' .. filetype)
     return
   end
-  M.run(configuration)
+
+  ui.pick_one(
+    configurations,
+    "Configuration: ",
+    function(i) return i.name end,
+    function(configuration)
+      if configuration then
+        M.run(configuration)
+      else
+        assert(
+          vim.tbl_islist(configurations),
+          'configurations for '
+            .. filetype
+            .. ' must be a list of config objects, not a table: '
+            .. vim.inspect(configurations)
+        )
+      end
+    end
+  )
 end
 
 
@@ -185,7 +199,7 @@ function M.run(config, opts)
       maybe_enrich_config_and_run(resolved_adapter, config, opts)
     end)
   else
-    print(string.format('Invalid adapter: %q', adapter))
+    print('Invalid adapter: ', vim.inspect(adapter))
   end
 end
 
@@ -959,29 +973,46 @@ function Session:disconnect()
 end
 
 
+local function pause_thread(thread_id)
+  assert(session, 'Cannot pause thread without active session')
+  assert(thread_id, 'thread_id is required to pause thread')
+
+  session:request('pause', { threadId = thread_id; }, function(err)
+    if err then
+      print('Error pausing: ' .. err.message)
+    else
+      print('Thread paused', thread_id)
+    end
+  end)
+end
+
+
 function Session:_pause(thread_id)
   if self.stopped_thread_id then
     print('One thread is already stopped. Cannot pause!')
     return
   end
-
+  if thread_id then
+    pause_thread(self, thread_id)
+    return
+  end
   self:request('threads', nil, function(err0, response)
     if err0 then
       print('Error requesting threads: ' .. err0.message)
+      return
     end
-    if not thread_id then
-      local answer = ui.pick_one(response.threads, "Which thread?: ", function(t) return t.name end)
-      if not answer or not answer.id then
-        print('No thread to stop. Not pausing...')
-        return
+    ui.pick_one(
+      response.threads,
+      "Which thread?: ",
+      function(t) return t.name end,
+      function(thread)
+        if not thread or not thread.id then
+          print('No thread to stop. Not pausing...')
+        else
+          pause_thread(thread.id)
+        end
       end
-      thread_id = answer.id
-    end
-    session:request('pause', { threadId = thread_id; }, function(err1, _)
-      if err1 then
-        print('Error pausing: ' .. err1.message)
-      end
-    end)
+    )
   end)
 end
 
