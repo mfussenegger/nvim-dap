@@ -5,12 +5,16 @@ local M = {}
 --
 function M.load_launchjs(path)
   local resolved_path = path or (vim.fn.getcwd() .. '/.vscode/launch.json')
-  local file = io.open(resolved_path)
-  if not file then
+  if not vim.loop.fs_stat(resolved_path) then
     return
   end
-  local contents = file:read("*all")
-  file:close()
+  local lines = {}
+  for line in io.lines(resolved_path) do
+    if not vim.startswith(vim.trim(line), '//') then
+      table.insert(lines, line)
+    end
+  end
+  local contents = table.concat(lines, '\n')
   local data = vim.fn.json_decode(contents)
   assert(data.configurations, "launch.json must have a 'configurations' key")
   for _, config in ipairs(data.configurations) do
