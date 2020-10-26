@@ -189,15 +189,17 @@ function M.run(config, opts)
   if opts.before then
     config = opts.before(config)
   end
+  config = vim.tbl_map(expand_config_variables, config)
   local adapter = M.adapters[config.type]
   if type(adapter) == 'table' then
-    config = vim.tbl_map(expand_config_variables, config)
     maybe_enrich_config_and_run(adapter, config, opts)
   elseif type(adapter) == 'function' then
-    adapter(function(resolved_adapter)
-      config = vim.tbl_map(expand_config_variables, config)
-      maybe_enrich_config_and_run(resolved_adapter, config, opts)
-    end)
+    adapter(
+      function(resolved_adapter)
+        maybe_enrich_config_and_run(resolved_adapter, config, opts)
+      end,
+      config
+    )
   else
     print('Invalid adapter: ', vim.inspect(adapter))
   end
