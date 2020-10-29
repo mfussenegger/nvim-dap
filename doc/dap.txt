@@ -171,6 +171,29 @@ Things to note:
 
 
 ==============================================================================
+OTHER CONFIGURATION                                *dap-other-configuration*
+
+If you want to set the exception settings before the debugging session starts
+you can use:
+
+>
+
+    -- Stop on everything (this is the default)
+    require('dap').exception_breakpoints = 'default'
+
+    -- Do not stop on exceptions.
+    require('dap').exception_breakpoints = {}
+
+    -- Ask on session start for settings.
+    require('dap').exception_breakpoints = nil
+
+    -- Stop on specific ones only.
+    require('dap').exception_breakpoints = {'uncaught', '...'}
+
+<
+
+
+==============================================================================
 DEBUGEE CONFIGURATION via launch.json                *dap-launch.json*
 
 nvim-dap supports a small subset of the `launch.json` file that is used to
@@ -251,7 +274,7 @@ attach({host}, {port}, {config})                                 *dap.attach()*
 set_breakpoint({condition}, {hit_condition}, {log_message})
                                                           *dap.set_breakpoint()*
 
-        Same as |toggle_breakpoint|, but is guaranteed to overwrite previous 
+        Same as |toggle_breakpoint|, but is guaranteed to overwrite previous
         breakpoint.
 
 toggle_breakpoint({condition}, {hit_condition}, {log_message})
@@ -265,7 +288,7 @@ toggle_breakpoint({condition}, {hit_condition}, {log_message})
             {hit_condition} Optional hit condition, e.g. a number as a string
                             that tells how often this breakpoint should be visited
                             to stop.
-            {log_message}   Optional log message. This transforms the breakpoint 
+            {log_message}   Optional log message. This transforms the breakpoint
                             into a log point. Variable interpolation with {foo} is
                             supported within the message.
 
@@ -289,7 +312,7 @@ set_exception_breakpoints({filters}, {exceptionOptions})
                            used.
         {exceptionOptions} ExceptionOptions[]?
                            (https://microsoft.github.io/debug-adapter-protocol/specification#Types_ExceptionOptions)
-         
+
     >
         -- Ask user to stop on which kinds of exceptions
         require'dap'.set_exception_breakpoints()

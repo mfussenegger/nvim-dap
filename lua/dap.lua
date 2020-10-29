@@ -76,6 +76,16 @@ M.adapters = {}
 M.configurations = {}
 
 
+--- Configuration for breakpoints
+-- Example:
+--
+-- "default" -> Use the default configuration of the debug adapter.
+-- nil -> Ask the user which kinds of exceptions.
+-- {} -> Do not stop on exceptions.
+-- {"uncaught", "raised"} -> Stop only on certain conditions..
+M.exception_breakpoints = "default"
+
+
 vim.fn.sign_define('DapBreakpoint', {text='B', texthl='', linehl='', numhl=''})
 vim.fn.sign_define('DapLogPoint', {text='L', texthl='', linehl='', numhl=''})
 vim.fn.sign_define('DapStopped', {text='→', texthl='', linehl='debugPC', numhl=''})
@@ -321,7 +331,7 @@ function Session:event_initialized(_)
 
   self:set_breakpoints(nil, function()
     if self.capabilities.exceptionBreakpointFilters then
-      self:set_exception_breakpoints('default', nil, on_done)
+      self:set_exception_breakpoints(M.exception_breakpoints, nil, on_done)
     else
       on_done()
     end
