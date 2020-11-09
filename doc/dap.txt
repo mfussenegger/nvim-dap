@@ -302,6 +302,22 @@ set_exception_breakpoints({filters}, {exceptionOptions})
         require'dap'.set_exception_breakpoints("default")
     <
 
+    You can also set the default value via a `defaults.fallback` table:
+
+    >
+        require('dap').defaults.fallback.exception_breakpoints = {'raised'}
+    <
+
+    Or per config/adapter type:
+
+    >
+        require('dap').defaults.python.exception_breakpoints = {'raised'}
+    <
+
+    In this example `python` is the type. This is the same type used in
+    |dap-configuration| or the |dap-adapter| definition.
+
+
 step_over()                                                    *dap.step_over()*
         Requests the debugee to run again for one step.
 

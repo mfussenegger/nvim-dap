@@ -28,6 +28,30 @@ M.custom_response_handlers = setmetatable({}, {
   end
 })
 
+
+local function from_fallback(_, key)
+  return M.defaults.fallback[key]
+end
+M.defaults = setmetatable(
+  {
+    fallback = {
+      exception_breakpoints = 'default';
+    },
+  },
+  {
+    __index = function(tbl, key)
+      tbl[key] = {} -- call __newindex to add metatable to child
+      return rawget(tbl, key)
+    end,
+    __newindex = function(tbl, key)
+      rawset(tbl, key, setmetatable({}, {
+        __index = from_fallback
+      }))
+    end
+  }
+)
+
+
 local DAP_QUICKFIX_TITLE = "DAP Breakpoints"
 local DAP_QUICKFIX_CONTEXT = DAP_QUICKFIX_TITLE
 
@@ -321,7 +345,7 @@ function Session:event_initialized(_)
 
   self:set_breakpoints(nil, function()
     if self.capabilities.exceptionBreakpointFilters then
-      self:set_exception_breakpoints('default', nil, on_done)
+      self:set_exception_breakpoints(M.defaults[self.config.type].exception_breakpoints, nil, on_done)
     else
       on_done()
     end
@@ -931,6 +955,7 @@ end
 
 
 function Session:initialize(config)
+  self.config = config
   self:request('initialize', {
     clientId = 'neovim';
     clientname = 'neovim';
