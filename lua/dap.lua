@@ -1248,7 +1248,7 @@ local function completions_to_items(completions, prefix)
 end
 
 
-function dap.omnifunc(findstart, base) -- luacheck: ignore 112
+function M.omnifunc(findstart, base)
   local supportsCompletionsRequest = ((session or {}).capabilities or {}).supportsCompletionsRequest;
   local _ = log.debug() and log.debug('omnifunc.findstart', {
     findstart = findstart;
@@ -1294,6 +1294,7 @@ function dap.omnifunc(findstart, base) -- luacheck: ignore 112
   -- cancel but stay in completion mode for completion via `completions` callback
   return -2
 end
+dap.omnifunc = M.omnifunc  -- luacheck: ignore 112
 
 
 --- Attach to an existing debug-adapter running on host, port
