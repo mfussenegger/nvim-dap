@@ -859,6 +859,7 @@ function Session:spawn(adapter, opts)
     stdio = {stdin, stdout, stderr};
     cwd = options.cwd;
     env = options.env;
+    detached = true;
   }, onexit)
   assert(handle, 'Error running ' .. adapter.command .. ': ' .. pid_or_err)
   o.client = {
@@ -1348,4 +1349,13 @@ function M.set_log_level(level)
 end
 
 
+function M._vim_exit_handler()
+  if session then
+    session:close()
+  end
+end
+dap._vim_exit_handler = M._vim_exit_handler  -- luacheck: ignore 112
+
+
+api.nvim_command("autocmd VimLeavePre * lua dap._vim_exit_handler()")
 return M
