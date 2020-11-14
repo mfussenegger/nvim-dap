@@ -32,6 +32,7 @@ M.commands = {
   goto_ = {'.goto'},
   pause = {'.pause', '.p'},
   capabilities = {'.capabilities'},
+  help = {'help', '.help', '.h'},
   custom_commands = {}
 }
 
@@ -86,6 +87,16 @@ local function evaluate_input(text, lnum)
 end
 
 
+local function print_commands()
+  M.append('Commands:')
+  for _, commands in pairs(M.commands) do
+    if #commands > 0 then
+      M.append('  ' .. table.concat(commands, ', '))
+    end
+  end
+end
+
+
 local function execute(text)
   if text == '' then
     if history.last then
@@ -106,6 +117,10 @@ local function execute(text)
       session:disconnect()
     end
     api.nvim_command('close')
+    return
+  end
+  if vim.tbl_contains(M.commands.help, text) then
+    print_commands()
     return
   end
   if not session then
