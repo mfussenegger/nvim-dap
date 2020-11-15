@@ -29,6 +29,7 @@ things may break.
 
 - [nvim-dap-virtual-text][7] - Inlines the values for variables as virtual text
   using treesitter.
+- [nvim-dap-python][9] - An extension for nvim-dap providing default configurations for python and methods to debug individual test methods or classes.
 
 ## Goals
 
@@ -77,3 +78,4 @@ Keep in mind that the APIs are subject to change.
 [6]: https://github.com/neovim/neovim/releases/tag/nightly
 [7]: https://github.com/theHamsta/nvim-dap-virtual-text
 [8]: https://github.com/mfussenegger/nvim-jdtls
+[9]: https://github.com/mfussenegger/nvim-dap-python
