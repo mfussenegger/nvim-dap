@@ -311,15 +311,24 @@ local function parse_chunk_loop()
     if start then
       local buffer_start = buffer:find(header_start_pattern)
       local headers = parse_headers(buffer:sub(buffer_start, start - 1))
-      buffer = buffer:sub(finish + 1)
       local content_length = headers.content_length
-      while #buffer < content_length do
-        buffer = buffer .. (coroutine.yield()
-          or error("Expected more data for the body. The server may have died."))
+      local body_chunks = {buffer:sub(finish + 1)}
+      local body_length = #body_chunks[1]
+      while body_length < content_length do
+        local chunk = coroutine.yield()
+          or error("Expected more data for the body. The server may have died.")
+        table.insert(body_chunks, chunk)
+        body_length = body_length + #chunk
       end
-      local body = buffer:sub(1, content_length)
-      buffer = buffer:sub(content_length + 1)
-      buffer = buffer .. (coroutine.yield(headers, body)
+      local last_chunk = body_chunks[#body_chunks]
+
+      body_chunks[#body_chunks] = last_chunk:sub(1, content_length - body_length - 1)
+      local rest = ''
+      if body_length > content_length then
+        rest = last_chunk:sub(content_length - body_length)
+      end
+      local body = table.concat(body_chunks)
+      buffer = rest .. (coroutine.yield(headers, body)
         or error("Expected more data for the body. The server may have died."))
     else
       buffer = buffer .. (coroutine.yield()
