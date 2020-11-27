@@ -445,3 +445,7 @@ set_log_level(level)                                       *dap.set_log_level()*
             :lua print(vim.fn.stdpath('data'))
 <
         The filename is `nvim-dap.log`
+
+
+session()                                                        *dap.session()*
+        Returns the current session or nil if no session exists.
