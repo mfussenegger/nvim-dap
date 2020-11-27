@@ -371,39 +371,20 @@ local function with_win(win, fn, ...)
 end
 
 
-local function jump_to_frame(frame, preserve_focus_hint)
-  if not frame.source then
-    return
-  end
-  if not frame.source.path then
-    print('Source path not available, cannot jump to frame')
-    return
-  end
-  local scheme = frame.source.path:match('^([a-z]+)://.*')
-  local bufnr
-  if scheme then
-    bufnr = vim.uri_to_bufnr(frame.source.path)
-  else
-    bufnr = vim.uri_to_bufnr(vim.uri_from_fname(frame.source.path))
-  end
-  vim.fn.sign_unplace(ns_pos)
-  if preserve_focus_hint or frame.line < 0 then
-    return
-  end
-  vim.fn.bufload(bufnr)
-  local ok, failure = pcall(vim.fn.sign_place, 0, ns_pos, 'DapStopped', bufnr, { lnum = frame.line; priority = 12 })
+local function jump_to_location(bufnr, line, column)
+  local ok, failure = pcall(vim.fn.sign_place, 0, ns_pos, 'DapStopped', bufnr, { lnum = line; priority = 12 })
   if not ok then
     print(failure)
   end
   -- vscode-go sends columns with 0
   -- That would cause a "Column value outside range" error calling nvim_win_set_cursor
   -- nvim-dap says "columnsStartAt1 = true" on initialize :/
-  if frame.column == 0 then
-    frame.column = 1
+  if column == 0 then
+    column = 1
   end
   for _, win in pairs(api.nvim_tabpage_list_wins(0)) do
     if api.nvim_win_get_buf(win) == bufnr then
-      api.nvim_win_set_cursor(win, { frame.line, frame.column - 1 })
+      api.nvim_win_set_cursor(win, { line, column - 1 })
       with_win(win, api.nvim_command, 'normal zv')
       return
     end
@@ -415,13 +396,54 @@ local function jump_to_frame(frame, preserve_focus_hint)
     if api.nvim_buf_get_option(winbuf, 'buftype') == '' then
       local bufchanged, _ = pcall(api.nvim_win_set_buf, win, bufnr)
       if bufchanged then
-        api.nvim_win_set_cursor(win, { frame.line, frame.column - 1 })
+        api.nvim_win_set_cursor(win, { line, column - 1 })
         with_win(win, api.nvim_command, 'normal zv')
         return
       end
     end
   end
 end
+
+
+local function jump_to_frame(cur_session, frame, preserve_focus_hint)
+  local source = frame.source
+  if not source then
+    print('Source not available, cannot jump to frame')
+    return
+  end
+  vim.fn.sign_unplace(ns_pos)
+  if preserve_focus_hint or frame.line < 0 then
+    return
+  end
+  if not source.sourceReference or source.sourceReference == 0 then
+    if not source.path then
+      print('Source path not available, cannot jump to frame')
+      return
+    end
+    local scheme = source.path:match('^([a-z]+)://.*')
+    local bufnr
+    if scheme then
+      bufnr = vim.uri_to_bufnr(source.path)
+    else
+      bufnr = vim.uri_to_bufnr(vim.uri_from_fname(source.path))
+    end
+    vim.fn.bufload(bufnr)
+    jump_to_location(bufnr, frame.line, frame.column)
+  else
+    local params = {
+      source = source,
+      sourceReference = source.sourceReference
+    }
+    cur_session:request('source', params, function(err, response)
+      assert(not err, vim.inspect(err))
+
+      local buf = api.nvim_create_buf(false, true)
+      api.nvim_buf_set_lines(buf, 0, -1, false, vim.split(response.content, '\n'))
+      jump_to_location(buf, frame.line, frame.column)
+    end)
+  end
+end
+
 
 function Session:_show_exception_info()
   if not self.capabilities.supportsExceptionInfoRequest then return end
@@ -518,8 +540,7 @@ function Session:event_stopped(stopped)
       if stopped.reason ~= 'pause' then
         preserve_focus = stopped.preserveFocusHint
       end
-      jump_to_frame(current_frame, preserve_focus)
-
+      jump_to_frame(self, current_frame, preserve_focus)
       self:_request_scopes(current_frame)
     end)
   end)
@@ -532,6 +553,7 @@ function Session:event_terminated()
   end
   session = nil
 end
+
 
 function Session.event_exited()
 end
@@ -606,8 +628,8 @@ function Session:_frame_set(frame)
     return
   end
   self.current_frame = frame
-  jump_to_frame(self.current_frame, false)
-  self:_request_scopes(self.current_frame)
+  jump_to_frame(self, frame, false)
+  self:_request_scopes(frame)
 end
 
 
