@@ -1391,5 +1391,11 @@ end
 dap._vim_exit_handler = M._vim_exit_handler  -- luacheck: ignore 112
 
 
+--- Return the current session or nil
+function M.session()
+  return session
+end
+
+
 api.nvim_command("autocmd VimLeavePre * lua dap._vim_exit_handler()")
 return M
