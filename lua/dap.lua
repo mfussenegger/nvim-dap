@@ -239,16 +239,52 @@ function M.run_last()
 end
 
 
+local function launch_external_terminal(terminal, args)
+  local handle
+  local pid_or_err
+  local full_args = {}
+  vim.list_extend(full_args, terminal.args or {})
+  vim.list_extend(full_args, args)
+  local opts = {
+    args = full_args,
+    detached = true
+  }
+  handle, pid_or_err = uv.spawn(terminal.command, opts, function(code)
+    handle:close()
+    if code ~= 0 then
+      print('Terminal exited', code, 'running', terminal.command, table.concat(full_args, ' '))
+    end
+  end)
+  return handle, pid_or_err
+end
+
+
 function Session:run_in_terminal(request)
   local body = request.arguments
+  local _ = log.debug() and log.debug('run_in_terminal', body)
+  if body.kind == 'external' then
+    local terminal = M.defaults[self.config.type].external_terminal
+    if not terminal then
+      print('Requested external terminal, but none configured. Fallback to integratedTerminal')
+    else
+      local handle, pid = launch_external_terminal(terminal, body.args)
+      if not handle then
+        print('Could not launch terminal', terminal.command)
+      end
+      self:response(request, {
+        success = handle ~= nil;
+        body = { processId = pid; };
+      })
+      return
+    end
+  end
+  local win = api.nvim_get_current_win()
+  api.nvim_command('belowright new')
   -- env option is ignored without https://github.com/neovim/neovim/pull/11839
   local opts = {
     clear_env = false;
     env = body.env;
   }
-  local _ = log.debug() and log.debug('run_in_terminal', body.args, opts)
-  local win = api.nvim_get_current_win()
-  api.nvim_command('belowright new')
   local jobid = vim.fn.termopen(body.args, opts)
   api.nvim_set_current_win(win)
   if jobid == 0 or jobid == -1 then

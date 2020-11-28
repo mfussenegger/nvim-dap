@@ -145,14 +145,7 @@ An example:
         name = "Launch file";
         program = "${file}";
         pythonPath = function(adapter)
-          local cwd = vim.fn.getcwd()
-          if vim.fn.executable(cwd .. '/venv/bin/python') then
-            return cwd .. '/venv/bin/python'
-          elseif vim.fn.executable(cwd .. '/.venv/bin/python') then
-            return cwd .. '/.venv/bin/python'
-          else
-            return '/usr/bin/python'
-          end
+          return '/usr/bin/python'
         end;
       },
     }
@@ -187,6 +180,7 @@ To load the configurations, add the following in `init.vim`:
 This extends `dap.configurations` each time it is called, so make sure to only
 call it once.
 
+
 ==============================================================================
 MAPPINGS                                             *dap-mappings*
 
@@ -203,6 +197,36 @@ Some example mappings:
     nnoremap <silent> <leader>lp :lua require'dap'.set_breakpoint(nil, nil, vim.fn.input('Log point message: '))<CR>
     nnoremap <silent> <leader>dr :lua require'dap'.repl.open()<CR>
     nnoremap <silent> <leader>dl :lua require'dap'.repl.run_last()<CR>
+
+
+==============================================================================
+TERMINAL CONFIGURATION                               *dap-terminal*
+
+Some debug adapters support launching the debugee in an integrated terminal or
+an external terminal.
+
+For that they usually provide a `console` option in their |dap-configuration|.
+The supported values are usually called `internalConsole`, `integratedTerminal`
+and `externalTerminal`.
+
+
+If you want to use the `externalTerminal` you need to setup the terminal which
+should be launched by nvim-dap:
+
+>
+
+  lua << EOF
+  local dap = require('dap')
+  dap.defaults.fallback.external_terminal = {
+    command = '/usr/bin/alacritty';
+    args = {'-e'};
+  }
+  EOF
+
+<
+
+`fallback` here can be replaced with the |dap-adapter| type to have type
+specific terminal configurations.
 
 
 ==============================================================================
