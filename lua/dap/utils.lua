@@ -1,10 +1,10 @@
 local M = {}
 
 
-function M.calc_keys_from_values(fn, values)
+function M.calc_kv_table_from_values(key_from_value_fn, values)
   local rtn = {}
   for _, v in pairs(values) do
-    rtn[fn(v)] = v
+    rtn[key_from_value_fn(v)] = v
   end
   return rtn
 end

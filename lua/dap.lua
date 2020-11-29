@@ -577,7 +577,7 @@ function Session:_request_scopes(current_frame)
           if not variables_resp then return end
 
           -- Look up: name -> variable
-          scope.variables = utils.calc_keys_from_values(function(v) return v.name end, variables_resp.variables)
+          scope.variables = utils.calc_kv_table_from_values(function(v) return v.name end, variables_resp.variables)
         end)
       end
     end

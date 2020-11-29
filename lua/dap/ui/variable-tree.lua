@@ -1,38 +1,17 @@
 local api = vim.api
 local utils = require("dap.utils")
-local ui = require("dap.ui.share")
 local non_empty_sequence = utils.non_empty_sequence
 
 local M = {}
 
 M.multiline_variable_display = false
 M.max_win_width = 100
-M.default_sidebar_width = 50
 M.variable_value_separator = " = "
+M.show_types = true
 
 local floating_buf = nil
 local floating_win = nil
 local variable_buffers = {}
-
-local function open_bufwin(split_cmd, winopts, steal_focus)
-  local prev_win = api.nvim_get_current_win()
-  vim.cmd(split_cmd)
-  local win = api.nvim_get_current_win()
-  ui.apply_winopts(win, winopts)
-
-  local buf = api.nvim_create_buf(false, true)
-  api.nvim_win_set_buf(win, buf)
-
-  if steal_focus ~= false then
-    api.nvim_set_current_win(prev_win)
-  end
-  return buf, win
-end
-
-local function open_sidebar(steal_focus, winopts)
-  winopts = winopts or {width = M.default_sidebar_width}
-  return open_bufwin("vsplit", winopts, steal_focus)
-end
 
 -- Variable (https://microsoft.github.io/debug-adapter-protocol/specification#Types_Variable)
 --- name: string
@@ -71,7 +50,7 @@ local function write_variables(buf, variables, line, column, win)
       indent..
       v.name..
         (non_empty_sequence(v.value) and M.variable_value_separator..v.value or "")..
-          " "..(v.type and (" "..v.type) or "")
+          " "..((M.show_types and v.type) and (" "..v.type) or "")
 
     local splitted_text = vim.split(text, "\n")
     api.nvim_buf_set_lines(buf, line, line + #splitted_text, false, splitted_text)
@@ -120,12 +99,12 @@ function M.toggle_variable_expanded()
   if v and v.variablesReference > 0 then
     if state.expanded[v.variablesReference] then
       state.expanded[v.variablesReference] = nil
-      update_variable_buffer(buf)
+      update_variable_buffer(buf, win)
       api.nvim_win_set_cursor(win, pos)
     else
       state.expanded[v.variablesReference] = true
       if v.variables then
-        update_variable_buffer(buf)
+        update_variable_buffer(buf, win)
         api.nvim_win_set_cursor(win, pos)
       else
         local session = state.session
@@ -141,13 +120,13 @@ function M.toggle_variable_expanded()
           function(_, response)
             if response then
               v.variables =
-                utils.calc_keys_from_values(
+                utils.calc_kv_table_from_values(
                 function(var)
                   return var.name
                 end,
                 response.variables
               )
-              update_variable_buffer(buf)
+              update_variable_buffer(buf, win)
             end
             api.nvim_win_set_cursor(win, pos)
           end
@@ -192,7 +171,7 @@ local function create_variable_buffer(buf, win, session, root_variables)
           function(_, response)
             if response then
               v.variables =
-                utils.calc_keys_from_values(
+                utils.calc_kv_table_from_values(
                 function(var)
                   return var.name
                 end,
@@ -211,9 +190,11 @@ end
 
 function M.hover(session)
   if not session then
+    print('No DAP session. Can not show hover window!')
     return
   end
   if not session.stopped_thread_id then
+    print('No stopped thread. Can not show hover window!')
     return
   end
 
@@ -238,22 +219,12 @@ function M.hover(session)
                                                                       }})
       create_variable_buffer(floating_buf, floating_win, session, {variable})
     else
-      print('"' .. cword .. '" not found!')
+      print('"'..cword..'" not found!')
     end
   end
 end
 
-function M.open_sidebar(session, steal_focus, winopts, variables)
-  if not session then
-    return
-  end
-  if not session.stopped_thread_id then
-    return
-  end
-
-  local scopes = variables or utils.get_at_path(session, "current_frame.scopes")
-  local buf = open_sidebar(steal_focus, winopts)
-  create_variable_buffer(buf, nil, session, scopes)
-end
+--- TODO(theHamsta): add this when update logic is implemented
+-- Add sidebar
 
 return M
