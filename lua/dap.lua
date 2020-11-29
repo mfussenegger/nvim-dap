@@ -4,8 +4,11 @@ dap = {} -- luacheck: ignore 111 - to support v:lua.dap... uses
 local uv = vim.loop
 local api = vim.api
 local log = require('dap.log').create_logger('dap.log')
-local ui = require('dap.ui')
+local ui = require('dap.ui.share')
 local repl = require('dap.repl')
+local utils = require('dap.utils')
+local non_empty_sequence = utils.non_empty_sequence
+local index_of = utils.index_of
 local M = {}
 local ns_breakpoints = 'dap_breakpoints'
 local ns_pos = 'dap_pos'
@@ -124,19 +127,6 @@ local function expand_config_variables(option)
     ret = ret:gsub('${' .. key .. '}', val)
   end
   return ret
-end
-
-
-local function index_of(items, predicate)
-  for i, item in ipairs(items) do
-    if predicate(item) then
-      return i
-    end
-  end
-end
-
-local function non_empty_sequence(object)
-  return object and #object > 0
 end
 
 
@@ -623,7 +613,8 @@ function Session:_request_scopes(current_frame)
         self:request('variables', { variablesReference = scope.variablesReference }, function(_, variables_resp)
           if not variables_resp then return end
 
-          scope.variables = variables_resp.variables
+          -- Look up: name -> variable
+          scope.variables = utils.calc_kv_table_from_values(function(v) return v.name end, variables_resp.variables)
         end)
       end
     end
@@ -1102,7 +1093,7 @@ function Session:_pause(thread_id)
     return
   end
   if thread_id then
-    pause_thread(self, thread_id)
+    pause_thread(thread_id)
     return
   end
   self:request('threads', nil, function(err0, response)

@@ -1,4 +1,5 @@
 local api = vim.api
+local ui = require 'dap.ui.share'
 local M = {}
 
 local win = nil
@@ -259,21 +260,7 @@ function M.open(winopts, wincmd)
   win = api.nvim_get_current_win()
   api.nvim_win_set_buf(win, buf)
   api.nvim_set_current_win(current_win)
-  if winopts then
-    assert(
-      type(winopts) == 'table',
-      'winopts must be a table, not ' .. type(winopts) .. ': ' .. vim.inspect(winopts)
-    )
-    for k, v in pairs(winopts) do
-      if k == 'width' then
-        api.nvim_win_set_width(win, v)
-      elseif k == 'height' then
-        api.nvim_win_set_height(win, v)
-      else
-        api.nvim_win_set_option(win, k, v)
-      end
-    end
-  end
+  ui.apply_winopts(win, winopts)
 end
 
 
