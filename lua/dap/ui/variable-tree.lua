@@ -1,0 +1,259 @@
+local api = vim.api
+local utils = require("dap.utils")
+local ui = require("dap.ui.share")
+local non_empty_sequence = utils.non_empty_sequence
+
+local M = {}
+
+M.multiline_variable_display = false
+M.max_win_width = 100
+M.default_sidebar_width = 50
+M.variable_value_separator = " = "
+
+local floating_buf = nil
+local floating_win = nil
+local variable_buffers = {}
+
+local function open_bufwin(split_cmd, winopts, steal_focus)
+  local prev_win = api.nvim_get_current_win()
+  vim.cmd(split_cmd)
+  local win = api.nvim_get_current_win()
+  ui.apply_winopts(win, winopts)
+
+  local buf = api.nvim_create_buf(false, true)
+  api.nvim_win_set_buf(win, buf)
+
+  if steal_focus ~= false then
+    api.nvim_set_current_win(prev_win)
+  end
+  return buf, win
+end
+
+local function open_sidebar(steal_focus, winopts)
+  winopts = winopts or {width = M.default_sidebar_width}
+  return open_bufwin("vsplit", winopts, steal_focus)
+end
+
+-- Variable (https://microsoft.github.io/debug-adapter-protocol/specification#Types_Variable)
+--- name: string
+--- value: string (since we're also accepting scopes here: also optional)
+--- type?: string
+--- presentationHint?: VariablePresentationHint
+--- evaluateName?: string
+--- variablesReference: number
+--- namedVariables?: number
+--- indexedVariables?: number
+--- memoryReference?: string
+local function write_variables(buf, variables, line, column, win)
+  line = line or 0
+  column = column or 0
+
+  local state = variable_buffers[buf]
+  local win_width = api.nvim_win_get_width(win)
+  local win_height = api.nvim_win_get_height(win)
+  local indent = string.rep(" ", column)
+
+  local sorted_variables = {}
+  for _, v in pairs(variables) do
+    table.insert(sorted_variables, v)
+  end
+  table.sort(
+    sorted_variables,
+    function(a, b)
+      return a.name < b.name
+    end
+  )
+  local max_textlength = 0
+
+  for _, v in pairs(sorted_variables) do
+    state.line_to_variable[line] = v
+    local text =
+      indent..
+      v.name..
+        (non_empty_sequence(v.value) and M.variable_value_separator..v.value or "")..
+          " "..(v.type and (" "..v.type) or "")
+
+    local splitted_text = vim.split(text, "\n")
+    api.nvim_buf_set_lines(buf, line, line + #splitted_text, false, splitted_text)
+
+    if M.multiline_variable_display then
+      line = line + #splitted_text
+    else
+      api.nvim_buf_set_lines(buf, line, line + 1, false, {table.concat(splitted_text, " ")})
+      line = line + 1
+    end
+
+    if v.variables and variable_buffers[buf].expanded[v.variablesReference] then
+      local inner_max
+      line, inner_max = write_variables(buf, v.variables, line, column + 2, win)
+      max_textlength = math.max(max_textlength, inner_max)
+    end
+    max_textlength = math.max(max_textlength, #text)
+  end
+  if win then
+    if win_width < max_textlength then
+      api.nvim_win_set_width(win, math.min(max_textlength + 2, M.max_win_width))
+    end
+    if win_height < line then
+      api.nvim_win_set_height(win, line)
+    end
+  end
+  api.nvim_buf_set_lines(buf, line, -1, false, {})
+  return line, max_textlength
+end
+
+local function update_variable_buffer(buf, win)
+  api.nvim_buf_set_option(buf, "modifiable", true)
+  local state = variable_buffers[buf]
+  write_variables(buf, state.variables, 0, 0, win)
+end
+
+function M.toggle_variable_expanded()
+  local buf = api.nvim_get_current_buf()
+  local state = variable_buffers[buf]
+  local pos = api.nvim_win_get_cursor(0)
+  local win = api.nvim_get_current_win()
+  if not state then return end
+
+  local v = state.line_to_variable[pos[1] - 1]
+
+  if v and v.variablesReference > 0 then
+    if state.expanded[v.variablesReference] then
+      state.expanded[v.variablesReference] = nil
+      update_variable_buffer(buf)
+      api.nvim_win_set_cursor(win, pos)
+    else
+      state.expanded[v.variablesReference] = true
+      if v.variables then
+        update_variable_buffer(buf)
+        api.nvim_win_set_cursor(win, pos)
+      else
+        local session = state.session
+        if not session then
+          return
+        end
+        if not session.stopped_thread_id then
+          return
+        end
+        session:request(
+          "variables",
+          {variablesReference = v.variablesReference},
+          function(_, response)
+            if response then
+              v.variables =
+                utils.calc_keys_from_values(
+                function(var)
+                  return var.name
+                end,
+                response.variables
+              )
+              update_variable_buffer(buf)
+            end
+            api.nvim_win_set_cursor(win, pos)
+          end
+        )
+      end
+    end
+  end
+end
+
+local function create_variable_buffer(buf, win, session, root_variables)
+  if not buf then
+    buf = api.nvim_create_buf(true, true)
+
+    api.nvim_buf_set_option(buf, "buftype", "nofile")
+    api.nvim_buf_set_option(buf, "readonly", true)
+    api.nvim_buf_set_option(buf, "filetype", "dap-variable-ui")
+  end
+  api.nvim_buf_set_keymap(
+    buf,
+    "n",
+    "<CR>",
+    "<Cmd>lua require('dap.ui.variable-tree').toggle_variable_expanded()<CR>",
+    {}
+  )
+  api.nvim_buf_set_keymap(
+    buf,
+    "n",
+    "<2-LeftMouse>",
+    "<Cmd>lua require('dap.ui.variable-tree').toggle_variable_expanded()<CR>",
+    {}
+  )
+
+  variable_buffers[buf] = {variables = root_variables, expanded = {}, session = session, line_to_variable = {}}
+  for _, v in pairs(root_variables) do
+    -- Is variable expandable?
+    if v.variablesReference > 0 then
+      variable_buffers[buf].expanded[v.variablesReference] = true
+      if not v.variables then
+        session:request(
+          "variables",
+          {variablesReference = v.variablesReference},
+          function(_, response)
+            if response then
+              v.variables =
+                utils.calc_keys_from_values(
+                function(var)
+                  return var.name
+                end,
+                response.variables
+              )
+              update_variable_buffer(buf, win)
+            end
+          end
+        )
+      end
+    end
+  end
+  update_variable_buffer(buf, win)
+end
+
+
+function M.hover(session)
+  if not session then
+    return
+  end
+  if not session.stopped_thread_id then
+    return
+  end
+
+  local scopes = utils.get_at_path(session, "current_frame.scopes")
+
+  if vim.tbl_contains(vim.api.nvim_list_wins(), floating_win) then
+    vim.api.nvim_set_current_win(floating_win)
+  else
+    local cword = vim.fn.expand("<cword>")
+    local variable
+    for _, s in pairs(scopes) do
+      variable = s.variables and s.variables[cword]
+      if variable then
+        break
+      end
+    end
+    if variable then
+      floating_buf, floating_win = vim.lsp.util.open_floating_preview({""},
+                                                                      "dap-variable-ui",
+                                                                      {close_events={
+                                                                        "CursorMoved", "CursorMovedI", "BufHidden"
+                                                                      }})
+      create_variable_buffer(floating_buf, floating_win, session, {variable})
+    else
+      print('"' .. cword .. '" not found!')
+    end
+  end
+end
+
+function M.open_sidebar(session, steal_focus, winopts, variables)
+  if not session then
+    return
+  end
+  if not session.stopped_thread_id then
+    return
+  end
+
+  local scopes = variables or utils.get_at_path(session, "current_frame.scopes")
+  local buf = open_sidebar(steal_focus, winopts)
+  create_variable_buffer(buf, nil, session, scopes)
+end
+
+return M
