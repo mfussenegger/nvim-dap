@@ -1,5 +1,5 @@
 local api = vim.api
-local ui = require 'dap.ui.share'
+local ui = require('dap.ui')
 local M = {}
 
 local win = nil

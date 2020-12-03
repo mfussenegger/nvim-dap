@@ -10,24 +10,6 @@ function M.calc_kv_table_from_values(key_from_value_fn, values)
 end
 
 
--- Gets a property at path
--- @param tbl the table to access
--- @param path the '.' separated path
--- @returns the value at path or nil
-function M.get_at_path(tbl, path)
-  local segments = vim.split(path, '.', true)
-  local result = tbl
-
-  for _, segment in ipairs(segments) do
-    if type(result) == 'table' then
-      result = result[segment]
-    end
-  end
-
-  return result
-end
-
-
 function M.non_empty_sequence(object)
   return object and #object > 0
 end

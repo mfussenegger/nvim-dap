@@ -86,11 +86,13 @@ local function write_variables(buf, variables, line, column, win)
   return line, max_textlength
 end
 
+
 local function update_variable_buffer(buf, win)
   api.nvim_buf_set_option(buf, "modifiable", true)
   local state = variable_buffers[buf]
   write_variables(buf, state.variables, 0, 0, win)
 end
+
 
 function M.toggle_variable_expanded()
   local buf = api.nvim_get_current_buf()
@@ -141,31 +143,14 @@ function M.toggle_variable_expanded()
   end
 end
 
+
 local function create_variable_buffer(buf, win, session, root_variables)
-  if not buf then
-    buf = api.nvim_create_buf(true, true)
-
-    api.nvim_buf_set_option(buf, "buftype", "nofile")
-    api.nvim_buf_set_option(buf, "readonly", true)
-    api.nvim_buf_set_option(buf, "filetype", "dapvariabletree")
-    api.nvim_buf_set_option(buf, "syntax", true)
-  end
-  api.nvim_buf_set_keymap(
-    buf,
-    "n",
-    "<CR>",
-    "<Cmd>lua require('dap.ui.variable-tree').toggle_variable_expanded()<CR>",
-    {}
-  )
-  api.nvim_buf_set_keymap(
-    buf,
-    "n",
-    "<2-LeftMouse>",
-    "<Cmd>lua require('dap.ui.variable-tree').toggle_variable_expanded()<CR>",
-    {}
-  )
-
-  variable_buffers[buf] = {variables = root_variables, expanded = {}, session = session, line_to_variable = {}}
+  variable_buffers[buf] = {
+    variables = root_variables,
+    expanded = {},
+    session = session,
+    line_to_variable = {}
+  }
   for _, v in pairs(root_variables) do
     -- Is variable expandable?
     if v.variablesReference > 0 then
@@ -194,23 +179,54 @@ local function create_variable_buffer(buf, win, session, root_variables)
 end
 
 
-function M.hover(session)
+local function popup()
+  local buf = api.nvim_create_buf(false, true)
+  api.nvim_buf_set_option(buf, 'bufhidden', 'wipe')
+  api.nvim_buf_set_option(buf, 'buftype', 'nofile')
+  api.nvim_buf_set_option(buf, 'filetype', 'dap-variables')
+  api.nvim_buf_set_option(buf, 'syntax', 'dap-variables')
+  api.nvim_buf_set_keymap(
+    buf,
+    "n",
+    "<CR>",
+    "<Cmd>lua require('dap.ui.variables').toggle_variable_expanded()<CR>",
+    {}
+  )
+  api.nvim_buf_set_keymap(
+    buf,
+    "n",
+    "<2-LeftMouse>",
+    "<Cmd>lua require('dap.ui.variables').toggle_variable_expanded()<CR>",
+    {}
+  )
+  -- width and height are increased later once variables are written to the buffer
+  local opts = vim.lsp.util.make_floating_popup_options(1, 1, {})
+  local win = api.nvim_open_win(buf, true, opts)
+  return win, buf
+end
+
+
+function M.hover()
+  local session = require('dap').session()
   if not session then
-    print('No DAP session. Can not show hover window!')
+    print("No active session. Can't show hover window")
     return
   end
   if not session.stopped_thread_id then
-    print('No stopped thread. Can not show hover window!')
+    print("No stopped thread. Can't show hover window")
     return
   end
-
-  local scopes = utils.get_at_path(session, "current_frame.scopes")
-
+  local frame = session.current_frame
+  if not frame then
+    print("No frame to inspect available. Can't show hover window")
+    return
+  end
   if vim.tbl_contains(vim.api.nvim_list_wins(), floating_win) then
     vim.api.nvim_set_current_win(floating_win)
   else
     local cword = vim.fn.expand("<cword>")
     local variable
+    local scopes = frame.scopes or {}
     for _, s in pairs(scopes) do
       variable = s.variables and s.variables[cword]
       if variable then
@@ -218,19 +234,12 @@ function M.hover(session)
       end
     end
     if variable then
-      floating_buf, floating_win = vim.lsp.util.open_floating_preview({""},
-                                                                      "dapvariabletree",
-                                                                      {close_events={
-                                                                        "CursorMoved", "CursorMovedI", "BufHidden"
-                                                                      }})
+      floating_win, floating_buf = popup()
       create_variable_buffer(floating_buf, floating_win, session, {variable})
     else
       print('"'..cword..'" not found!')
     end
   end
 end
-
---- TODO(theHamsta): add this when update logic is implemented
--- Add sidebar
 
 return M

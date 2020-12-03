@@ -25,4 +25,4 @@ hi def link DapVariableTreeNumber Number
 hi def link DapVariableTreeOperator Operator
 hi def link DapVariableTreeString String
 
-let b:current_syntax = 'dapvariabletree'
+let b:current_syntax = 'dap-variables'
