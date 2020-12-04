@@ -142,7 +142,8 @@ local function create_variable_buffer(buf, win, session, root_variables)
 
     api.nvim_buf_set_option(buf, "buftype", "nofile")
     api.nvim_buf_set_option(buf, "readonly", true)
-    api.nvim_buf_set_option(buf, "filetype", "dap-variable-ui")
+    api.nvim_buf_set_option(buf, "filetype", "dapvariabletree")
+    api.nvim_buf_set_option(buf, "syntax", true)
   end
   api.nvim_buf_set_keymap(
     buf,
@@ -213,7 +214,7 @@ function M.hover(session)
     end
     if variable then
       floating_buf, floating_win = vim.lsp.util.open_floating_preview({""},
-                                                                      "dap-variable-ui",
+                                                                      "dapvariabletree",
                                                                       {close_events={
                                                                         "CursorMoved", "CursorMovedI", "BufHidden"
                                                                       }})
