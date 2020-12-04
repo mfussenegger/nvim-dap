@@ -53,11 +53,16 @@ local function write_variables(buf, variables, line, column, win)
           " "..((M.show_types and v.type) and (" "..v.type) or "")
 
     local splitted_text = vim.split(text, "\n")
-    api.nvim_buf_set_lines(buf, line, line + #splitted_text, false, splitted_text)
 
     if M.multiline_variable_display then
+      local newline_indent = #(indent..v.name..M.variable_value_separator)
+      for i = 2, #splitted_text do
+        splitted_text[i] = string.rep(' ', newline_indent)..splitted_text[i]
+      end
+      api.nvim_buf_set_lines(buf, line, line + #splitted_text, false, splitted_text)
       line = line + #splitted_text
     else
+      api.nvim_buf_set_lines(buf, line, line + 1, false, splitted_text)
       api.nvim_buf_set_lines(buf, line, line + 1, false, {table.concat(splitted_text, " ")})
       line = line + 1
     end
