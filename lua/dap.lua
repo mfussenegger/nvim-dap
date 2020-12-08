@@ -820,8 +820,21 @@ function Session:set_exception_breakpoints(filters, exceptionOptions, on_done)
   end)
 end
 
+
+local NIL = vim.NIL
+local function convert_nil(v)
+  if v == NIL then
+    return nil
+  elseif type(v) == 'table' then
+    return vim.tbl_map(convert_nil, v)
+  else
+    return v
+  end
+end
+
+
 function Session:handle_body(body)
-  local decoded = vim.fn.json_decode(body)
+  local decoded = convert_nil(vim.fn.json_decode(body))
   self.seq = decoded.seq + 1
   local _ = log.debug() and log.debug(decoded)
   if decoded.request_seq then
