@@ -144,7 +144,7 @@ An example:
         request = 'launch';
         name = "Launch file";
         program = "${file}";
-        pythonPath = function(adapter)
+        pythonPath = function()
           return '/usr/bin/python'
         end;
       },
