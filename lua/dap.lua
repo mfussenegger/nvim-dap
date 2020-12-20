@@ -174,6 +174,14 @@ end
 local function select_config_and_run()
   local filetype = api.nvim_buf_get_option(0, 'filetype')
   local configurations = M.configurations[filetype] or {}
+  assert(
+    vim.tbl_islist(configurations),
+    string.format(
+      '`dap.configurations.%s` must be a list of configurations, got %s',
+      filetype,
+      vim.inspect(configurations)
+    )
+  )
   if #configurations == 1 then
     M.run(configurations[1])
     return
@@ -182,7 +190,6 @@ local function select_config_and_run()
     print('No configuration found for ' .. filetype)
     return
   end
-
   ui.pick_one(
     configurations,
     "Configuration: ",
@@ -191,13 +198,7 @@ local function select_config_and_run()
       if configuration then
         M.run(configuration)
       else
-        assert(
-          vim.tbl_islist(configurations),
-          'configurations for '
-            .. filetype
-            .. ' must be a list of config objects, not a table: '
-            .. vim.inspect(configurations)
-        )
+        print('No configuration selected')
       end
     end
   )
