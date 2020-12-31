@@ -65,8 +65,10 @@ users to debug individual test cases.
 
 ## Usage
 
-See [:help dap](doc/dap.txt) and the [Debug-Adapter Installation][5] wiki.
+See [:help dap.txt](doc/dap.txt) and the [Debug-Adapter Installation][5] wiki.
 Keep in mind that the APIs are subject to change.
+
+Note that you have to run `:helptags <PATH-TO-PLUGIN/doc/>` for `:help dap.txt` to work.
 
 
 [1]: https://neovim.io/
