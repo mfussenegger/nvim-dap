@@ -212,6 +212,9 @@ end
 --@param winopts  optional table which may include:
 --                  `height` to set the window height
 --                  `width` to set the window width
+--                  'wincmd' command that is used to create the window for the
+--                  REPL.  Defaults to 'belowright split'
+--
 --                  Any other key/value pair, that will be treated as window
 --                  option.
 function M.open(winopts)
@@ -250,23 +253,23 @@ function M.open(winopts)
     })
   end
   local current_win = api.nvim_get_current_win()
-  api.nvim_command('belowright split')
+  winopts = winopts or {}
+  assert(
+    type(winopts) == 'table',
+    'winopts must be a table, not ' .. type(winopts) .. ': ' .. vim.inspect(winopts)
+  )
+  api.nvim_command(winopts.wincmd or 'belowright split')
+  winopts.wincmd = nil
   win = api.nvim_get_current_win()
   api.nvim_win_set_buf(win, buf)
   api.nvim_set_current_win(current_win)
-  if winopts then
-    assert(
-      type(winopts) == 'table',
-      'winopts must be a table, not ' .. type(winopts) .. ': ' .. vim.inspect(winopts)
-    )
-    for k, v in pairs(winopts) do
-      if k == 'width' then
-        api.nvim_win_set_width(win, v)
-      elseif k == 'height' then
-        api.nvim_win_set_height(win, v)
-      else
-        api.nvim_win_set_option(win, k, v)
-      end
+  for k, v in pairs(winopts) do
+    if k == 'width' then
+      api.nvim_win_set_width(win, v)
+    elseif k == 'height' then
+      api.nvim_win_set_height(win, v)
+    else
+      api.nvim_win_set_option(win, k, v)
     end
   end
 end

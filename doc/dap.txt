@@ -388,6 +388,9 @@ repl.open({winopts})                                           *dap.repl.open()*
             {winopts}  optional table which may include:
                         `height` to set the window height
                         `width` to set the window width
+                        `wincmd` command that is used to create the window for
+                        the REPL. Defaults to 'belowright split'
+
                         Any other key/value pair, that will be treated as window
                         option.
 
