@@ -381,18 +381,19 @@ goto_({line})                                                      *dap.goto_()*
             {line}  Line number or line under cursor if nil.
 
 
-repl.open({winopts})                                           *dap.repl.open()*
+repl.open({winopts}, {wincmd})                                 *dap.repl.open()*
         Open a REPL / Debug-console.
 
         Parameters: ~
             {winopts}  optional table which may include:
                         `height` to set the window height
                         `width` to set the window width
-                        `wincmd` command that is used to create the window for
-                        the REPL. Defaults to 'belowright split'
-
                         Any other key/value pair, that will be treated as window
                         option.
+
+            {wincmd} command that is used to create the window for
+                     the REPL. Defaults to 'belowright split'
+
 
         The REPL can be used to evaluate expressions. A `omnifunc` is set to
         support completion of expressions. It supports the following special
@@ -442,7 +443,7 @@ repl.open({winopts})                                           *dap.repl.open()*
         <
 
 
-repl.toggle({winopts})                                       *dap.repl.toggle()*
+repl.toggle({winopts}, {wincmd})                             *dap.repl.toggle()*
         Opens the REPL if it is closed, otherwise closes it.
 
         See |dap.repl.open| for a description of the argument.

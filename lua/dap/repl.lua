@@ -212,12 +212,13 @@ end
 --@param winopts  optional table which may include:
 --                  `height` to set the window height
 --                  `width` to set the window width
---                  'wincmd' command that is used to create the window for the
---                  REPL.  Defaults to 'belowright split'
 --
 --                  Any other key/value pair, that will be treated as window
 --                  option.
-function M.open(winopts)
+--
+--@param wincmd command that is used to create the window for the REPL.
+--              Defaults to 'belowright split'
+function M.open(winopts, wincmd)
   if win and api.nvim_win_is_valid(win) and api.nvim_win_get_buf(win) == buf then
     return
   end
@@ -253,32 +254,33 @@ function M.open(winopts)
     })
   end
   local current_win = api.nvim_get_current_win()
-  winopts = winopts or {}
-  assert(
-    type(winopts) == 'table',
-    'winopts must be a table, not ' .. type(winopts) .. ': ' .. vim.inspect(winopts)
-  )
-  api.nvim_command(winopts.wincmd or 'belowright split')
-  winopts.wincmd = nil
+  assert(not wincmd or type(wincmd) == 'string', 'wincmd must be nil or a string')
+  api.nvim_command(wincmd or 'belowright split')
   win = api.nvim_get_current_win()
   api.nvim_win_set_buf(win, buf)
   api.nvim_set_current_win(current_win)
-  for k, v in pairs(winopts) do
-    if k == 'width' then
-      api.nvim_win_set_width(win, v)
-    elseif k == 'height' then
-      api.nvim_win_set_height(win, v)
-    else
-      api.nvim_win_set_option(win, k, v)
+  if winopts then
+    assert(
+      type(winopts) == 'table',
+      'winopts must be a table, not ' .. type(winopts) .. ': ' .. vim.inspect(winopts)
+    )
+    for k, v in pairs(winopts) do
+      if k == 'width' then
+        api.nvim_win_set_width(win, v)
+      elseif k == 'height' then
+        api.nvim_win_set_height(win, v)
+      else
+        api.nvim_win_set_option(win, k, v)
+      end
     end
   end
 end
 
 
 --- Open the REPL if it is closed, close it if it is open.
-function M.toggle(winopts)
+function M.toggle(winopts, wincmd)
   if not M.close() then
-    M.open(winopts)
+    M.open(winopts, wincmd)
   end
 end
 
