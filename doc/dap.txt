@@ -270,14 +270,30 @@ The API is currently unstable.
 (Incomplete)
 
 continue()                                                      *dap.continue()*
-        Continue execution of the debugee, or if no debug session is active,
-        start a new debug session based on available |dap-configuration|
+        `continue()` resumes the execution of an application if a debug session
+        is active and a thread was stopped.  Threads are usually stopped when a
+        breakpoint is hit or an exception occurred.
+
+        If no debug session is active, `continue()` will start a new debug session by:
+
+        - Looking up the configurations (|dap-configuration|) for the current filetype.
+        - If there is more than one configuration it will prompt the user to
+          select one of them.
+        - It calls |dap.run()| on the selected configuration.
+
+        `continue()` is the main entry-point for users to start debugging an
+        application.
 
 
 run({config})                                                        *dap.run()*
         Looks up a debug adapter entry for the given configuration and runs it.
         This is implicitly called by |dap.continue()| if no debug session is
         active.
+
+        Most users will want to start debugging using |dap.continue()| instead
+        of using `run()`.  `run()` is intended for nvim-dap extensions which
+        create configurations dynamically, for example to debug individual test
+        cases.
 
         Parameters:
             {config}  |dap-configuration| to run
@@ -292,6 +308,9 @@ launch({adapter}, {config})                                       *dap.launch()*
         Launch a new debug adapter and then initialize it with the given
         |dap-configuration|
 
+        You typically do not want to call this directly but use
+        |dap.continue()| or |dap.run()|
+
         Parameters: ~
             {adapter}   `Adapter` to launch, see |dap-adapter|, the `type` is
                         not required in this case.
@@ -301,6 +320,9 @@ launch({adapter}, {config})                                       *dap.launch()*
 attach({host}, {port}, {config})                                 *dap.attach()*
         Attach to a running debug adapter and then initialize it with the
         given |dap-configuration|
+
+        You typically do not want to call this directly but use
+        |dap.continue()| or |dap.run()|
 
 
 set_breakpoint({condition}, {hit_condition}, {log_message})
