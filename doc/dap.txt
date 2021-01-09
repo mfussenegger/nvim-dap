@@ -1,32 +1,60 @@
-*dap.txt* Debug Adapter Protocol support for neovim
+DAP client                                           *dap.txt*
 
 
-nvim-dap implements the Debug Adapter Protocol.
+nvim-dap is a debug adapter protocol client, or "debugger", or "debug-frontend".
 
+With the help of a debug-adapter it can:
+
+- Launch an application to debug
+- Attach to running applications to debug them
+- Set breakpoints and step through code
+- Inspect the state of the application
+
+A debug-adapter is a facilitator between nvim-dap (the client), and a
+language specific debugger:
+
+
+    DAP-Client ----- Debug Adapter ------- Debugger ------ Debugee
+    (nvim-dap)  |   (per language)  |   (per language)    (your app)
+                |                   |
+                |        Implementation specific communication
+                |        Debug-adapter and debugger could be the same process
+                |
+         Communication via debug adapter protocol
+
+
+To debug applications, you need to configure two things per language:
+
+- A debug adapter (|dap-adapter|)
+- How to launch your application to debug or how to attach to a running
+  application (|dap-configuration|)
+
+
+Available Debug Adapters:
+  https://microsoft.github.io/debug-adapter-protocol/implementors/adapters/
+
+Adapter configuration and installation instructions:
+  https://github.com/mfussenegger/nvim-dap/wiki/Debug-Adapter-installation
+
+Debug Adapter protocol:
   https://microsoft.github.io/debug-adapter-protocol/
-
-
-Neovim acts as the client for the debug adapter protocol and provides features
-to launch debug adapters, debugee's and to then step through code and explore
-the state of the application being debugged.
-
 
                                       Type |gO| to see the table of contents.
 
 ==============================================================================
-ADAPTER CONFIGURATION                                *dap-adapters*
+ADAPTER CONFIGURATION                                *dap-adapter*
 
 
 Neovim needs a debug-adapter with which it can communicate. Neovim can either
 launch the debug-adapter itself, or it can attach to an existing one.
-
 
 To tell Neovim if it should launch a debug adapter or connect to one, and if
 so, how, you need to configure them via the `dap.adapters` table. The key of
 the table is an arbitrary name that debug adapters are looked up by when using
 a |dap-configuration|.
 
-For example, to register a debug-adapter under the type `python`:
+For example, to register the `debugpy` debug-adapter under the type `python` you
+can add the following entry:
 
 >
     lua << EOF
@@ -43,9 +71,12 @@ For example, to register a debug-adapter under the type `python`:
 
 The `Adapter` needs to contain a `type`, which can be one of:
 
-- `executable`, to indicate that Neovim must launch the debug-adapter.
-- `server`, to indicate that Neovim can connect to an already running
-  debug-adapter.
+- `executable`, to indicate that nvim-dap must launch the debug-adapter. In
+  this case nvim-dap will spawn the given process and communicate with it using
+  stdio.
+
+- `server`, to indicate that nvim-dap can connect to an already running
+  debug-adapter via TCP.
 
 For `executable` the following options are supported:
 
@@ -66,7 +97,7 @@ For `server` the following options are supported:
 
 `dap.adapters.<name>` can also be set to a function which takes two arguments.
 This first argument is a callback which must be called with the adapter table.
-The second argument is the configuration which will later be run.
+The second argument is the |dap-configuration| which the user wants to use.
 
 This can be used to defer the resolving of the values to when a configuration
 is used. An example use is java with eclipse.jdt.ls and java-debug, where the
@@ -262,7 +293,7 @@ launch({adapter}, {config})                                       *dap.launch()*
         |dap-configuration|
 
         Parameters: ~
-            {adapter}   `Adapter` to launch, see |dap-adapters|, the `type` is
+            {adapter}   `Adapter` to launch, see |dap-adapter|, the `type` is
                         not required in this case.
             {config}    |dap-configuration|
 
