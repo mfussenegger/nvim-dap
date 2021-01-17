@@ -1,47 +1,73 @@
 # DAP (Debug Adapter Protocol)
 
-`nvim-dap` is a Debug Adapter Protocol client implementation for [Neovim][1] (>= 0.5)
+`nvim-dap` is a Debug Adapter Protocol client implementation for [Neovim][1]
+(>= 0.5). `nvim-dap` allows you to:
+
+- Launch an application to debug
+- Attach to running applications and debug them
+- Set breakpoints and step through code
+- Inspect the state of the application
 
 **Warning**: This is in an early stage. It targets Neovim HEAD and therefore
 things may break.
 
-## Features
-
-- [x] launch debug adapter
-- [x] attach to debug adapter
-- [x] toggle breakpoints
-- [x] breakpoints with conditions
-- [x] logpoints
-- [ ] set function breakpoints
-- [x] set exception breakpoints
-- [x] step over, step into, step out
-- [x] step back, reverse continue
-- [x] Goto
-- [x] restart
-- [x] stop
-- [x] pause
-- [x] evaluate expressions
-- [x] REPL (incl. commands to show threads, frames and scopes)
-
 ![screenshot](images/screenshot.png)
 
-## Extensions
+## Installation
 
-Known extensions are listed in the [Wiki][10].
+- Requires [Neovim HEAD/nightly][6]
+- nvim-dap is a plugin. Install it like any other Neovim plugin.
+  - If using [vim-plug][11]: `Plug 'mfussenegger/nvim-dap'`
+  - If using [packer.nvim][12]: `use 'mfussenegger/nvim-dap'`
+- Generate the documentation for nvim-dap using `:helptags ALL` or
+  `:helptags <PATH-TO-PLUGIN/doc/>`
+
+You'll need to install and configure a debug adapter per language. See
+
+- [:help dap.txt](doc/dap.txt)
+- the [Debug-Adapter Installation][5] wiki
+- `:help dap-adapter`
+- `:help dap-configuration`
+
+## Usage
+
+A typical debug flow consists of:
+
+- Setting breakpoints via `:lua require'dap'.toggle_breakpoint()`.
+- Launching debug sessions and resuming execution via `:lua require'dap'.continue()`.
+- Stepping through code via `:lua require'dap'.step_over()` and `:lua require'dap'.step_into()`.
+- Inspecting the state via the built-in REPL: `:lua require'dap'.repl.open()`.
+
+See [:help dap.txt](doc/dap.txt), `:help dap-mapping` and `:help dap-api`.
+
+## Supported languages
+
+In theory all of the languages for which a debug adapter exists should be
+supported.
+
+- [Available debug adapters][13]
+- [nvim-dap Debug-Adapter Installation & Configuration][5]
+
+The Wiki is community maintained. If you got an adapter working that isn't
+listed yet, please extend the Wiki. If you struggle getting an adapter working,
+please create an issue.
 
 
 ## Goals
 
-The goal of nvim-dap is to provide a basic debugger for Neovim to be used with
-Debug Adapters implementing the Debug Adapter Protocol.
+- Have a basic debugger in Neovim.
+- Extensibility and double as a DAP client library. This allows other plugins
+  to extend the debugging experience. Either by improving the UI or by making
+  it easier to debug parts of an application.
 
-Another goal is for nvim-dap to be usable as a client library for DAP to be
-used by other plugins. Other plugins should be able to either extend the UI
-(like [nvim-dap-virtual-text][7]), or to build configuration discovery
-functionality. For example [nvim-jdtls][8] integrates with nvim-dap, it
-dynamically adds debug configurations and contains functionality that allows
-users to debug individual test cases.
+  - An example UI/UX extension is [nvim-dap-virtual-text][7]
+  - Examples for language specific extensions include [nvim-jdtls][8] and [nvim-dap-python][9]
 
+## Extensions
+
+All known extensions are listed in the [Wiki][10]. The wiki is community
+maintained. Please add new extensions if you built one or if you discovered one
+that's not listed.
 
 ## Non-Goals
 
@@ -56,20 +82,22 @@ users to debug individual test cases.
 - [vimspector][2]
 
 
-## Installation
+## Features
 
-- Requires [Neovim HEAD/nightly][6]
-- nvim-dap is a plugin. Install it like any other Vim plugin.
-- Call `:packadd nvim-dap` if you install `nvim-dap` to `'packpath'`.
-
-
-## Usage
-
-See [:help dap.txt](doc/dap.txt) and the [Debug-Adapter Installation][5] wiki.
-Keep in mind that the APIs are subject to change.
-
-Note that you have to run `:helptags <PATH-TO-PLUGIN/doc/>` or `:helptags ALL`
-for `:help dap.txt` to work.
+- [x] launch debug adapter
+- [x] attach to debug adapter
+- [x] toggle breakpoints
+- [x] breakpoints with conditions
+- [x] logpoints
+- [x] set exception breakpoints
+- [x] step over, step into, step out
+- [x] step back, reverse continue
+- [x] Goto
+- [x] restart
+- [x] stop
+- [x] pause
+- [x] evaluate expressions
+- [x] REPL (incl. commands to show threads, frames and scopes)
 
 
 [1]: https://neovim.io/
@@ -82,3 +110,6 @@ for `:help dap.txt` to work.
 [8]: https://github.com/mfussenegger/nvim-jdtls
 [9]: https://github.com/mfussenegger/nvim-dap-python
 [10]: https://github.com/mfussenegger/nvim-dap/wiki/Extensions
+[11]: https://github.com/junegunn/vim-plug
+[12]: https://github.com/wbthomason/packer.nvim
+[13]: https://microsoft.github.io/debug-adapter-protocol/implementors/adapters/
