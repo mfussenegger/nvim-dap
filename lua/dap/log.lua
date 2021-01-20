@@ -26,7 +26,7 @@ function M.create_logger(filename)
   local function path_join(...)
     return table.concat(vim.tbl_flatten{...}, path_sep)
   end
-  local logfilename = path_join(vim.fn.stdpath('data'), filename)
+  local logfilename = path_join(vim.fn.stdpath('cache'), filename)
 
   local current_log_level = M.levels.INFO
 
@@ -41,7 +41,7 @@ function M.create_logger(filename)
     return logfilename
   end
 
-  vim.fn.mkdir(vim.fn.stdpath('data'), "p")
+  vim.fn.mkdir(vim.fn.stdpath('cache'), "p")
   local logfile = assert(io.open(logfilename, "a+"))
   for level, levelnr in pairs(M.levels) do
     logger[level:lower()] = function(...)

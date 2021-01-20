@@ -3,7 +3,7 @@ dap = {} -- luacheck: ignore 111 - to support v:lua.dap... uses
 
 local uv = vim.loop
 local api = vim.api
-local log = require('dap.log').create_logger('vim-dap.log')
+local log = require('dap.log').create_logger('dap.log')
 local ui = require('dap.ui')
 local repl = require('dap.repl')
 local M = {}
