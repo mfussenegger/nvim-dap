@@ -4,7 +4,6 @@ endif
 
 syn match DapVariableTreeType "[a-zA-Z0-9_<>]\+$"
 syn match DapVariableTreeOperator "[=:]\s"
-syn match DapVariableTreeNumber "[0.9[.0-9]"
 syn region DapVariableTreeString start=+"+ end=+"+ end=+$+
 syn region DapVariableTreeString start=+'+ end=+'+ end=+$+
 
