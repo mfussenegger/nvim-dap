@@ -530,3 +530,24 @@ set_log_level(level)                                       *dap.set_log_level()*
 
 session()                                                        *dap.session()*
         Returns the current session or nil if no session exists.
+
+==============================================================================
+VARIABLES API                                           *dap-ui-variables-api*
+
+Lua module: dap.ui.variables
+
+
+The methods listed here are in the `dap.ui.variables` module. To use them you have to import the module:
+
+>
+
+    local variables_ui = require('dap.ui.variables')
+
+<
+
+
+hover()                                             *dap.ui.variables.hover()*
+        Opens a floating window with information about the variable under the
+        cursor.
+
+        Requires an active debug session.
