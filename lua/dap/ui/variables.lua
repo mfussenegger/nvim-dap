@@ -126,12 +126,9 @@ function M.toggle_variable_expanded()
           {variablesReference = v.variablesReference},
           function(_, response)
             if response then
-              v.variables =
-                utils.calc_kv_table_from_values(
-                function(var)
-                  return var.name
-                end,
-                response.variables
+              v.variables = utils.to_dict(
+                response.variables,
+                function(var) return var.name end
               )
               update_variable_buffer(buf, win)
             end
@@ -161,12 +158,9 @@ local function create_variable_buffer(buf, win, session, root_variables)
           {variablesReference = v.variablesReference},
           function(_, response)
             if response then
-              v.variables =
-                utils.calc_kv_table_from_values(
-                function(var)
-                  return var.name
-                end,
-                response.variables
+              v.variables = utils.to_dict(
+                response.variables,
+                function(var) return var.name end
               )
               update_variable_buffer(buf, win)
             end

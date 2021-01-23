@@ -613,8 +613,10 @@ function Session:_request_scopes(current_frame)
         self:request('variables', { variablesReference = scope.variablesReference }, function(_, variables_resp)
           if not variables_resp then return end
 
-          -- Look up: name -> variable
-          scope.variables = utils.calc_kv_table_from_values(function(v) return v.name end, variables_resp.variables)
+          scope.variables = utils.to_dict(
+            variables_resp.variables,
+            function(v) return v.name end
+          )
         end)
       end
     end
