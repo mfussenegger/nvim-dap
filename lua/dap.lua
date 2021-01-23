@@ -7,7 +7,7 @@ local log = require('dap.log').create_logger('dap.log')
 local ui = require('dap.ui')
 local repl = require('dap.repl')
 local utils = require('dap.utils')
-local non_empty_sequence = utils.non_empty_sequence
+local non_empty = utils.non_empty
 local index_of = utils.index_of
 local M = {}
 local ns_breakpoints = 'dap_breakpoints'
@@ -729,13 +729,13 @@ function Session:set_breakpoints(bufexpr, on_done)
         logMessage = bp_entry.logMessage;
       })
     end
-    if non_empty_sequence(bp_info.condition) and not self.capabilities.supportsConditionalBreakpoints then
+    if non_empty(bp_info.condition) and not self.capabilities.supportsConditionalBreakpoints then
       print("Debug adapter doesn't support breakpoints with conditions")
     end
-    if non_empty_sequence(bp_info.hitCondition) and not self.capabilities.supportsHitConditionalBreakpoints then
+    if non_empty(bp_info.hitCondition) and not self.capabilities.supportsHitConditionalBreakpoints then
       print("Debug adapter doesn't support breakpoints with hit conditions")
     end
-    if non_empty_sequence(bp_info.logMessage) and not self.capabilities.supportsLogPoints then
+    if non_empty(bp_info.logMessage) and not self.capabilities.supportsLogPoints then
       print("Debug adapter doesn't support log points")
     end
     local path = api.nvim_buf_get_name(bufnr)
@@ -1230,9 +1230,9 @@ function M.list_breakpoints(open_quickfix)
           function(v) return v end,
           {
             unpack(api.nvim_buf_get_lines(bufnr, bp.lnum - 1, bp.lnum, false), 1),
-            non_empty_sequence(logMessage) and "Log message: "..logMessage,
-            non_empty_sequence(condition) and "Condition: "..condition,
-            non_empty_sequence(hitCondition) and "Hit condition: "..hitCondition,
+            non_empty(logMessage) and "Log message: "..logMessage,
+            non_empty(condition) and "Condition: "..condition,
+            non_empty(hitCondition) and "Hit condition: "..hitCondition,
           }
         ),
         ', '
@@ -1267,7 +1267,7 @@ function M.toggle_breakpoint(condition, hit_condition, log_message, replace_old)
     local sign_id = vim.fn.sign_place(
       0,
       ns_breakpoints,
-      non_empty_sequence(log_message) and 'DapLogPoint' or 'DapBreakpoint',
+      non_empty(log_message) and 'DapLogPoint' or 'DapBreakpoint',
       bufnr,
       { lnum = lnum; priority = 11; }
     )

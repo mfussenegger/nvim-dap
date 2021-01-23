@@ -1,6 +1,6 @@
 local api = vim.api
 local utils = require("dap.utils")
-local non_empty_sequence = utils.non_empty_sequence
+local non_empty = utils.non_empty
 
 local M = {}
 
@@ -49,7 +49,7 @@ local function write_variables(buf, variables, line, column, win)
     local text =
       indent..
       v.name..
-        (non_empty_sequence(v.value) and M.variable_value_separator..v.value or "")..
+        (non_empty(v.value) and M.variable_value_separator..v.value or "")..
           " "..((M.show_types and v.type) and (" "..v.type) or "")
 
     local splitted_text = vim.split(text, "\n")

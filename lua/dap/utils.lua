@@ -10,7 +10,7 @@ function M.calc_kv_table_from_values(key_from_value_fn, values)
 end
 
 
-function M.non_empty_sequence(object)
+function M.non_empty(object)
   return object and #object > 0
 end
 
