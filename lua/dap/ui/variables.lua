@@ -52,6 +52,10 @@ local function write_variables(buf, variables, line, column, win)
         (non_empty(v.value) and M.variable_value_separator..v.value or "")..
           " "..((M.show_types and v.type) and (" "..v.type) or "")
 
+    if M.multiline_variable_display then
+      -- verbatim \n in strings to real new lines
+      text = text:gsub('\\r\\n', '\n'):gsub('\\r', '\n'):gsub('\\n','\n')
+    end
     local splitted_text = vim.split(text, "\n")
 
     if M.multiline_variable_display then
@@ -90,6 +94,7 @@ end
 local function update_variable_buffer(buf, win)
   api.nvim_buf_set_option(buf, "modifiable", true)
   local state = variable_buffers[buf]
+  state.line_to_variable = {}
   write_variables(buf, state.variables, 0, 0, win)
 end
 
@@ -193,6 +198,13 @@ local function popup()
     "<Cmd>lua require('dap.ui.variables').toggle_variable_expanded()<CR>",
     {}
   )
+  api.nvim_buf_set_keymap(
+    buf,
+    "n",
+    "g?",
+    "<Cmd>lua require('dap.ui.variables').toggle_multiline_display()<CR>",
+    {}
+  )
   -- width and height are increased later once variables are written to the buffer
   local opts = vim.lsp.util.make_floating_popup_options(1, 1, {})
   local win = api.nvim_open_win(buf, true, opts)
@@ -233,6 +245,15 @@ function M.hover()
     else
       print('"'..cword..'" not found!')
     end
+  end
+end
+
+function M.toggle_multiline_display(value)
+  M.multiline_variable_display = value or (not M.multiline_variable_display)
+  local buf = api.nvim_get_current_buf()
+  if variable_buffers[buf] then
+    local win = api.nvim_get_current_win()
+    update_variable_buffer(buf, win)
   end
 end
 

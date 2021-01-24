@@ -4,8 +4,8 @@ endif
 
 syn match DapVariableTreeType "[a-zA-Z0-9_<>]\+$"
 syn match DapVariableTreeOperator "[=:]\s"
-syn region DapVariableTreeString start=+"+ end=+"+ end=+$+
-syn region DapVariableTreeString start=+'+ end=+'+ end=+$+
+syn region DapVariableTreeString start=+"+ skip=+\\\\\|\\"+ end=+"+
+syn region DapVariableTreeString start=+'+ skip=+\\\\\|\\'+ end=+'+
 
 " From Python syntax
 syn match   DapVariableTreeNumber	"\<0[oO]\=\o\+[Ll]\=\>"
