@@ -211,11 +211,13 @@ local function popup()
   return win, buf
 end
 
+
 function M.resolve_expression()
-  return utils.get_visual_selection_text() or vim.fn.expand("<cword>")
+  return vim.fn.expand("<cword>")
 end
 
-function M.hover()
+
+function M.hover(resolve_expression_fn)
   local session = require('dap').session()
   if not session then
     print("No active session. Can't show hover window")
@@ -233,7 +235,7 @@ function M.hover()
   if vim.tbl_contains(vim.api.nvim_list_wins(), floating_win) then
     vim.api.nvim_set_current_win(floating_win)
   else
-    local expression = M.resolve_expression()
+    local expression = resolve_expression_fn and resolve_expression_fn() or M.resolve_expression()
     local variable
     local scopes = frame.scopes or {}
     for _, s in pairs(scopes) do
@@ -262,6 +264,12 @@ function M.hover()
     end
   end
 end
+
+
+function M.visual_hover()
+  M.hover(utils.get_visual_selection_text)
+end
+
 
 function M.toggle_multiline_display(value)
   M.multiline_variable_display = value or (not M.multiline_variable_display)

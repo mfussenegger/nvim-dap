@@ -570,7 +570,13 @@ The methods listed here are in the `dap.ui.variables` module. To use them you ha
 
 hover()                                               *dap.ui.variables.hover()*
         Opens a floating window with information about the variable under the
-        cursor or the current visual selection.
+        cursor.
+
+        Requires an active debug session.
+
+visual_hover()                                 *dap.ui.variables.visual_hover()*
+        Opens a floating window with information on the value of the 
+        current visual selection.
 
         Requires an active debug session.
 
