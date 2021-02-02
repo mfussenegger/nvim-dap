@@ -211,6 +211,28 @@ To load the configurations, add the following in `init.vim`:
 This extends `dap.configurations` each time it is called, so make sure to only
 call it once.
 
+==============================================================================
+SIGNS CONFIGURATION
+
+
+nvim-dap uses three signs:
+
+- `DapBreakpoint` which defaults to `B` for breakpoints
+- `DapLogPoint` which defaults to `L` and is for log-points
+- `DapStopped` which defaults to `→` and is used to indicate the position where
+  the debugee is stopped.
+
+You can customize the signs by overriding the definition after you've loaded `dap`.
+An example:
+
+>
+    lua <<
+
+    require('dap')
+    vim.fn.sign_define('DapBreakpoint', {text='🛑', texthl='', linehl='', numhl=''})
+
+    EOF
+<
 
 ==============================================================================
 MAPPINGS                                             *dap-mappings*
