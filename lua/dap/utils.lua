@@ -29,4 +29,37 @@ function M.index_of(items, predicate)
 end
 
 
+----- Get a ts compatible range of the current visual selection.
+----
+---- The range of ts nodes start with 0 and the ending range is exclusive.
+function M.visual_selection_range()
+  local _, csrow, cscol, _ = unpack(vim.fn.getpos("'<"))
+  local _, cerow, cecol, _ = unpack(vim.fn.getpos("'>"))
+  if csrow < cerow or (csrow == cerow and cscol <= cecol) then
+    return csrow - 1, cscol - 1, cerow - 1, cecol
+  else
+    return cerow - 1, cecol - 1, csrow - 1, cscol
+  end
+end
+
+
+---- Returns visual selection if it exists or nil
+function M.get_visual_selection_text()
+  local bufnr = vim.api.nvim_get_current_buf()
+
+  -- We have to remember that end_col is end-exclusive
+  local start_row, start_col, end_row, end_col = M.visual_selection_range()
+
+  if start_row ~= end_row then
+    local lines = vim.api.nvim_buf_get_lines(bufnr, start_row, end_row+1, false)
+    lines[1] = string.sub(lines[1], start_col+1)
+    lines[#lines] = string.sub(lines[#lines], 1, end_col)
+    return table.concat(lines, '\n')
+  else
+    local line = vim.api.nvim_buf_get_lines(bufnr, start_row, start_row+1, false)[1]
+    -- If line is nil then the line is empty
+    return line and table.concat({ string.sub(line, start_col+1, end_col) }, '\n')
+  end
+end
+
 return M
