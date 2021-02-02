@@ -271,10 +271,9 @@ function Session:run_in_terminal(request)
   end
   local win = api.nvim_get_current_win()
   api.nvim_command('belowright new')
-  -- env option is ignored without https://github.com/neovim/neovim/pull/11839
   local opts = {
     clear_env = false;
-    env = body.env;
+    env = non_empty(body.env) and body.env or vim.empty_dict()
   }
   local jobid = vim.fn.termopen(body.args, opts)
   api.nvim_set_current_win(win)
@@ -956,7 +955,7 @@ function Session:spawn(adapter, opts)
     args = adapter.args;
     stdio = {stdin, stdout, stderr};
     cwd = options.cwd;
-    env = options.env;
+    env = non_empty(options.env) and options.env or vim.empty_dict();
     detached = true;
   }, onexit)
   assert(handle, 'Error running ' .. adapter.command .. ': ' .. pid_or_err)
