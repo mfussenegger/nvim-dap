@@ -155,7 +155,7 @@ local function create_variable_buffer(buf, win, session, root_variables)
   }
   for _, v in pairs(root_variables) do
     -- Is variable expandable?
-    if v.variablesReference > 0 then
+    if v.variablesReference and v.variablesReference > 0 then
       variable_buffers[buf].expanded[v.variablesReference] = true
       if not v.variables then
         session:request(
@@ -211,6 +211,9 @@ local function popup()
   return win, buf
 end
 
+function M.resolve_expression()
+  return utils.get_visual_selection_text() or vim.fn.expand("<cword>")
+end
 
 function M.hover()
   local session = require('dap').session()
@@ -230,20 +233,32 @@ function M.hover()
   if vim.tbl_contains(vim.api.nvim_list_wins(), floating_win) then
     vim.api.nvim_set_current_win(floating_win)
   else
-    local cword = vim.fn.expand("<cword>")
+    local expression = M.resolve_expression()
     local variable
     local scopes = frame.scopes or {}
     for _, s in pairs(scopes) do
-      variable = s.variables and s.variables[cword]
+      variable = s.variables and s.variables[expression]
       if variable then
         break
       end
     end
+
     if variable then
       floating_win, floating_buf = popup()
       create_variable_buffer(floating_buf, floating_win, session, {variable})
     else
-      print('"'..cword..'" not found!')
+      session:evaluate(expression, function(err, resp)
+        if err then
+          print('Cannot evaluate "'..expression..'"!')
+        else
+          if resp and resp.result then
+            floating_win, floating_buf = popup()
+            resp.value = resp.result
+            resp.name = expression
+            create_variable_buffer(floating_buf, floating_win, session, {resp})
+          end
+        end
+      end)
     end
   end
 end
