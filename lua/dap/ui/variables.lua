@@ -39,7 +39,13 @@ local function write_variables(buf, variables, line, column, win)
   table.sort(
     sorted_variables,
     function(a, b)
-      return a.name < b.name
+      local num_a = string.match(a.name, '^%[?(%d+)%]?$')
+      local num_b = string.match(b.name, '^%[?(%d+)%]?$')
+      if num_a and num_b then
+        return tonumber(num_a) < tonumber(num_b)
+      else
+        return a.name < b.name
+      end
     end
   )
   local max_textlength = 0
