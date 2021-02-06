@@ -217,7 +217,7 @@ function M.resolve_expression()
 end
 
 
-function M.hover(resolve_expression_fn)
+local function is_stopped_at_frame()
   local session = require('dap').session()
   if not session then
     print("No active session. Can't show hover window")
@@ -232,6 +232,26 @@ function M.hover(resolve_expression_fn)
     print("No frame to inspect available. Can't show hover window")
     return
   end
+  return true
+end
+
+
+function M.scopes()
+  if not is_stopped_at_frame() then return end
+
+  local session = require('dap').session()
+
+  floating_win, floating_buf = popup()
+  create_variable_buffer(floating_buf, floating_win, session, session.current_frame.scopes)
+end
+
+
+function M.hover(resolve_expression_fn)
+  if not is_stopped_at_frame() then return end
+
+  local session = require('dap').session()
+  local frame = session.current_frame
+
   if vim.tbl_contains(vim.api.nvim_list_wins(), floating_win) then
     vim.api.nvim_set_current_win(floating_win)
   else
