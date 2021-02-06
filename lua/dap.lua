@@ -600,8 +600,8 @@ function Session.event_output(_, body)
   repl.append(body.output, '$')
 end
 
-function Session:_request_scopes(current_frame)
-  self:request('scopes', { frameId = current_frame.id }, function(_, scopes_resp)
+function Session:_request_scopes(current_frame, callback)
+  self:request('scopes', { frameId = current_frame.id }, function(err, scopes_resp)
     if not scopes_resp or not scopes_resp.scopes then return end
 
     current_frame.scopes = {}
@@ -618,6 +618,9 @@ function Session:_request_scopes(current_frame)
           )
         end)
       end
+    end
+    if callback then
+      callback(err, scopes_resp)
     end
   end)
 end

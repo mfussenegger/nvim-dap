@@ -217,7 +217,7 @@ function M.resolve_expression()
 end
 
 
-function M.hover(resolve_expression_fn)
+local function is_stopped_at_frame()
   local session = require('dap').session()
   if not session then
     print("No active session. Can't show hover window")
@@ -232,6 +232,58 @@ function M.hover(resolve_expression_fn)
     print("No frame to inspect available. Can't show hover window")
     return
   end
+  return true
+end
+
+
+function M.frames()
+  if not is_stopped_at_frame() then return end
+
+  local session = require('dap').session()
+  local frames = session.threads[session.stopped_thread_id].frames
+  local tree = {}
+
+  floating_win, floating_buf = popup()
+  for _, f in pairs(frames) do
+    local node = {
+      name = f.name,
+      variables = f.scopes,
+      variablesReference = f.id,
+    }
+
+    if not f.scopes or #f.scopes == 0 then
+       session:_request_scopes(f, function(_, resp)
+         if resp then
+           node.variables = resp.scopes
+           update_variable_buffer(floating_buf, floating_win)
+         end
+       end)
+    end
+    table.insert(tree, node)
+  end
+
+  create_variable_buffer(floating_buf, floating_win, session, tree)
+end
+
+
+function M.scopes()
+  if not is_stopped_at_frame() then return end
+
+  local session = require('dap').session()
+
+  local session = require('dap').session()
+
+  floating_win, floating_buf = popup()
+  create_variable_buffer(floating_buf, floating_win, session, session.current_frame.scopes)
+end
+
+
+function M.hover(resolve_expression_fn)
+  if not is_stopped_at_frame() then return end
+
+  local session = require('dap').session()
+  local frame = session.current_frame
+
   if vim.tbl_contains(vim.api.nvim_list_wins(), floating_win) then
     vim.api.nvim_set_current_win(floating_win)
   else

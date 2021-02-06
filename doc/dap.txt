@@ -574,6 +574,16 @@ hover()                                               *dap.ui.variables.hover()*
 
         Requires an active debug session.
 
+scopes()                                            *dap.ui.variables.scopes()*
+        Opens a hover with all variable scopes of the current frame.
+
+        Requires an active debug session.
+
+frames()                                            *dap.ui.variables.frames()*
+        Opens a hover with the variable of all frames.
+
+        Requires an active debug session.
+
 visual_hover()                                 *dap.ui.variables.visual_hover()*
         Opens a floating window with information on the value of the 
         current visual selection.
