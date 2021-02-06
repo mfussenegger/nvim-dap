@@ -580,7 +580,7 @@ scopes()                                            *dap.ui.variables.scopes()*
         Requires an active debug session.
 
 frames()                                            *dap.ui.variables.frames()*
-        Opens a hover with the variable of all frames.
+        Opens a hover with the variables of all frames as a tree.
 
         Requires an active debug session.
 

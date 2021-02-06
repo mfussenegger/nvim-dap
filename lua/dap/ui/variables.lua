@@ -108,7 +108,7 @@ function M.toggle_variable_expanded()
 
   local v = state.line_to_variable[pos[1] - 1]
 
-  if v and v.variablesReference > 0 then
+  if v and v.variablesReference ~= 0 then
     if state.expanded[v.variablesReference] then
       state.expanded[v.variablesReference] = nil
       update_variable_buffer(buf, win)
@@ -155,7 +155,7 @@ local function create_variable_buffer(buf, win, session, root_variables)
   }
   for _, v in pairs(root_variables) do
     -- Is variable expandable?
-    if v.variablesReference and v.variablesReference > 0 then
+    if v.variablesReference and v.variablesReference ~= 0 then
       variable_buffers[buf].expanded[v.variablesReference] = true
       if not v.variables then
         session:request(
@@ -248,16 +248,16 @@ function M.frames()
     local node = {
       name = f.name,
       variables = f.scopes,
-      variablesReference = f.id,
+      variablesReference = -f.id, -- use negative id to not collide with variablesReference
     }
 
     if not f.scopes or #f.scopes == 0 then
-       session:_request_scopes(f, function(_, resp)
-         if resp then
-           node.variables = resp.scopes
-           update_variable_buffer(floating_buf, floating_win)
-         end
-       end)
+      session:_request_scopes(f, function(_, resp)
+        if resp then
+          node.variables = resp.scopes
+          update_variable_buffer(floating_buf, floating_win)
+        end
+      end)
     end
     table.insert(tree, node)
   end
@@ -268,8 +268,6 @@ end
 
 function M.scopes()
   if not is_stopped_at_frame() then return end
-
-  local session = require('dap').session()
 
   local session = require('dap').session()
 
