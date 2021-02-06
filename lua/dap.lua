@@ -1330,10 +1330,7 @@ local function completions_to_items(completions, prefix)
     return {}
   end
 
-  if candidates[1].sortText then
-    table.sort(candidates, function(a, b) return (a.sortText or 0) < (b.sortText or 0) end)
-  end
-
+  table.sort(candidates, function(a, b) return (a.sortText or a.label) < (b.sortText or b.label) end)
   local items = {}
   for _, candidate in pairs(candidates) do
     table.insert(items, {
@@ -1370,7 +1367,7 @@ function M.omnifunc(findstart, base)
 
   local _ = log.debug() and log.debug('omnifunc.line', {
     line = line;
-    col = col - offset;
+    col = col + 1 - offset;
     line_to_cursor = line_to_cursor;
     text_match = text_match + offset;
     prefix = prefix;
@@ -1379,7 +1376,7 @@ function M.omnifunc(findstart, base)
   session:request('completions', {
     frameId = (session.current_frame or {}).id;
     text = line_to_cursor;
-    column = col - offset;
+    column = col + 1 - offset;
   }, function(err, response)
     if err then
       local _ = log.error() and log.error('completions.callback', err.message)
