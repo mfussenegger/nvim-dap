@@ -235,6 +235,25 @@ An example:
 <
 
 ==============================================================================
+REPL COMPLETION                                               *dap-completion*
+
+
+nvim-dap includes an omnifunc implementation which uses the active debug
+session to get completion candidates.
+
+It is by default set within the REPL which means you can use `CTRL-X CTRL-O` to
+trigger completion within the REPL.
+
+You can also setup the completion to trigger automatically:
+
+>
+  au FileType dap-repl lua require('dap.ext.autocompl').attach()
+<
+
+Completion will then trigger automatically on any of the completion trigger
+characters reported by the debug adapter or if none are reported on `.`.
+
+==============================================================================
 MAPPINGS                                             *dap-mappings*
 
 
