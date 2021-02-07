@@ -1,6 +1,7 @@
 local api = vim.api
 local utils = require("dap.utils")
 local non_empty = utils.non_empty
+local dap = require'dap'
 
 local M = {}
 
@@ -12,6 +13,18 @@ M.show_types = true
 local floating_buf = nil
 local floating_win = nil
 local variable_buffers = {}
+
+
+local function get_subscribution_id(buf)
+  return 'variables_buf_'..buf
+end
+
+
+local function is_subscribed(buf)
+  local id = get_subscribution_id(buf)
+  return dap.custom_event_handlers.event_terminated[id] ~= nil
+end
+
 
 -- Variable (https://microsoft.github.io/debug-adapter-protocol/specification#Types_Variable)
 --- name: string
@@ -28,8 +41,9 @@ local function write_variables(buf, variables, line, column, win)
   column = column or 0
 
   local state = variable_buffers[buf]
-  local win_width = api.nvim_win_get_width(win)
-  local win_height = api.nvim_win_get_height(win)
+  local win_valid = api.nvim_win_is_valid(win)
+  local win_width = win_valid and api.nvim_win_get_width(win)
+  local win_height = win_valid and api.nvim_win_get_height(win)
   local indent = string.rep(" ", column)
 
   local sorted_variables = {}
@@ -79,10 +93,10 @@ local function write_variables(buf, variables, line, column, win)
     max_textlength = math.max(max_textlength, #text)
   end
   if win then
-    if win_width < max_textlength then
+    if win_valid and win_width < max_textlength then
       api.nvim_win_set_width(win, math.min(max_textlength + 2, M.max_win_width))
     end
-    if win_height < line then
+    if win_valid and win_height < line then
       api.nvim_win_set_height(win, line)
     end
   end
@@ -96,6 +110,88 @@ local function update_variable_buffer(buf, win)
   local state = variable_buffers[buf]
   state.line_to_variable = {}
   write_variables(buf, state.variables, 0, 0, win)
+end
+
+-- forward declaration of function
+local subscribe_to_session_events
+
+
+local function create_variable_buffer(buf, win, session, get_root_variables)
+  local root_variables = get_root_variables()
+  if not root_variables then return end
+
+  if not is_subscribed(buf) then
+    subscribe_to_session_events(buf, win, session, get_root_variables)
+  end
+
+  variable_buffers[buf] = {
+    variables = root_variables,
+    expanded = {},
+    session = session,
+    line_to_variable = {},
+    is_valid = true
+  }
+  for _, v in pairs(root_variables) do
+    -- Is variable expandable?
+    if v.variablesReference and v.variablesReference > 0 then
+      variable_buffers[buf].expanded[v.variablesReference] = true
+      if not v.variables then
+        session:request(
+          "variables",
+          {variablesReference = v.variablesReference},
+          function(_, response)
+            if response then
+              v.variables = utils.to_dict(
+                response.variables,
+                function(var) return var.name end
+              )
+              update_variable_buffer(buf, win)
+            end
+          end
+        )
+      end
+    end
+  end
+  update_variable_buffer(buf, win)
+end
+
+local function unsubscribe_to_session_events(buf)
+  local id = get_subscribution_id(buf)
+
+  dap.custom_event_handlers.event_terminated[id] = nil
+  dap.custom_event_handlers.event_stopped[id] = nil
+  dap.custom_response_handlers.variable[id] = nil
+end
+
+
+function subscribe_to_session_events(buf, win, session, get_root_variables)
+  local id = get_subscribution_id(buf)
+
+  dap.custom_event_handlers.event_terminated[id] = function()
+    if vim.api.nvim_win_is_valid(win) and vim.api.nvim_win_get_buf(win) == buf then
+      vim.api.nvim_win_close(win, false)
+    end
+    vim.api.nvim_buf_set_lines(buf, 0, -1, false, {'Session was terminated!'})
+  end
+
+  dap.custom_event_handlers.event_stopped[id] = function()
+    local state = variable_buffers[buf]
+    state.is_valid = false
+  end
+
+  dap.custom_response_handlers.variables[id] = function()
+    local state = variable_buffers[buf]
+    if state.is_valid then
+      update_variable_buffer(buf, win)
+    else
+      create_variable_buffer(buf, win, session, get_root_variables)
+    end
+  end
+
+  vim.api.nvim_buf_attach(buf, false,
+  {
+    on_detach = function() unsubscribe_to_session_events(buf) end
+  })
 end
 
 
@@ -146,38 +242,6 @@ function M.toggle_variable_expanded()
 end
 
 
-local function create_variable_buffer(buf, win, session, root_variables)
-  variable_buffers[buf] = {
-    variables = root_variables,
-    expanded = {},
-    session = session,
-    line_to_variable = {}
-  }
-  for _, v in pairs(root_variables) do
-    -- Is variable expandable?
-    if v.variablesReference and v.variablesReference > 0 then
-      variable_buffers[buf].expanded[v.variablesReference] = true
-      if not v.variables then
-        session:request(
-          "variables",
-          {variablesReference = v.variablesReference},
-          function(_, response)
-            if response then
-              v.variables = utils.to_dict(
-                response.variables,
-                function(var) return var.name end
-              )
-              update_variable_buffer(buf, win)
-            end
-          end
-        )
-      end
-    end
-  end
-  update_variable_buffer(buf, win)
-end
-
-
 local function popup()
   local buf = api.nvim_create_buf(false, true)
   api.nvim_buf_set_option(buf, 'bufhidden', 'wipe')
@@ -218,7 +282,7 @@ end
 
 
 local function is_stopped_at_frame()
-  local session = require('dap').session()
+  local session = dap.session()
   if not session then
     print("No active session. Can't show hover window")
     return
@@ -239,35 +303,42 @@ end
 function M.scopes()
   if not is_stopped_at_frame() then return end
 
-  local session = require('dap').session()
+  local session = dap.session()
 
   floating_win, floating_buf = popup()
-  create_variable_buffer(floating_buf, floating_win, session, session.current_frame.scopes)
+  create_variable_buffer(floating_buf, floating_win, session, function() return session.current_frame.scopes end)
 end
 
 
 function M.hover(resolve_expression_fn)
   if not is_stopped_at_frame() then return end
 
-  local session = require('dap').session()
-  local frame = session.current_frame
 
   if vim.tbl_contains(vim.api.nvim_list_wins(), floating_win) then
     vim.api.nvim_set_current_win(floating_win)
   else
     local expression = resolve_expression_fn and resolve_expression_fn() or M.resolve_expression()
-    local variable
-    local scopes = frame.scopes or {}
-    for _, s in pairs(scopes) do
-      variable = s.variables and s.variables[expression]
-      if variable then
-        break
-      end
-    end
 
+    local function find_variable()
+      local session = dap.session()
+      local frame = session.current_frame
+      local scopes = frame.scopes or {}
+      local variable
+
+      for _, s in pairs(scopes) do
+        variable = s.variables and s.variables[expression]
+        if variable then
+          break
+        end
+      end
+      return variable
+    end
+    local variable = find_variable()
+
+    local session = dap.session()
     if variable then
       floating_win, floating_buf = popup()
-      create_variable_buffer(floating_buf, floating_win, session, {variable})
+      create_variable_buffer(floating_buf, floating_win, session, function() return {find_variable()} end)
     else
       session:evaluate(expression, function(err, resp)
         if err then
@@ -277,7 +348,7 @@ function M.hover(resolve_expression_fn)
             floating_win, floating_buf = popup()
             resp.value = resp.result
             resp.name = expression
-            create_variable_buffer(floating_buf, floating_win, session, {resp})
+            create_variable_buffer(floating_buf, floating_win, session, function() return {resp} end)
           end
         end
       end)
