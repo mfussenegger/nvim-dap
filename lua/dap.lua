@@ -955,7 +955,7 @@ function Session:spawn(adapter, opts)
     args = adapter.args;
     stdio = {stdin, stdout, stderr};
     cwd = options.cwd;
-    env = non_empty(options.env) and options.env or vim.empty_dict();
+    env = options.env;
     detached = true;
   }, onexit)
   assert(handle, 'Error running ' .. adapter.command .. ': ' .. pid_or_err)
