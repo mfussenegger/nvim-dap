@@ -213,7 +213,7 @@ end
 
 
 function M.resolve_expression()
-  return vim.fn.expand("<cword>")
+  return vim.fn.expand("<cexpr>")
 end
 
 
