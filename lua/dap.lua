@@ -16,6 +16,7 @@ local Session = {}
 local session = nil
 local bp_info = {}
 local last_run = nil
+local terminal_buf
 
 M.repl = repl
 M.custom_event_handlers = setmetatable({}, {
@@ -270,7 +271,11 @@ function Session:run_in_terminal(request)
     end
   end
   local win = api.nvim_get_current_win()
+  if terminal_buf and api.nvim_buf_is_valid(terminal_buf) then
+    api.nvim_buf_delete(terminal_buf, {force=true})
+  end
   api.nvim_command('belowright new')
+  terminal_buf = api.nvim_get_current_buf()
   local opts = {
     clear_env = false;
     env = non_empty(body.env) and body.env or vim.empty_dict()
