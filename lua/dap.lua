@@ -2,21 +2,35 @@ dap = {} -- luacheck: ignore 111 - to support v:lua.dap... uses
 
 
 local api = vim.api
+
 local log = require('dap.log').create_logger('dap.log')
-local ui = require('dap.ui')
 local repl = require('dap.repl')
+local dap_signs = require('dap.signs')
+local ui = require('dap.ui')
 local utils = require('dap.utils')
+
 local non_empty = utils.non_empty
-local index_of = utils.index_of
+
 local M = {}
-local ns_breakpoints = 'dap_breakpoints'
-local session = nil
-local bp_info = {}
 local last_run = nil
+
+local reloadable = require('dap.reloadable')
 
 local Session = require('dap.session')
 
-local ns_pos = require('dap.constants').ns_pos
+local ns_breakpoints = require('dap.constants').ns_breakpoints
+
+local function set_current_session(val)
+  reloadable.set_value('CurrentSession', val)
+
+  return val
+end
+
+local function get_current_session()
+  return reloadable.get_value('CurrentSession')
+end
+
+local bp_info = reloadable.table('BpInfo')
 
 M.repl = repl
 M.custom_event_handlers = setmetatable({}, {
@@ -231,479 +245,65 @@ function M.run_last()
 end
 
 
-local function with_win(win, fn, ...)
-  local cur_win = api.nvim_get_current_win()
-  api.nvim_set_current_win(win)
-  local ok, err = pcall(fn, ...)
-  api.nvim_set_current_win(cur_win)
-  assert(ok, err)
-end
-
-
-local function jump_to_location(bufnr, line, column)
-  local ok, failure = pcall(vim.fn.sign_place, 0, ns_pos, 'DapStopped', bufnr, { lnum = line; priority = 12 })
-  if not ok then
-    print(failure)
-  end
-  -- vscode-go sends columns with 0
-  -- That would cause a "Column value outside range" error calling nvim_win_set_cursor
-  -- nvim-dap says "columnsStartAt1 = true" on initialize :/
-  if column == 0 then
-    column = 1
-  end
-  for _, win in pairs(api.nvim_tabpage_list_wins(0)) do
-    if api.nvim_win_get_buf(win) == bufnr then
-      api.nvim_win_set_cursor(win, { line, column - 1 })
-      with_win(win, api.nvim_command, 'normal zv')
-      return
-    end
-  end
-  -- Buffer isn't active in any window; use the first window that is not special
-  -- (Don't want to move to code in the REPL...)
-  for _, win in pairs(api.nvim_tabpage_list_wins(0)) do
-    local winbuf = api.nvim_win_get_buf(win)
-    if api.nvim_buf_get_option(winbuf, 'buftype') == '' then
-      local bufchanged, _ = pcall(api.nvim_win_set_buf, win, bufnr)
-      if bufchanged then
-        api.nvim_win_set_cursor(win, { line, column - 1 })
-        with_win(win, api.nvim_command, 'normal zv')
-        return
-      end
-    end
-  end
-end
-
-
-local function jump_to_frame(cur_session, frame, preserve_focus_hint)
-  local source = frame.source
-  if not source then
-    print('Source not available, cannot jump to frame')
-    return
-  end
-  vim.fn.sign_unplace(ns_pos)
-  if preserve_focus_hint or frame.line < 0 then
-    return
-  end
-  if not source.sourceReference or source.sourceReference == 0 then
-    if not source.path then
-      print('Source path not available, cannot jump to frame')
-      return
-    end
-    local scheme = source.path:match('^([a-z]+)://.*')
-    local bufnr
-    if scheme then
-      bufnr = vim.uri_to_bufnr(source.path)
-    else
-      bufnr = vim.uri_to_bufnr(vim.uri_from_fname(source.path))
-    end
-    vim.fn.bufload(bufnr)
-    jump_to_location(bufnr, frame.line, frame.column)
-  else
-    local params = {
-      source = source,
-      sourceReference = source.sourceReference
-    }
-    cur_session:request('source', params, function(err, response)
-      assert(not err, vim.inspect(err))
-
-      local buf = api.nvim_create_buf(false, true)
-      api.nvim_buf_set_lines(buf, 0, -1, false, vim.split(response.content, '\n'))
-      jump_to_location(buf, frame.line, frame.column)
-    end)
-  end
-end
-
-
-function Session:_show_exception_info()
-  if not self.capabilities.supportsExceptionInfoRequest then return end
-
-  -- exceptionInfo (https://microsoft.github.io/debug-adapter-protocol/specification#Requests_ExceptionInfo)
-  --- threadId: number
-  self:request('exceptionInfo', {threadId = self.stopped_thread_id}, function(err, response)
-    if err then
-      print("Error getting exception info: "..err.message)
-    end
-
-    -- ExceptionInfoResponse
-    --- exceptionId: string
-    --- description?: string
-    --- breakMode: ExceptionBreakMode (https://microsoft.github.io/debug-adapter-protocol/specification#Types_ExceptionBreakMode)
-    --- details?: ExceptionDetails (https://microsoft.github.io/debug-adapter-protocol/specification#Types_ExceptionDetails)
-    if response then
-      local exception_type = response.details and response.details.typeName
-      local of_type = exception_type and ' of type '..exception_type or ''
-      repl.append('Thread stopped due to exception'..of_type..' ('..response.breakMode..')')
-      if response.description then
-        repl.append('Description: '..response.description)
-      end
-      -- ExceptionDetails (https://microsoft.github.io/debug-adapter-protocol/specification#Types_ExceptionDetails)
-      --- message?: string
-      --- typeName?: string
-      --- fullTypeName?: string
-      --- evaluateName?: string
-      --- stackTrace?: string
-      --- innerException?: ExceptionDetails[]
-      if response.details then
-        if response.details.stackTrace then
-          repl.append("Stack trace:")
-          repl.append(response.details.stackTrace)
-        end
-        if response.details.innerException then
-          repl.append("Inner Exceptions:")
-          for _, e in pairs(response.details.innerException) do
-            repl.append(vim.inspect(e))
-          end
-        end
-      end
-    end
-  end)
-end
-
-function Session:event_stopped(stopped)
-  if self.stopped_thread_id then
-    log.debug('Thread stopped, but another thread is already stopped, telling thread to continue')
-    session:request('continue', { threadId = stopped.threadId })
-    return
-  end
-  self.stopped_thread_id = stopped.threadId
-  self:request('threads', nil, function(err0, threads_resp)
-    if err0 then
-      print('Error retrieving threads: ' .. err0.message)
-      return
-    end
-    local threads = {}
-    self.threads = threads
-    for _, thread in pairs(threads_resp.threads) do
-      threads[thread.id] = thread
-    end
-
-    if stopped.reason == 'exception' then
-      self:_show_exception_info()
-    end
-
-    self:request('stackTrace', { threadId = stopped.threadId; }, function(err1, frames_resp)
-      if err1 then
-        print('Error retrieving stack traces: ' .. err1.message)
-        return
-      end
-      local frames = {}
-      local current_frame = nil
-      self.current_frame = nil
-      threads[stopped.threadId].frames = frames
-      for _, frame in pairs(frames_resp.stackFrames) do
-        if not current_frame and frame.source and frame.source.path then
-          current_frame = frame
-          self.current_frame = frame
-        end
-        table.insert(frames, frame)
-      end
-      if not current_frame then
-        if #frames > 0 then
-          current_frame = frames[1]
-          self.current_frame = current_frame
-        else
-          return
-        end
-      end
-      local preserve_focus
-      if stopped.reason ~= 'pause' then
-        preserve_focus = stopped.preserveFocusHint
-      end
-      jump_to_frame(self, current_frame, preserve_focus)
-      self:_request_scopes(current_frame)
-    end)
-  end)
-end
-
-function Session:event_terminated()
-  self:close()
-  if self.handlers.after then
-    self.handlers.after()
-  end
-  session = nil
-end
-
-
-function Session.event_exited()
-end
-
-function Session.event_module()
-end
-
-function Session.event_process()
-end
-
-function Session.event_thread()
-end
-
-function Session.event_continued()
-end
-
-function Session.event_output(_, body)
-  repl.append(body.output, '$')
-end
-
-function Session:_request_scopes(current_frame)
-  self:request('scopes', { frameId = current_frame.id }, function(_, scopes_resp)
-    if not scopes_resp or not scopes_resp.scopes then return end
-
-    current_frame.scopes = {}
-    for _, scope in pairs(scopes_resp.scopes) do
-
-      table.insert(current_frame.scopes, scope)
-      if not scope.expensive then
-        self:request('variables', { variablesReference = scope.variablesReference }, function(_, variables_resp)
-          if not variables_resp then return end
-
-          scope.variables = utils.to_dict(
-            variables_resp.variables,
-            function(v) return v.name end
-          )
-        end)
-      end
-    end
-  end)
-end
-
---- Goto specified line (source and col are optional)
-function Session:_goto(line, source, col)
-  local frame = self.current_frame
-  if not frame then
-    return
-  end
-  if not self.capabilities.supportsGotoTargetsRequest then
-    print("Debug Adapter doesn't support GotoTargetRequest")
-    return
-  end
-  self:request('gotoTargets',  {source = source or frame.source, line = line, col = col}, function(err, response)
-    if err then
-      print('Error getting gotoTargets: ' .. err.message)
-      return
-    end
-    if not response or not response.targets then
-      print("No goto targets available. Can't execute goto")
-      return
-    end
-    local params = {threadId = session.stopped_thread_id, targetId = response.targets[1].id }
-    self:request('goto', params, function(err1, _)
-      if err1 then
-        print('Error executing goto: ' .. err1.message)
-      end
-    end)
-  end)
-
-end
-
-
-function Session:_frame_set(frame)
-  if not frame then
-    return
-  end
-  self.current_frame = frame
-  jump_to_frame(self, frame, false)
-  self:_request_scopes(frame)
-end
-
-
-function Session:_frame_delta(delta)
-  if not self.stopped_thread_id then
-    print('Cannot move frame if not stopped')
-    return
-  end
-  local frames = self.threads[self.stopped_thread_id].frames
-  assert(frames, 'Stopped thread must have frames')
-  local current_frame_index = index_of(frames, function(i) return i.id == self.current_frame.id end)
-  assert(current_frame_index, 'id of current frame must be present in frames')
-
-  current_frame_index = current_frame_index + delta
-  if current_frame_index < 1 then
-    current_frame_index = #frames
-  elseif current_frame_index > #frames then
-    current_frame_index = 1
-  end
-  self:_frame_set(frames[current_frame_index])
-end
-
-local function remove_breakpoint_signs(bufnr, lnum)
-  local signs = vim.fn.sign_getplaced(bufnr, { group = ns_breakpoints; lnum = lnum; })[1].signs
-  if signs and #signs > 0 then
-    for _, sign in pairs(signs) do
-      vim.fn.sign_unplace(ns_breakpoints, { buffer = bufnr; id = sign.id; })
-      bp_info[sign.id] = nil
-    end
-    return true
-  else
-    return false
-  end
-end
-
-
-local function get_breakpoint_signs(bufexpr)
-  if bufexpr then
-    return vim.fn.sign_getplaced(bufexpr, {group = ns_breakpoints})
-  end
-  local bufs_with_signs = vim.fn.sign_getplaced()
-  local result = {}
-  for _, buf_signs in ipairs(bufs_with_signs) do
-    buf_signs = vim.fn.sign_getplaced(buf_signs.bufnr, {group = ns_breakpoints})[1]
-    if #buf_signs.signs > 0 then
-      table.insert(result, buf_signs)
-    end
-  end
-  return result
-end
-
-
-function Session:set_breakpoints(bufexpr, on_done)
-  local bp_signs = get_breakpoint_signs(bufexpr)
-  local num_bufs = #bp_signs
-  if num_bufs == 0 then
-    on_done()
-    return
-  end
-  for _, buf_bp_signs in pairs(bp_signs) do
-    local breakpoints = {}
-    local bufnr = buf_bp_signs.bufnr
-    for _, bp in pairs(buf_bp_signs.signs) do
-      local bp_entry = bp_info[bp.id] or {}
-      table.insert(breakpoints, {
-        line = bp.lnum;
-        condition = bp_entry.condition;
-        hitCondition = bp_entry.hitCondition;
-        logMessage = bp_entry.logMessage;
-      })
-    end
-    if non_empty(bp_info.condition) and not self.capabilities.supportsConditionalBreakpoints then
-      print("Debug adapter doesn't support breakpoints with conditions")
-    end
-    if non_empty(bp_info.hitCondition) and not self.capabilities.supportsHitConditionalBreakpoints then
-      print("Debug adapter doesn't support breakpoints with hit conditions")
-    end
-    if non_empty(bp_info.logMessage) and not self.capabilities.supportsLogPoints then
-      print("Debug adapter doesn't support log points")
-    end
-    local path = api.nvim_buf_get_name(bufnr)
-    local payload = {
-      source = {
-        path = path;
-        name = vim.fn.fnamemodify(path, ':t')
-      };
-      breakpoints = breakpoints;
-      lines = vim.tbl_map(function(x) return x.line end, breakpoints);
-    }
-    self:request('setBreakpoints', payload, function(err1, resp)
-        if err1 then
-          print("Error setting breakpoints: " .. err1.message)
-        else
-          for _, bp in pairs(resp.breakpoints) do
-            if not bp.verified then
-              log.info('Server rejected breakpoint', bp)
-              remove_breakpoint_signs(bufnr, bp.line)
-            end
-          end
-        end
-        num_bufs = num_bufs - 1
-        if num_bufs == 0 and on_done then
-          on_done()
-        end
-      end
-    )
-  end
-end
-
-function Session:set_exception_breakpoints(filters, exceptionOptions, on_done)
-  if not self.capabilities.exceptionBreakpointFilters then
-      print("Debug adapter doesn't support exception breakpoints")
-      return
-  end
-
-  if filters == 'default' then
-    local default_filters = {}
-    for _, f in pairs(self.capabilities.exceptionBreakpointFilters) do
-      if f.default then
-        table.insert(default_filters, f.filter)
-      end
-    end
-    filters = default_filters
-  end
-
-  if not filters then
-    local possible_filters = {}
-    for _, f in ipairs(self.capabilities.exceptionBreakpointFilters) do
-      table.insert(possible_filters, f.filter)
-    end
-    filters = vim.split(vim.fn.input("Exception breakpoint filters: ", table.concat(possible_filters, ' ')), ' ')
-  end
-
-  if exceptionOptions and not self.capabilities.supportsExceptionOptions then
-    print("Debug adapter does not support ExceptionOptions")
-    return
-  end
-
-  -- setExceptionBreakpoints (https://microsoft.github.io/debug-adapter-protocol/specification#Requests_SetExceptionBreakpoints)
-  --- filters: string[]
-  --- exceptionOptions: exceptionOptions?: ExceptionOptions[] (https://microsoft.github.io/debug-adapter-protocol/specification#Types_ExceptionOptions)
-  self:request(
-    'setExceptionBreakpoints',
-    { filters = filters, exceptionOptions = exceptionOptions },
-    function(err, _)
-      if err then
-        print("Error setting exception breakpoints: "..err.message)
-      end
-      if on_done then
-        on_done()
-      end
-  end)
-end
-
 function M.step_over()
+  local session = get_current_session()
   if not session then return end
   session:_step('next')
 end
 
 function M.step_into()
+  local session = get_current_session()
   if not session then return end
   session:_step('stepIn')
 end
 
 function M.step_out()
+  local session = get_current_session()
   if not session then return end
   session:_step('stepOut')
 end
 
 function M.reverse_continue()
+  local session = get_current_session()
   if not session then return end
   session:_step('reverseContinue')
 end
 
 function M.step_back()
+  local session = get_current_session()
   if not session then return end
   session:_step('stepBack')
 end
 
 function M.pause(thread_id)
+  local session = get_current_session()
   if not session then return end
   session:_pause(thread_id)
 end
 
 function M.stop()
+  local session = get_current_session()
   if not session then return end
   session:close()
-  session = nil
+  set_current_session(nil)
 end
 
 function M.up()
+  local session = get_current_session()
   if not session then return end
   session:_frame_delta(1)
 end
 
 function M.down()
+  local session = get_current_session()
   if not session then return end
   session:_frame_delta(-1)
 end
 
 function M.goto_(line)
+  local session = get_current_session()
   if not session then return end
+
   local source, col
   if not line then
     line, col = unpack(api.nvim_win_get_cursor(0))
@@ -714,7 +314,9 @@ function M.goto_(line)
 end
 
 function M.restart()
+  local session = get_current_session()
   if not session then return end
+
   if session.capabilities.supportsRestartRequest then
     session:request('restart', nil, function(err0, _)
       if err0 then
@@ -729,7 +331,7 @@ function M.restart()
 end
 
 function M.list_breakpoints(open_quickfix)
-  local bp_signs = get_breakpoint_signs()
+  local bp_signs = dap_signs.get_breakpoint_signs()
   local num_bufs = #bp_signs
   local qf_list = {}
   for _, buf_bp_signs in pairs(bp_signs) do
@@ -775,9 +377,11 @@ function M.set_breakpoint(condition, hit_condition, log_message)
 end
 
 function M.toggle_breakpoint(condition, hit_condition, log_message, replace_old)
+  local session = get_current_session()
+
   local bufnr = api.nvim_get_current_buf()
   local lnum, _ = unpack(api.nvim_win_get_cursor(0))
-  if not remove_breakpoint_signs(bufnr, lnum) or replace_old then
+  if not dap_signs.remove_breakpoints(bufnr, lnum) or replace_old then
     local sign_id = vim.fn.sign_place(
       0,
       ns_breakpoints,
@@ -806,6 +410,8 @@ end
 --- filters: string[]
 --- exceptionOptions: exceptionOptions?: ExceptionOptions[] (https://microsoft.github.io/debug-adapter-protocol/specification#Types_ExceptionOptions)
 function M.set_exception_breakpoints(filters, exceptionOptions)
+  local session = get_current_session()
+
   if session then
     session:set_exception_breakpoints(filters, exceptionOptions)
   else
@@ -815,6 +421,8 @@ end
 
 
 function M.continue()
+  local session = get_current_session()
+
   if not session then
     select_config_and_run()
   else
@@ -825,6 +433,8 @@ end
 
 --- Disconnects an active session
 function M.disconnect()
+  local session = get_current_session()
+
   if session then
     -- Should result in a `terminated` event which closes the session and sets it to nil
     session:disconnect()
@@ -858,6 +468,8 @@ end
 
 
 function M.omnifunc(findstart, base)
+  local session = get_current_session()
+
   local supportsCompletionsRequest = ((session or {}).capabilities or {}).supportsCompletionsRequest;
   local _ = log.debug() and log.debug('omnifunc.findstart', {
     findstart = findstart;
@@ -916,6 +528,8 @@ dap.omnifunc = M.omnifunc  -- luacheck: ignore 112
 ---    ...                 -- debug adapter specific options
 ---@param opts table: ?
 function M.attach(host, port, config, opts)
+  local session = get_current_session()
+
   if session then
     session:close()
   end
@@ -923,7 +537,7 @@ function M.attach(host, port, config, opts)
     print('config needs the `request` property which must be one of `attach` or `launch`')
     return
   end
-  session = Session:connect(host, port, opts)
+  session = set_current_session(Session:connect(host, port, opts))
   session:initialize(config)
   return session
 end
@@ -945,10 +559,12 @@ end
 --    ...                 -- debug adapter specific options
 --
 function M.launch(adapter, config, opts)
+  local session = get_current_session()
+
   if session then
     session:close()
   end
-  session = Session:spawn(adapter, opts)
+  session = set_current_session(Session:spawn(adapter, opts))
   session:initialize(config)
   return session
 end
@@ -960,6 +576,7 @@ end
 
 
 function M._vim_exit_handler()
+  local session = get_current_session()
   if session then
     session:close()
   end
@@ -969,8 +586,10 @@ dap._vim_exit_handler = M._vim_exit_handler  -- luacheck: ignore 112
 
 --- Return the current session or nil
 function M.session()
-  return session
+  return get_current_session()
 end
+
+M._set_current_session = set_current_session
 
 
 api.nvim_command("autocmd VimLeavePre * lua dap._vim_exit_handler()")
