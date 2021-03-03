@@ -270,8 +270,7 @@ function Session:close()
 end
 
 function Session:set_terminal(buf)
-  assert(self and buf)
-
+  assert(self and buf, "Must be called with session:set_terminal(buf)")
   reloadable.set_value('SessionTerminalBuf', buf)
 end
 

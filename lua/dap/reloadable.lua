@@ -23,4 +23,13 @@ reloadable.get_value = function(name)
   return reloadable.state[name]
 end
 
+reloadable.create_value = function(name)
+  return function(val)
+    reloadable.set_value(name, val)
+    return val
+  end, function()
+    return reloadable.get_value(name)
+  end
+end
+
 return reloadable

@@ -3,34 +3,23 @@ dap = {} -- luacheck: ignore 111 - to support v:lua.dap... uses
 
 local api = vim.api
 
-local log = require('dap.log').create_logger('dap.log')
-local repl = require('dap.repl')
 local dap_signs = require('dap.signs')
+local log = require('dap.log').create_logger('dap.log')
+local reloadable = require('dap.reloadable')
+local repl = require('dap.repl')
 local ui = require('dap.ui')
 local utils = require('dap.utils')
-
-local non_empty = utils.non_empty
-
-local M = {}
-local last_run = nil
-
-local reloadable = require('dap.reloadable')
-
 local Session = require('dap.session')
 
+local non_empty = utils.non_empty
 local ns_breakpoints = require('dap.constants').ns_breakpoints
 
-local function set_current_session(val)
-  reloadable.set_value('CurrentSession', val)
-
-  return val
-end
-
-local function get_current_session()
-  return reloadable.get_value('CurrentSession')
-end
+local set_current_session, get_current_session = reloadable.create_value('CurrentSession')
+local set_last_run, get_last_run = reloadable.create_value('LastRun')
 
 local bp_info = reloadable.table('BpInfo')
+
+local M = {}
 
 M.repl = repl
 M.custom_event_handlers = setmetatable({}, {
@@ -212,7 +201,7 @@ end
 
 function M.run(config, opts)
   opts = opts or {}
-  last_run = {
+  set_last_run {
     config = config,
     opts = opts,
   }
@@ -237,6 +226,7 @@ end
 
 
 function M.run_last()
+  local last_run = get_last_run()
   if last_run then
     M.run(last_run.config, last_run.opts)
   else
