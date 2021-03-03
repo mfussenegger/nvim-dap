@@ -62,4 +62,16 @@ function M.get_visual_selection_text()
   end
 end
 
+
+local NIL = vim.NIL
+function M.convert_nil(v)
+  if v == NIL then
+    return nil
+  elseif type(v) == 'table' then
+    return vim.tbl_map(M.convert_nil, v)
+  else
+    return v
+  end
+end
+
 return M

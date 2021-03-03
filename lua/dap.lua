@@ -1,7 +1,6 @@
 dap = {} -- luacheck: ignore 111 - to support v:lua.dap... uses
 
 
-local uv = vim.loop
 local api = vim.api
 local log = require('dap.log').create_logger('dap.log')
 local ui = require('dap.ui')
@@ -11,12 +10,13 @@ local non_empty = utils.non_empty
 local index_of = utils.index_of
 local M = {}
 local ns_breakpoints = 'dap_breakpoints'
-local ns_pos = 'dap_pos'
-local Session = {}
 local session = nil
 local bp_info = {}
 local last_run = nil
-local terminal_buf
+
+local Session = require('dap.session')
+
+local ns_pos = require('dap.constants').ns_pos
 
 M.repl = repl
 M.custom_event_handlers = setmetatable({}, {
@@ -228,168 +228,6 @@ function M.run_last()
   else
     print('No configuration available to re-run')
   end
-end
-
-
-local function launch_external_terminal(terminal, args)
-  local handle
-  local pid_or_err
-  local full_args = {}
-  vim.list_extend(full_args, terminal.args or {})
-  vim.list_extend(full_args, args)
-  local opts = {
-    args = full_args,
-    detached = true
-  }
-  handle, pid_or_err = uv.spawn(terminal.command, opts, function(code)
-    handle:close()
-    if code ~= 0 then
-      print('Terminal exited', code, 'running', terminal.command, table.concat(full_args, ' '))
-    end
-  end)
-  return handle, pid_or_err
-end
-
-
-function Session:run_in_terminal(request)
-  local body = request.arguments
-  local _ = log.debug() and log.debug('run_in_terminal', body)
-  if body.kind == 'external' then
-    local terminal = M.defaults[self.config.type].external_terminal
-    if not terminal then
-      print('Requested external terminal, but none configured. Fallback to integratedTerminal')
-    else
-      local handle, pid = launch_external_terminal(terminal, body.args)
-      if not handle then
-        print('Could not launch terminal', terminal.command)
-      end
-      self:response(request, {
-        success = handle ~= nil;
-        body = { processId = pid; };
-      })
-      return
-    end
-  end
-  local win = api.nvim_get_current_win()
-  if terminal_buf and api.nvim_buf_is_valid(terminal_buf) then
-    api.nvim_buf_delete(terminal_buf, {force=true})
-  end
-  api.nvim_command('belowright new')
-  terminal_buf = api.nvim_get_current_buf()
-  local opts = {
-    clear_env = false;
-    env = non_empty(body.env) and body.env or vim.empty_dict()
-  }
-  local jobid = vim.fn.termopen(body.args, opts)
-  api.nvim_set_current_win(win)
-  if jobid == 0 or jobid == -1 then
-    local _ = log.error() and log.error('Could not spawn terminal', jobid, request)
-    self:response(request, {
-      success = false;
-      message = 'Could not spawn terminal';
-    })
-  else
-    self:response(request, {
-      success = true;
-      body = {
-        processId = vim.fn.jobpid(jobid);
-      };
-    })
-  end
-end
-
-
-local function msg_with_content_length(msg)
-  return table.concat {
-    'Content-Length: ';
-    tostring(#msg);
-    '\r\n\r\n';
-    msg
-  }
-end
-
-
--- Copied from neovim rpc.lua
-local function parse_headers(header)
-  if type(header) ~= 'string' then
-    return nil
-  end
-  local headers = {}
-  for line in vim.gsplit(header, '\r\n', true) do
-    if line == '' then
-      break
-    end
-    local key, value = line:match('^%s*(%S+)%s*:%s*(.+)%s*$')
-    if key then
-      key = key:lower():gsub('%-', '_')
-      headers[key] = value
-    else
-      error(string.format("Invalid header line %q", line))
-    end
-  end
-  headers.content_length = tonumber(headers.content_length)
-    or error(string.format("Content-Length not found in headers. %q", header))
-  return headers
-end
-
-
--- Mostly copied from neovim rpc.lua
-local header_start_pattern = ("content"):gsub("%w", function(c) return "["..c..c:upper().."]" end)
-local function parse_chunk_loop()
-  local buffer = ''
-  while true do
-    local start, finish = buffer:find('\r\n\r\n', 1, true)
-    if start then
-      local buffer_start = buffer:find(header_start_pattern)
-      local headers = parse_headers(buffer:sub(buffer_start, start - 1))
-      local content_length = headers.content_length
-      local body_chunks = {buffer:sub(finish + 1)}
-      local body_length = #body_chunks[1]
-      while body_length < content_length do
-        local chunk = coroutine.yield()
-          or error("Expected more data for the body. The server may have died.")
-        table.insert(body_chunks, chunk)
-        body_length = body_length + #chunk
-      end
-      local last_chunk = body_chunks[#body_chunks]
-
-      body_chunks[#body_chunks] = last_chunk:sub(1, content_length - body_length - 1)
-      local rest = ''
-      if body_length > content_length then
-        rest = last_chunk:sub(content_length - body_length)
-      end
-      local body = table.concat(body_chunks)
-      buffer = rest .. (coroutine.yield(headers, body)
-        or error("Expected more data for the body. The server may have died."))
-    else
-      buffer = buffer .. (coroutine.yield()
-        or error("Expected more data for the header. The server may have died."))
-    end
-  end
-end
-
-
-function Session:event_initialized(_)
-  local function on_done()
-    if self.capabilities.supportsConfigurationDoneRequest then
-      self:request('configurationDone', nil, function(err1, _)
-        if err1 then
-          print(err1.message)
-        end
-        self.initialized = true
-      end)
-    else
-      self.initialized = true
-    end
-  end
-
-  self:set_breakpoints(nil, function()
-    if self.capabilities.exceptionBreakpointFilters then
-      self:set_exception_breakpoints(M.defaults[self.config.type].exception_breakpoints, nil, on_done)
-    else
-      on_done()
-    end
-  end)
 end
 
 
@@ -818,331 +656,6 @@ function Session:set_exception_breakpoints(filters, exceptionOptions, on_done)
   end)
 end
 
-
-local NIL = vim.NIL
-local function convert_nil(v)
-  if v == NIL then
-    return nil
-  elseif type(v) == 'table' then
-    return vim.tbl_map(convert_nil, v)
-  else
-    return v
-  end
-end
-
-
-function Session:handle_body(body)
-  local decoded = convert_nil(vim.fn.json_decode(body))
-  self.seq = decoded.seq + 1
-  local _ = log.debug() and log.debug(decoded)
-  if decoded.request_seq then
-    local callback = self.message_callbacks[decoded.request_seq]
-    local request = self.message_requests[decoded.request_seq]
-    if not callback then
-      log.warn('No callback for ', decoded)
-      return
-    end
-    self.message_callbacks[decoded.request_seq] = nil
-    self.message_requests[decoded.request_seq] = nil
-    if decoded.success then
-      vim.schedule(function()
-        callback(nil, decoded.body)
-        for _, c in pairs(M.custom_response_handlers[decoded.command]) do
-          c(self, decoded.body, request)
-        end
-      end)
-    else
-      vim.schedule(function()
-        callback({ message = decoded.message; body = decoded.body; }, nil)
-      end)
-    end
-  elseif decoded.event then
-    local callback = self['event_' .. decoded.event]
-    if callback then
-      vim.schedule(function()
-        callback(self, decoded.body)
-        for _, c in pairs(M.custom_event_handlers['event_' .. decoded.event]) do
-          c(self, decoded.body)
-        end
-      end)
-    else
-      log.warn('No event handler for ', decoded)
-    end
-  elseif decoded.type == 'request' and decoded.command == 'runInTerminal' then
-    self:run_in_terminal(decoded)
-  else
-    local _ = log.warn() and log.warn('Received unexpected message', decoded)
-  end
-end
-
-
-local function session_defaults(opts)
-  local handlers = {}
-  handlers.after = opts.after
-  return {
-    handlers = handlers;
-    message_callbacks = {};
-    message_requests = {};
-    initialized = false;
-    seq = 0;
-    stopped_thread_id = nil;
-    current_frame = nil;
-    threads = {};
-  }
-end
-
-
-local function create_read_loop(handle_body)
-  local parse_chunk = coroutine.wrap(parse_chunk_loop)
-  parse_chunk()
-  return function (err, chunk)
-    if err then
-      print(err)
-      return
-    end
-    if not chunk then
-      return
-    end
-    while true do
-      local headers, body = parse_chunk(chunk)
-      if headers then
-        vim.schedule(function()
-          handle_body(body)
-        end)
-        chunk = ''
-      else
-        break
-      end
-    end
-  end
-end
-
-
-function Session:connect(host, port, opts)
-  local o = session_defaults(opts or {})
-  setmetatable(o, self)
-  self.__index = self
-
-  local client = uv.new_tcp()
-  o.client = {
-    write = function(line) client:write(line) end;
-    close = function()
-      client:shutdown()
-      client:close()
-    end;
-  }
-  client:connect(host or '127.0.0.1', tonumber(port), function(err)
-    if (err) then print(err) end
-  end)
-  client:read_start(create_read_loop(function(body) session:handle_body(body) end))
-  return o
-end
-
-
-function Session:spawn(adapter, opts)
-  local o = session_defaults(opts or {})
-  setmetatable(o, self)
-  self.__index = self
-
-  local stdin = uv.new_pipe(false)
-  local stdout = uv.new_pipe(false)
-  local stderr = uv.new_pipe(false)
-  local handle
-  local function onexit()
-    stdin:close()
-    stdout:close()
-    stderr:close()
-    handle:close()
-  end
-  local options = adapter.options or {}
-  local pid_or_err
-  handle, pid_or_err = uv.spawn(adapter.command, {
-    args = adapter.args;
-    stdio = {stdin, stdout, stderr};
-    cwd = options.cwd;
-    env = options.env;
-    detached = true;
-  }, onexit)
-  assert(handle, 'Error running ' .. adapter.command .. ': ' .. pid_or_err)
-  o.client = {
-    write = function(line) stdin:write(line) end;
-    close = function()
-      if handle then
-        pcall(handle.close, handle)
-      end
-    end;
-  }
-  stdout:read_start(create_read_loop(function(body)
-    if session then
-      session:handle_body(body)
-    end
-  end))
-  stderr:read_start(function(err, chunk)
-    assert(not err, err)
-    if chunk then
-      local _ = log.error() and log.error("stderr", adapter, chunk)
-    end
-  end)
-  return o
-end
-
-
-function Session:close()
-  vim.fn.sign_unplace(ns_pos)
-  self.threads = {}
-  self.message_callbacks = {}
-  self.message_requests = {}
-  self.client.close()
-  repl.set_session(nil)
-end
-
-
-function Session:request(command, arguments, callback)
-  local payload = {
-    seq = self.seq;
-    type = 'request';
-    command = command;
-    arguments = arguments
-  }
-  local _ = log.debug() and log.debug('request', payload)
-  local current_seq = self.seq
-  self.seq = self.seq + 1
-  vim.schedule(function()
-    local msg = msg_with_content_length(vim.fn.json_encode(payload))
-    self.client.write(msg)
-    if callback then
-      self.message_callbacks[current_seq] = callback
-      self.message_requests[current_seq] = arguments
-    end
-  end)
-end
-
-
-function Session:response(request, payload)
-  payload.seq = self.seq
-  self.seq = self.seq + 1
-  payload.type = 'response'
-  payload.request_seq = request.seq;
-  payload.command = request.command;
-  local _ = log.debug() and log.debug('response', payload)
-  vim.schedule(function()
-    local msg = msg_with_content_length(vim.fn.json_encode(payload))
-    self.client.write(msg)
-  end)
-end
-
-
-function Session:initialize(config)
-  self.config = config
-  self:request('initialize', {
-    clientId = 'neovim';
-    clientname = 'neovim';
-    adapterID = 'nvim-dap';
-    pathFormat = 'path';
-    columnsStartAt1 = true;
-    linesStartAt1 = true;
-    supportsRunInTerminalRequest = true;
-    locale = os.getenv('LANG') or 'en_US';
-  }, function(err0, result)
-    if err0 then
-      print("Could not initialize debug adapter: " .. err0.message)
-      return
-    end
-    session.capabilities = result
-    session:request(config.request, config, function(err)
-      if err then
-        print(string.format('Error on %s: %s', config.request, err.message))
-        session:close()
-        session = nil
-        return
-      end
-      repl.set_session(session)
-    end)
-  end)
-end
-
-
-function Session:evaluate(expression, fn)
-  self:request('evaluate', {
-    expression = expression;
-    context = 'repl';
-    frameId = (self.current_frame or {}).id;
-  }, fn)
-end
-
-
-function Session:disconnect()
-  self:request('disconnect', {
-    restart = false,
-    terminateDebuggee = true;
-  })
-end
-
-
-local function pause_thread(thread_id)
-  assert(session, 'Cannot pause thread without active session')
-  assert(thread_id, 'thread_id is required to pause thread')
-
-  session:request('pause', { threadId = thread_id; }, function(err)
-    if err then
-      print('Error pausing: ' .. err.message)
-    else
-      print('Thread paused', thread_id)
-    end
-  end)
-end
-
-
-function Session:_pause(thread_id)
-  if self.stopped_thread_id then
-    print('One thread is already stopped. Cannot pause!')
-    return
-  end
-  if thread_id then
-    pause_thread(thread_id)
-    return
-  end
-  self:request('threads', nil, function(err0, response)
-    if err0 then
-      print('Error requesting threads: ' .. err0.message)
-      return
-    end
-    ui.pick_one(
-      response.threads,
-      "Which thread?: ",
-      function(t) return t.name end,
-      function(thread)
-        if not thread or not thread.id then
-          print('No thread to stop. Not pausing...')
-        else
-          pause_thread(thread.id)
-        end
-      end
-    )
-  end)
-end
-
-
-function Session:_step(step)
-  if vim.tbl_contains({"stepBack", "reverseContinue"}, step) and not session.capabilities.supportsStepBack then
-    print("Debug Adapter does not support "..step.."!")
-    return
-  end
-  if not self.stopped_thread_id then
-    print('No stopped thread. Cannot move')
-    return
-  end
-  local thread_id = self.stopped_thread_id
-  self.stopped_thread_id = nil
-  vim.fn.sign_unplace(ns_pos)
-  session:request(step, { threadId = thread_id; }, function(err0, _)
-    if err0 then
-      print('Error on '.. step .. ': ' .. err0.message)
-    end
-  end)
-end
-
-
 function M.step_over()
   if not session then return end
   session:_step('next')
@@ -1169,40 +682,35 @@ function M.step_back()
 end
 
 function M.pause(thread_id)
-  if session then
-    session:_pause(thread_id)
-  end
+  if not session then return end
+  session:_pause(thread_id)
 end
 
 function M.stop()
-  if session then
-    session:close()
-    session = nil
-  end
+  if not session then return end
+  session:close()
+  session = nil
 end
 
 function M.up()
-  if session then
-    session:_frame_delta(1)
-  end
+  if not session then return end
+  session:_frame_delta(1)
 end
 
 function M.down()
-  if session then
-    session:_frame_delta(-1)
-  end
+  if not session then return end
+  session:_frame_delta(-1)
 end
 
 function M.goto_(line)
-  if session then
-    local source, col
-    if not line then
-      line, col = unpack(api.nvim_win_get_cursor(0))
-      col = col + 1
-      source = { path = vim.uri_from_bufnr(0) }
-    end
-    session:_goto(line, source, col)
+  if not session then return end
+  local source, col
+  if not line then
+    line, col = unpack(api.nvim_win_get_cursor(0))
+    col = col + 1
+    source = { path = vim.uri_from_bufnr(0) }
   end
+  session:_goto(line, source, col)
 end
 
 function M.restart()
@@ -1399,12 +907,14 @@ dap.omnifunc = M.omnifunc  -- luacheck: ignore 112
 
 
 --- Attach to an existing debug-adapter running on host, port
---  and then initialize it with config
---
--- Configuration:         -- Specifies how the debug adapter should conenct/launch the debugee
---    request: string     -- attach or launch
---    ...                 -- debug adapter specific options
---
+---  and then initialize it with config
+---
+---@param host string: Hostname
+---@param port number: The port number to connect to
+---@param config table: How the debug adapter should connect / launch the debuggee
+---    - request: string     -- attach or launch
+---    ...                 -- debug adapter specific options
+---@param opts table: ?
 function M.attach(host, port, config, opts)
   if session then
     session:close()
