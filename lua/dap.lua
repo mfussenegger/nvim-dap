@@ -756,13 +756,18 @@ function Session:set_breakpoints(bufexpr, on_done)
     self:request('setBreakpoints', payload, function(err1, resp)
         if err1 then
           print("Error setting breakpoints: " .. err1.message)
-        else
+        elseif resp then
           for _, bp in pairs(resp.breakpoints) do
             if not bp.verified then
               log.info('Server rejected breakpoint', bp)
               remove_breakpoint_signs(bufnr, bp.line)
             end
           end
+        else
+          log.warn(
+            'setBreakpoints response contains neither an error nor a body. ' ..
+            'This is likely a bug in the debug adapter.'
+          )
         end
         num_bufs = num_bufs - 1
         if num_bufs == 0 and on_done then
