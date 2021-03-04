@@ -833,7 +833,6 @@ end
 
 function Session:handle_body(body)
   local decoded = convert_nil(vim.fn.json_decode(body))
-  self.seq = decoded.seq + 1
   local _ = log.debug() and log.debug(decoded)
   if decoded.request_seq then
     local callback = self.message_callbacks[decoded.request_seq]
