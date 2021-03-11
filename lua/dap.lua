@@ -586,7 +586,10 @@ function Session:event_terminated()
 end
 
 
-function Session.event_exited()
+function Session:event_exited(args)
+  if self.handlers.exit then
+    self.handlers.exit(args.exitCode)
+  end
 end
 
 function Session.event_module()
@@ -601,8 +604,13 @@ end
 function Session.event_continued()
 end
 
-function Session.event_output(_, body)
-  repl.append(body.output, '$')
+function Session:event_output(body)
+  if self.output_to_repl then
+    repl.append(body.output, '$')
+  end
+  if self.handlers.output and vim.tbl_contains({"stdout", "stderr"}, body.category) then
+    self.handlers.output(body.output)
+  end
 end
 
 function Session:_request_scopes(current_frame)
@@ -878,8 +886,11 @@ end
 local function session_defaults(opts)
   local handlers = {}
   handlers.after = opts.after
+  handlers.exit = opts.exit
+  handlers.output = opts.output
   return {
     handlers = handlers;
+    output_to_repl = opts.output_to_repl == nil or opts.output_to_repl;
     message_callbacks = {};
     message_requests = {};
     initialized = false;
