@@ -239,6 +239,7 @@ function M.open(winopts, wincmd)
     api.nvim_buf_set_keymap(buf, 'n', '<CR>', "<Cmd>lua require('dap').repl.on_enter()<CR>", {})
     api.nvim_buf_set_keymap(buf, 'i', '<up>', "<Cmd>lua require('dap').repl.on_up()<CR>", {})
     api.nvim_buf_set_keymap(buf, 'i', '<down>', "<Cmd>lua require('dap').repl.on_down()<CR>", {})
+    api.nvim_buf_set_keymap(buf, 'i', '<BS>', '<ESC>xa', {})
     vim.fn.prompt_setprompt(buf, 'dap> ')
     vim.fn.prompt_setcallback(buf, execute)
     api.nvim_buf_attach(buf, false, {
