@@ -1,7 +1,7 @@
 
 local reloadable = require('dap.reloadable')
 
-local bp_info = reloadable.get_value('BpInfo')
+local bp_info = reloadable.table('BpInfo')
 local ns_breakpoints = require('dap.constants').ns_breakpoints
 
 local M = {}
