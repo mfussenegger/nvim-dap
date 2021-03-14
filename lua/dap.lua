@@ -859,10 +859,10 @@ function Session:handle_body(body)
     local callback = self['event_' .. decoded.event]
     if callback then
       vim.schedule(function()
-        callback(self, decoded.body)
         for _, c in pairs(M.custom_event_handlers['event_' .. decoded.event]) do
           c(self, decoded.body)
         end
+        callback(self, decoded.body)
       end)
     else
       log.warn('No event handler for ', decoded)
