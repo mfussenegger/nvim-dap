@@ -622,20 +622,23 @@ debug adapter might send to nvim-dap.
 
 There are two tables for that:
 
-- `custom_event_handlers`
-- `custom_response_handlers`
+- `dap.listeners.before`
+- `dap.listeners.after`
 
-
-`custom_event_handlers` is a nested table where the first key is
-`event_<event>` and the second key is an arbitrary key used to identify
-the subscription. The second key must be unique. If you're developing a plugin,
-using the plugin name might be a good option to avoid conflicts with others.
-
+Both `before` and `after` are nested tables where the first key is
+`event_<event>` for events or `<command>` for request responses. The second key
+is an arbitrary key used to identify the subscription. The second key must be
+unique. If you're developing a plugin, using the plugin name might be a good
+option to avoid conflicts with others.
 
 `<event>` is the name of the event.
-You can refer to the debug adapter protocol specification to get a list of all
-events and their payloads.
+`<command>` is the name of the command that got executed and resulted in the
+response.
 
+Please refer to the debug adapter protocol specification to get a list of all
+events or requests and their response formats:
+
+- https://microsoft.github.io/debug-adapter-protocol/specification#Requests
 - https://microsoft.github.io/debug-adapter-protocol/specification#Events
 
 
@@ -644,27 +647,23 @@ An example:
 
 >
   local dap = require('dap')
-  dap.custom_event_handlers['event_terminated']['my-plugin'] = function(session, body)
+  dap.listeners.before['event_terminated']['my-plugin'] = function(session, body)
     print('Session terminated', vim.inspect(session), vim.inspect(body))
   end
 <
 
 
-`custom_response_handlers` is structured the same way. It is a nested table
-where the first key is `<command>` and the second key is arbitrary.
-
-`<command>` is the name of the command that got executed and resulted in the
-response. Please refer to the debug adapter protocol specification to get a
-list of all requests and their response formats:
-
-https://microsoft.github.io/debug-adapter-protocol/specification#Requests
+Listeners registered in the `before` table are called *before* the internal `nvim-dap` handlers are called. The listeners registered in the `after` table are called *after* internal `nvim-dap` handlers.
 
 
-An example:
+For commands (request responses), the listeners are called with four arguments:
 
->
-  dap.custom_response_handlers.variables['my-plugin'] = function(session, body, request)
-    print('Client received response for variables request')
-  end
+1. The session
+2. An error: A optional table with `message` and `body` properties.
+3. A table with the response. `nil` if an error occurred.
+4. The original payload of the request
 
-<
+For events, the listeners are called with two arguments:
+
+1. The session
+2. The event payload

@@ -17,6 +17,8 @@ local session = nil
 local bp_info = {}
 local last_run = nil
 local terminal_buf
+local deprecation_warning = {}
+
 
 M.repl = repl
 M.custom_event_handlers = setmetatable({}, {
@@ -31,6 +33,21 @@ M.custom_response_handlers = setmetatable({}, {
     return rawget(tbl, key)
   end
 })
+
+M.listeners = {
+  before = setmetatable({}, {
+    __index = function(tbl, key)
+      rawset(tbl, key, {})
+      return rawget(tbl, key)
+    end
+  });
+  after = setmetatable({}, {
+    __index = function(tbl, key)
+      rawset(tbl, key, {})
+      return rawget(tbl, key)
+    end
+  });
+}
 
 
 local function from_fallback(_, key)
@@ -837,30 +854,65 @@ function Session:handle_body(body)
   if decoded.request_seq then
     local callback = self.message_callbacks[decoded.request_seq]
     local request = self.message_requests[decoded.request_seq]
+    self.message_requests[decoded.request_seq] = nil
+    self.message_callbacks[decoded.request_seq] = nil
     if not callback then
       log.warn('No callback for ', decoded)
       return
     end
-    self.message_callbacks[decoded.request_seq] = nil
-    self.message_requests[decoded.request_seq] = nil
     if decoded.success then
       vim.schedule(function()
+        for _, c in pairs(M.listeners.before[decoded.command]) do
+          c(self, nil, decoded.body, request)
+        end
         callback(nil, decoded.body)
-        for _, c in pairs(M.custom_response_handlers[decoded.command]) do
+        for _, c in pairs(M.listeners.after[decoded.command]) do
+          c(self, nil, decoded.body, request)
+        end
+
+        for key, c in pairs(M.custom_response_handlers[decoded.command]) do
+          if not deprecation_warning.key then
+            vim.notify(string.format(
+              'The `dap.custom_response_handlers` extension point used for `%s` is deprecated. Please use `dap.listeners.after` instead.',
+              key
+            ))
+            deprecation_warning.key = true
+          end
           c(self, decoded.body, request)
         end
       end)
     else
       vim.schedule(function()
-        callback({ message = decoded.message; body = decoded.body; }, nil)
+        local err = { message = decoded.message; body = decoded.body; }
+        for _, c in pairs(M.listeners.before[decoded.command]) do
+          c(self, err, nil, request)
+        end
+        callback(err, nil)
+        for _, c in pairs(M.listeners.after[decoded.command]) do
+          c(self, err, nil, request)
+        end
       end)
     end
   elseif decoded.event then
     local callback = self['event_' .. decoded.event]
     if callback then
       vim.schedule(function()
+        for _, c in pairs(M.listeners.before['event_' .. decoded.event]) do
+          c(self, decoded.body)
+        end
         callback(self, decoded.body)
-        for _, c in pairs(M.custom_event_handlers['event_' .. decoded.event]) do
+        for _, c in pairs(M.listeners.after['event_' .. decoded.event]) do
+          c(self, decoded.body)
+        end
+
+        for key, c in pairs(M.custom_event_handlers['event_' .. decoded.event]) do
+          if not deprecation_warning.key then
+            vim.notify(string.format(
+              'The `dap.custom_event_handlers` extension point used for `%s` is deprecated. Please use `dap.listeners.after` instead.',
+              key
+            ))
+            deprecation_warning.key = true
+          end
           c(self, decoded.body)
         end
       end)
