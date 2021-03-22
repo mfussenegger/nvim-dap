@@ -445,6 +445,18 @@ step_into()                                                    *dap.step_into()*
         If it cannot step into a function or method it behaves like
         |dap.step_over()|.
 
+        Some debug adapters allow a more fine-grained control over the
+        behavior of this command:
+
+        dap.defaults.fallback.stepping_granularity:
+          Can be 'statement' | 'line' | 'instruction'
+          Default: 'statement'
+
+        dap.defaults.fallback.ask_step_in_targets:
+          Can be true or false. If true and the debug adapter has the
+          supportsStepInTargetsRequest capability it will ask the user
+          to choose if there are multiple functions to step into in one line.
+          Default: true
 
 step_out()                                                      *dap.step_out()*
         Requests the debugee to step out of a function or method if possible.

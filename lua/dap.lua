@@ -1097,12 +1097,18 @@ function Session:_step(step, granularity)
   self.stopped_thread_id = nil
   vim.fn.sign_unplace(ns_pos)
 
+  if step == 'continue' or step == 'reverseContinue' then
+    granularity = nil
+  else
+    granularity = granularity or M.defaults[self.config.type].stepping_granularity
+  end
+
   local function send_request(target_id)
     self:request(step,
     {
       threadId = thread_id;
       targetId = target_id;
-      granularity = granularity or M.defaults[self.config.type].stepping_granularity
+      granularity = granularity
     }, function(err0, _)
       if err0 then
         print('Error on '.. step .. ': ' .. err0.message)
@@ -1121,7 +1127,7 @@ function Session:_step(step, granularity)
         if #response.targets > 1 then
           ui.pick_one(
             response.targets,
-            "Step into what?",
+            "Step into which function?",
             function(target) return target.label end,
             function(target)
               if not target or not target.id then
