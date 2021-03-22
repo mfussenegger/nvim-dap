@@ -59,6 +59,8 @@ M.defaults = setmetatable(
     fallback = {
       exception_breakpoints = 'default';
       ask_step_in_targets = true;
+      -- type SteppingGranularity = 'statement' | 'line' | 'instruction'
+      stepping_granularity = 'statement';
     },
   },
   {
@@ -1082,7 +1084,7 @@ function Session:_pause(thread_id)
 end
 
 
-function Session:_step(step)
+function Session:_step(step, granularity)
   if vim.tbl_contains({"stepBack", "reverseContinue"}, step) and not session.capabilities.supportsStepBack then
     print("Debug Adapter does not support "..step.."!")
     return
@@ -1096,7 +1098,12 @@ function Session:_step(step)
   vim.fn.sign_unplace(ns_pos)
 
   local function send_request(target_id)
-    self:request(step, { threadId = thread_id; targetId = target_id; }, function(err0, _)
+    self:request(step,
+    {
+      threadId = thread_id;
+      targetId = target_id;
+      granularity = granularity or M.defaults[self.config.type].stepping_granularity
+    }, function(err0, _)
       if err0 then
         print('Error on '.. step .. ': ' .. err0.message)
       end
@@ -1105,7 +1112,8 @@ function Session:_step(step)
 
   if self.capabilities.supportsStepInTargetsRequest
     and M.defaults[self.config.type].ask_step_in_targets
-    and self.current_frame then
+    and self.current_frame
+    and step == 'stepIn' then
     self:request("stepInTargets", { frameId = self.current_frame.id }, function(err1, response)
       if err1 then
         print('Error on '.. step .. ': ' .. err1.message .. " (while requesting stepInTargets)")
