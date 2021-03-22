@@ -58,6 +58,7 @@ M.defaults = setmetatable(
   {
     fallback = {
       exception_breakpoints = 'default';
+      ask_step_in_targets = true;
     },
   },
   {
@@ -1093,11 +1094,43 @@ function Session:_step(step)
   local thread_id = self.stopped_thread_id
   self.stopped_thread_id = nil
   vim.fn.sign_unplace(ns_pos)
-  session:request(step, { threadId = thread_id; }, function(err0, _)
-    if err0 then
-      print('Error on '.. step .. ': ' .. err0.message)
-    end
-  end)
+
+  local function send_request(target_id)
+    self:request(step, { threadId = thread_id; targetId = target_id; }, function(err0, _)
+      if err0 then
+        print('Error on '.. step .. ': ' .. err0.message)
+      end
+    end)
+  end
+
+  if self.capabilities.supportsStepInTargetsRequest
+    and M.defaults[self.config.type].ask_step_in_targets
+    and self.current_frame then
+    self:request("stepInTargets", { frameId = self.current_frame.id }, function(err1, response)
+      if err1 then
+        print('Error on '.. step .. ': ' .. err1.message .. " (while requesting stepInTargets)")
+      else
+        if #response.targets > 1 then
+          ui.pick_one(
+            response.targets,
+            "Step into what?",
+            function(target) return target.label end,
+            function(target)
+              if not target or not target.id then
+                print('No target selected. No stepping.')
+              else
+                send_request(target.id)
+              end
+            end
+          )
+        else
+          send_request()
+        end
+      end
+    end)
+  else
+    send_request()
+  end
 end
 
 
