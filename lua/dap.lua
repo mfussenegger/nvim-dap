@@ -891,8 +891,8 @@ function Session:connect(host, port, opts)
   }
   client:connect(host or '127.0.0.1', tonumber(port), function(err)
     if (err) then print(err) end
+    client:read_start(rpc.create_read_loop(function(body) session:handle_body(body) end))
   end)
-  client:read_start(rpc.create_read_loop(function(body) session:handle_body(body) end))
   return o
 end
 
