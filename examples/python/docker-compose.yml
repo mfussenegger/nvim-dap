@@ -1,0 +1,15 @@
+version: '2.3'
+services:
+  example_python:
+    build:
+      context: ./
+      dockerfile: ./Dockerfile
+    # Necessary security settings to allow debuggers to communicate outwards.
+    cap_add:
+      - SYS_PTRACE
+    security_opt:
+      - apparmor:unconfined
+    # Expose a port for debugpy to communicate through.
+    ports:
+      - 0.0.0.0:51469:51469
+    command: bash -c "python ./example.py"
