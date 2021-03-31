@@ -90,6 +90,7 @@ that's not listed.
 - [x] breakpoints with conditions
 - [x] logpoints
 - [x] set exception breakpoints
+- [x] set data breakpoints
 - [x] step over, step into, step out
 - [x] step back, reverse continue
 - [x] Goto
