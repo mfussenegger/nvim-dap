@@ -194,15 +194,11 @@ local function select_config_and_run()
       vim.inspect(configurations)
     )
   )
-  if #configurations == 1 then
-    M.run(configurations[1])
-    return
-  end
   if #configurations == 0 then
     print('No configuration found for ' .. filetype)
     return
   end
-  ui.pick_one(
+  ui.pick_if_many(
     configurations,
     "Configuration: ",
     function(i) return i.name end,
