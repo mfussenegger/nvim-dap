@@ -1084,69 +1084,24 @@ function Session:_pause(thread_id)
 end
 
 
-function Session:_step(step, granularity)
-  if vim.tbl_contains({"stepBack", "reverseContinue"}, step) and not session.capabilities.supportsStepBack then
-    print("Debug Adapter does not support "..step.."!")
-    return
-  end
+function Session:_step(step, params)
   if not self.stopped_thread_id then
     print('No stopped thread. Cannot move')
     return
   end
-  local thread_id = self.stopped_thread_id
-  self.stopped_thread_id = nil
   vim.fn.sign_unplace(ns_pos)
-
-  if step == 'continue' or step == 'reverseContinue' then
-    granularity = nil
-  else
-    granularity = granularity or M.defaults[self.config.type].stepping_granularity
+  params = params or {}
+  params.threadId = self.stopped_thread_id
+  if not params.granularity then
+    params.granularity = M.defaults[self.config.type].stepping_granularity
   end
-
-  local function send_request(target_id)
-    self:request(step,
-    {
-      threadId = thread_id;
-      targetId = target_id;
-      granularity = granularity
-    }, function(err0, _)
-      if err0 then
-        print('Error on '.. step .. ': ' .. err0.message)
-      end
-    end)
-  end
-
-  if self.capabilities.supportsStepInTargetsRequest
-    and M.defaults[self.config.type].ask_step_in_targets
-    and self.current_frame
-    and step == 'stepIn' then
-    self:request("stepInTargets", { frameId = self.current_frame.id }, function(err1, response)
-      if err1 then
-        print('Error on '.. step .. ': ' .. err1.message .. " (while requesting stepInTargets)")
-      else
-        if #response.targets > 1 then
-          ui.pick_one(
-            response.targets,
-            "Step into which function?",
-            function(target) return target.label end,
-            function(target)
-              if not target or not target.id then
-                print('No target selected. No stepping.')
-              else
-                send_request(target.id)
-              end
-            end
-          )
-        else
-          send_request()
-        end
-      end
-    end)
-  else
-    send_request()
-  end
+  self.stopped_thread_id = nil
+  self:request(step, params, function(err)
+    if err then
+      print('Error on '.. step .. ': ' .. err.message)
+    end
+  end)
 end
-
 
 function M.step_over()
   if not session then return end
@@ -1155,7 +1110,30 @@ end
 
 function M.step_into()
   if not session then return end
-  session:_step('stepIn')
+  local ask_targets = M.defaults[session.config.type].ask_step_in_targets
+  if not (ask_targets and session.capabilities.supportsStepInTargetsRequest) then
+    session:_step('stepIn')
+    return
+  end
+
+  session:request('stepInTargets', { frameId = session.current_frame.id }, function(err, response)
+    if err then
+      print('Error on step_into: ' .. err.message .. " (while requesting stepInTargets)")
+      return
+    end
+
+    ui.pick_if_many(
+      response.targets,
+      "Step into which function?",
+      function(target) return target.label end,
+      function(target)
+        if not target or not target.id then
+          print('No target selected. No stepping.')
+        else
+          session:_step('stepIn', { target_id = target.id })
+        end
+      end)
+  end)
 end
 
 function M.step_out()
@@ -1163,15 +1141,25 @@ function M.step_out()
   session:_step('stepOut')
 end
 
-function M.reverse_continue()
-  if not session then return end
-  session:_step('reverseContinue')
-end
-
 function M.step_back()
   if not session then return end
-  session:_step('stepBack')
+
+  if session.capabilities.supportsStepBack then
+    session:_step('stepBack')
+  else
+    print("Debug Adapter does not support stepping backwards.")
+  end
 end
+
+function M.reverse_continue()
+  if not session then return end
+  if session.capabilities.supportsStepBack then
+    session:_step('reverseContinue')
+  else
+    print("Debug Adapter does not support stepping backwards.")
+  end
+end
+
 
 function M.pause(thread_id)
   if session then

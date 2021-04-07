@@ -21,6 +21,17 @@ function M.apply_winopts(win, opts)
 end
 
 
+--- Same as M.pick_one except that it skips the selection prompt if `items`
+--  contains exactly one item.
+function M.pick_if_many(items, prompt, label_fn, cb)
+  if #items == 1 then
+    cb(items[1])
+  else
+    M.pick_one(items, prompt, label_fn, cb)
+  end
+end
+
+
 function M.pick_one(items, prompt, label_fn, cb)
   local choices = {prompt}
   for i, item in ipairs(items) do

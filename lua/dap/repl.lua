@@ -129,24 +129,24 @@ local function execute(text)
     return
   end
   if vim.tbl_contains(M.commands.continue, text) then
-    session:_step('continue')
+    require('dap').continue()
   elseif vim.tbl_contains(M.commands.next_, text) then
-    session:_step('next')
+    require('dap').step_over()
   elseif vim.tbl_contains(M.commands.capabilities, text) then
     M.append(vim.inspect(session.capabilities))
   elseif vim.tbl_contains(M.commands.into, text) then
-    session:_step('stepIn')
+    require('dap').step_into()
   elseif vim.tbl_contains(M.commands.out, text) then
-    session:_step('stepOut')
+    require('dap').step_out()
   elseif vim.tbl_contains(M.commands.up, text) then
     session:_frame_delta(1)
     M.print_stackframes()
   elseif vim.tbl_contains(M.commands.step_back, text) then
-    session:_step('stepBack')
+    require('dap').step_back()
   elseif vim.tbl_contains(M.commands.pause, text) then
     session:_pause()
   elseif vim.tbl_contains(M.commands.reverse_continue, text) then
-    session:_step('reverseContinue')
+    require('dap').reverse_continue()
   elseif vim.tbl_contains(M.commands.down, text) then
     session:_frame_delta(-1)
     M.print_stackframes()
