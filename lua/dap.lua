@@ -18,23 +18,9 @@ local session = nil
 local bp_info = {}
 local last_run = nil
 local terminal_buf
-local deprecation_warning = {}
 
 
 M.repl = repl
-M.custom_event_handlers = setmetatable({}, {
-  __index = function(tbl, key)
-    rawset(tbl, key, {})
-    return rawget(tbl, key)
-  end
-})
-M.custom_response_handlers = setmetatable({}, {
-  __index = function(tbl, key)
-    rawset(tbl, key, {})
-    return rawget(tbl, key)
-  end
-})
-
 M.listeners = {
   before = setmetatable({}, {
     __index = function(tbl, key)
@@ -799,17 +785,6 @@ function Session:handle_body(body)
         for _, c in pairs(M.listeners.after[decoded.command]) do
           c(self, nil, decoded.body, request)
         end
-
-        for key, c in pairs(M.custom_response_handlers[decoded.command]) do
-          if not deprecation_warning.key then
-            vim.notify(string.format(
-              'The `dap.custom_response_handlers` extension point used for `%s` is deprecated. Please use `dap.listeners.after` instead.',
-              key
-            ))
-            deprecation_warning.key = true
-          end
-          c(self, decoded.body, request)
-        end
       end)
     else
       vim.schedule(function()
@@ -832,17 +807,6 @@ function Session:handle_body(body)
         end
         callback(self, decoded.body)
         for _, c in pairs(M.listeners.after['event_' .. decoded.event]) do
-          c(self, decoded.body)
-        end
-
-        for key, c in pairs(M.custom_event_handlers['event_' .. decoded.event]) do
-          if not deprecation_warning.key then
-            vim.notify(string.format(
-              'The `dap.custom_event_handlers` extension point used for `%s` is deprecated. Please use `dap.listeners.after` instead.',
-              key
-            ))
-            deprecation_warning.key = true
-          end
           c(self, decoded.body)
         end
       end)
