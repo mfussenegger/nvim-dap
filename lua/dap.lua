@@ -1443,7 +1443,6 @@ function M._vim_exit_handler()
     session:close()
   end
 end
-dap._vim_exit_handler = M._vim_exit_handler  -- luacheck: ignore 112
 
 
 --- Return the current session or nil
@@ -1452,5 +1451,5 @@ function M.session()
 end
 
 
-api.nvim_command("autocmd VimLeavePre * lua dap._vim_exit_handler()")
+api.nvim_command("autocmd VimLeavePre * lua require('dap')._vim_exit_handler()")
 return M
