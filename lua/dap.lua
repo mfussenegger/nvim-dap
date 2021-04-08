@@ -16,6 +16,7 @@ local ns_pos = 'dap_pos'
 local Session = {}
 local session = nil
 local bp_info = {}
+local data_bp_info = {}
 local last_run = nil
 local terminal_buf
 local deprecation_warning = {}
@@ -337,6 +338,10 @@ function Session:event_initialized(_)
       on_done()
     end
   end)
+
+  if self.capabilities and self.capabilities.supportsDataBreakpoints then
+    self:_set_data_breakpoints()
+  end
 end
 
 
@@ -490,6 +495,11 @@ function Session:event_stopped(stopped)
       self:_show_exception_info()
     end
 
+    if stopped.reason == 'data breakpoint' then
+      require'dap.repl'.append("Stopped due to data breakpoint"
+        ..(stopped.description and (': '..stopped.description) or '.'))
+    end
+
     self:request('stackTrace', { threadId = stopped.threadId; }, function(err1, frames_resp)
       if err1 then
         print('Error retrieving stack traces: ' .. err1.message)
@@ -530,6 +540,13 @@ function Session:event_terminated()
     self.handlers.after()
   end
   session = nil
+
+  -- Data breakpoints
+  for key, bp in pairs(data_bp_info) do
+    if not bp.canPersist then
+      data_bp_info[key] = nil
+    end
+  end
 end
 
 
@@ -720,6 +737,85 @@ function Session:set_breakpoints(bufexpr, on_done)
   end
 end
 
+
+function Session:_set_data_breakpoint(expression, condition, hit_condition, variables_reference, toggle)
+  if not self.capabilities.supportsDataBreakpoints then
+    vim.notify("Debug adapter does not support data breakpoints", vim.log.levels.ERROR, {})
+    return
+  end
+
+  session:request('dataBreakpointInfo', { name = expression, variablesReference = variables_reference },
+  function(err, response)
+    if err then
+      vim.notify(err.message, vim.log.levels.ERROR, {})
+    else
+      if not response or not response.dataId then
+        vim.notify('Cannot set data breakpoint for "'..expression..'": '
+          ..((response and response.description) or 'reason unknown'), vim.log.levels.ERROR, {})
+      else
+
+        if toggle and data_bp_info[response.dataId] then
+          data_bp_info[response.dataId] = nil
+          vim.notify('Deleting data breakpoint "'..expression..'" ('..response.dataId..')', vim.log.levels.INFO, {})
+          session:_set_data_breakpoints()
+        else
+          local access_type
+          if response.accessTypes then
+            ui.pick_one(
+            response.accessTypes,
+            'Which access type for "'..expression..'"?: ',
+            function(t) return t end,
+            function(t)
+              if not t then
+                access_type = 'abort'
+              else
+                access_type = t
+              end
+            end
+            )
+          end
+          if access_type ~= 'abort' then
+            data_bp_info[response.dataId] = {
+              dataId = response.dataId,
+              accessType = access_type,
+              condition = condition,
+              hitCondition = hit_condition,
+              canPersist = response.canPersist,
+            }
+            vim.notify('Setting data breakpoint for "'..expression..'" ('..response.dataId..')',
+              vim.log.levels.INFO,
+              {})
+          end
+          session:_set_data_breakpoints()
+        end
+      end
+    end
+  end)
+end
+
+
+function Session:_set_data_breakpoints(on_done)
+  if not self.capabilities.supportsDataBreakpoints then
+    vim.notify("Debug adapter does not support data breakpoints", vim.log.levels.ERROR, {})
+    return
+  end
+  local breakpoints = {}
+  for _, bp in pairs(data_bp_info) do
+    table.insert(breakpoints, bp)
+  end
+
+  if #breakpoints > 0 then
+    session:request('setDataBreakpoints', { breakpoints = breakpoints },
+    function(err, _)
+      if err then
+        vim.notify("Failed to set data breakpoints: "..err.message, vim.log.levels.ERROR, {})
+      end
+      if on_done then on_done() end
+    end)
+  end
+end
+
+
 function Session:set_exception_breakpoints(filters, exceptionOptions, on_done)
   if not self.capabilities.exceptionBreakpointFilters then
       print("Debug adapter doesn't support exception breakpoints")
@@ -879,6 +975,12 @@ function Session:connect(host, port, opts)
   local o = session_defaults(opts or {})
   setmetatable(o, self)
   self.__index = self
+
+  for expression, bp in pairs(data_bp_info) do
+    if not bp.canPersist then
+      data_bp_info[expression] = nil
+    end
+  end
 
   local client = uv.new_tcp()
   o.client = {
@@ -1292,6 +1394,38 @@ function M.set_exception_breakpoints(filters, exceptionOptions)
   else
     print('Cannot set exception breakpoints: No active session!')
   end
+end
+
+
+function M.clear_data_breakpoints()
+  data_bp_info = {}
+  if not session then return end
+  session:_set_data_breakpoints()
+end
+
+
+function M.toggle_data_breakpoint(expression_or_resolve_fn, condition, hit_condition)
+  if not session then return end
+
+  if 'function' == type(expression_or_resolve_fn) then
+    expression_or_resolve_fn = expression_or_resolve_fn()
+  end
+
+  local expression = expression_or_resolve_fn or vim.fn.expand("<cexpr>")
+  local variables_reference
+  if session and session.current_frame and session.current_frame.scopes then
+    for _, s in pairs(session.current_frame.scopes) do
+      if s.variables and s.variables[expression] then
+        variables_reference = s.variablesReference
+      end
+    end
+  end
+  session:_set_data_breakpoint(expression, condition, hit_condition, variables_reference, true)
+end
+
+
+function M.toggle_data_breakpoint_visual_selection(condition, hit_condition)
+  M.set_data_breakpoint(utils.get_visual_selection_text, condition, hit_condition)
 end
 
 

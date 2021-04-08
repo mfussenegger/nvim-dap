@@ -8,6 +8,13 @@ M.multiline_variable_display = false
 M.max_win_width = 100
 M.variable_value_separator = " = "
 M.show_types = true
+M.keymaps = {
+  ['<CR>'] = 'toggle_variable_expanded()',
+  ['<2-LeftMouse>'] = 'toggle_variable_expanded()',
+  ['g?'] = 'toggle_multiline_display()',
+  ['<leader>b'] = 'toggle_data_breakpoint()',
+  ['<f1>'] = 'show_help()',
+}
 
 local floating_buf = nil
 local floating_win = nil
@@ -105,6 +112,34 @@ local function update_variable_buffer(buf, win)
 end
 
 
+function M.toggle_data_breakpoint(condition, hit_condition)
+  local buf = api.nvim_get_current_buf()
+  local state = variable_buffers[buf]
+  local pos = api.nvim_win_get_cursor(0)
+  if not state then return end
+
+  local variable = state.line_to_variable[pos[1] - 1]
+
+  if variable then
+    local parent
+    for _, p in pairs(state.line_to_variable) do
+      for _, v in pairs(p.variables or {}) do
+        if v == variable then
+          parent = p
+        end
+      end
+    end
+    state.session:_set_data_breakpoint(
+      variable.name,
+      condition,
+      hit_condition,
+      parent and parent.variablesReference,
+      true
+    )
+  end
+end
+
+
 function M.toggle_variable_expanded()
   local buf = api.nvim_get_current_buf()
   local state = variable_buffers[buf]
@@ -190,27 +225,11 @@ local function popup()
   api.nvim_buf_set_option(buf, 'buftype', 'nofile')
   api.nvim_buf_set_option(buf, 'filetype', 'dap-variables')
   api.nvim_buf_set_option(buf, 'syntax', 'dap-variables')
-  api.nvim_buf_set_keymap(
-    buf,
-    "n",
-    "<CR>",
-    "<Cmd>lua require('dap.ui.variables').toggle_variable_expanded()<CR>",
-    {}
-  )
-  api.nvim_buf_set_keymap(
-    buf,
-    "n",
-    "<2-LeftMouse>",
-    "<Cmd>lua require('dap.ui.variables').toggle_variable_expanded()<CR>",
-    {}
-  )
-  api.nvim_buf_set_keymap(
-    buf,
-    "n",
-    "g?",
-    "<Cmd>lua require('dap.ui.variables').toggle_multiline_display()<CR>",
-    {}
-  )
+
+  for key, mapping in pairs(M.keymaps) do
+    api.nvim_buf_set_keymap(buf, "n", key, "<Cmd>lua require('dap.ui.variables')."..mapping.."<CR>", {})
+  end
+
   -- width and height are increased later once variables are written to the buffer
   local opts = vim.lsp.util.make_floating_popup_options(1, 1, {})
   local win = api.nvim_open_win(buf, true, opts)
@@ -222,6 +241,14 @@ function M.resolve_expression()
   return vim.fn.expand("<cexpr>")
 end
 
+function M.show_help()
+  local function filter(item, path)
+    if path[#path] == vim.inspect.METATABLE then return end
+    return item
+  end
+  print("Current keybindings in DAP variable buffer:")
+  print(vim.inspect(M.keymaps, {process=filter}))
+end
 
 local function is_stopped_at_frame()
   local session = require('dap').session()
