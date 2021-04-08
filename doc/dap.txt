@@ -436,33 +436,43 @@ set_exception_breakpoints({filters}, {exceptionOptions})
     |dap-configuration| or the |dap-adapter| definition.
 
 
-step_over()                                                    *dap.step_over()*
+step_over([{opts}])                                            *dap.step_over()*
         Requests the debugee to run again for one step.
 
+        For {opts} see |step_into|.
 
-step_into()                                                    *dap.step_into()*
+
+step_into([{opts}])                                            *dap.step_into()*
         Requests the debugee to step into a function or method if possible.
         If it cannot step into a function or method it behaves like
         |dap.step_over()|.
 
-        Some debug adapters allow a more fine-grained control over the
-        behavior of this command:
+        If the debug adapter has the `supportsStepInTargetsRequest` and  
+        {ask_for_targets} is true, the user can choose into which function they
+        want to step into if there are multiple.
 
-        dap.defaults.fallback.stepping_granularity:
+        Some debug adapters allow a more fine-grained control over the
+        behavior of this command using the {opts} parameter:
+
+        steppingGranularity:
           Can be 'statement' | 'line' | 'instruction'
+          Will fall back to dap.defaults.fallback.stepping_granularity
           Default: 'statement'
 
-        dap.defaults.fallback.ask_step_in_targets:
-          Can be true or false. If true and the debug adapter has the
-          supportsStepInTargetsRequest capability it will ask the user
-          to choose if there are multiple functions to step into in one line.
-          Default: true
+        askForTargets:
+          Ask the user to step into which function if there are multiple choices.
+          Only for step_into.
 
-step_out()                                                      *dap.step_out()*
+
+step_out([{opts}])                                              *dap.step_out()*
         Requests the debugee to step out of a function or method if possible.
 
-step_back()                                                    *dap.step_back()*
+        For options see |step_into|.
+
+step_back([{opts}]                                             *dap.step_back()*
         Steps one step back. Debug adapter must support reverse debugging.
+
+        For {opts} see |step_into|.
 
 pause({thread_id})                                                 *dap.pause()*
         Requests debug adapter to pause a thread. If there are multiple threads
@@ -509,6 +519,7 @@ repl.open({winopts}, {wincmd})                                 *dap.repl.open()*
           .c or .continue     Same as |dap.continue|
           .n or .next         Same as |dap.step_over|
           .into               Same as |dap.step_into|
+          .into_target        Same as |dap.step_into{askForTargets=true}|
           .out                Same as |dap.step_out|
           .up                 Same as |dap.up|
           .down               Same as |dap.down|
@@ -529,6 +540,7 @@ repl.open({winopts}, {wincmd})                                 *dap.repl.open()*
             back = {'.back', '.b'},
             reverse_continue = {'.reverse-continue', '.rc'},
             into = {'.into'},
+            into_target = {'.into_target'},
             out = {'.out'},
             scopes = {'.scopes'},
             threads = {'.threads'},

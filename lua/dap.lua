@@ -40,7 +40,6 @@ M.defaults = setmetatable(
   {
     fallback = {
       exception_breakpoints = 'default';
-      ask_step_in_targets = true;
       -- type SteppingGranularity = 'statement' | 'line' | 'instruction'
       stepping_granularity = 'statement';
     },
@@ -1026,16 +1025,18 @@ function Session:_step(step, params)
   end)
 end
 
-function M.step_over()
+function M.step_over(opts)
   if not session then return end
-  session:_step('next')
+  session:_step('next', opts)
 end
 
-function M.step_into()
+function M.step_into(opts)
   if not session then return end
-  local ask_targets = M.defaults[session.config.type].ask_step_in_targets
-  if not (ask_targets and session.capabilities.supportsStepInTargetsRequest) then
-    session:_step('stepIn')
+  opts = opts or {}
+  local askForTargets = opts.askForTargets
+  opts.askForTargets = nil
+  if not (askForTargets and session.capabilities.supportsStepInTargetsRequest) then
+    session:_step('stepIn', opts)
     return
   end
 
@@ -1053,31 +1054,32 @@ function M.step_into()
         if not target or not target.id then
           print('No target selected. No stepping.')
         else
-          session:_step('stepIn', { target_id = target.id })
+          opts.targetId = target.id
+          session:_step('stepIn', opts)
         end
       end)
   end)
 end
 
-function M.step_out()
+function M.step_out(opts)
   if not session then return end
-  session:_step('stepOut')
+  session:_step('stepOut', opts)
 end
 
-function M.step_back()
+function M.step_back(opts)
   if not session then return end
 
   if session.capabilities.supportsStepBack then
-    session:_step('stepBack')
+    session:_step('stepBack', opts)
   else
     print("Debug Adapter does not support stepping backwards.")
   end
 end
 
-function M.reverse_continue()
+function M.reverse_continue(opts)
   if not session then return end
   if session.capabilities.supportsStepBack then
-    session:_step('reverseContinue')
+    session:_step('reverseContinue', opts)
   else
     print("Debug Adapter does not support stepping backwards.")
   end

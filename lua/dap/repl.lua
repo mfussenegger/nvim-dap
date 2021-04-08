@@ -23,6 +23,7 @@ M.commands = {
   step_back = {'.back', '.b'},
   reverse_continue = {'.reverse-continue', '.rc'},
   into = {'.into'},
+  into_targets = {'.into-targets'},
   out = {'.out'},
   scopes = {'.scopes'},
   threads = {'.threads'},
@@ -136,6 +137,8 @@ local function execute(text)
     M.append(vim.inspect(session.capabilities))
   elseif vim.tbl_contains(M.commands.into, text) then
     require('dap').step_into()
+  elseif vim.tbl_contains(M.commands.into_targets, text) then
+    require('dap').step_into({askForTargets=true})
   elseif vim.tbl_contains(M.commands.out, text) then
     require('dap').step_out()
   elseif vim.tbl_contains(M.commands.up, text) then
