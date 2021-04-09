@@ -3,16 +3,15 @@ local api = vim.api
 local log = require('dap.log').create_logger('dap.log')
 local ui = require('dap.ui')
 local repl = require('dap.repl')
-local utils = require('dap.utils')
 local rpc = require('dap.rpc')
+local breakpoints = require('dap.breakpoints')
+local utils = require('dap.utils')
 local non_empty = utils.non_empty
 local index_of = utils.index_of
 local M = {}
-local ns_breakpoints = 'dap_breakpoints'
 local ns_pos = 'dap_pos'
 local Session = {}
 local session = nil
-local bp_info = {}
 local last_run = nil
 local terminal_buf
 
@@ -616,90 +615,57 @@ function Session:_frame_delta(delta)
   self:_frame_set(frames[current_frame_index])
 end
 
-local function remove_breakpoint_signs(bufnr, lnum)
-  local signs = vim.fn.sign_getplaced(bufnr, { group = ns_breakpoints; lnum = lnum; })[1].signs
-  if signs and #signs > 0 then
-    for _, sign in pairs(signs) do
-      vim.fn.sign_unplace(ns_breakpoints, { buffer = bufnr; id = sign.id; })
-      bp_info[sign.id] = nil
-    end
-    return true
-  else
-    return false
-  end
-end
 
-
-local function get_breakpoint_signs(bufexpr)
-  if bufexpr then
-    return vim.fn.sign_getplaced(bufexpr, {group = ns_breakpoints})
-  end
-  local bufs_with_signs = vim.fn.sign_getplaced()
-  local result = {}
-  for _, buf_signs in ipairs(bufs_with_signs) do
-    buf_signs = vim.fn.sign_getplaced(buf_signs.bufnr, {group = ns_breakpoints})[1]
-    if #buf_signs.signs > 0 then
-      table.insert(result, buf_signs)
+do
+  local function notify_if_missing_capability(bufnr, bps, capabilities)
+    for _, bp in pairs(bps) do
+      if non_empty(bp.condition) and not capabilities.supportsConditionalBreakpoints then
+        print("Debug adapter doesn't support breakpoints with conditions", bufnr, bp.line)
+      end
+      if non_empty(bp.hitCondition) and not capabilities.supportsHitConditionalBreakpoints then
+        print("Debug adapter doesn't support breakpoints with hit conditions", bufnr, bp.line)
+      end
+      if non_empty(bp.logMessage) and not capabilities.supportsLogPoints then
+        print("Debug adapter doesn't support log points", bufnr, bp.line)
+      end
     end
   end
-  return result
-end
 
-
-function Session:set_breakpoints(bufexpr, on_done)
-  local bp_signs = get_breakpoint_signs(bufexpr)
-  local num_bufs = #bp_signs
-  if num_bufs == 0 then
-    on_done()
-    return
-  end
-  for _, buf_bp_signs in pairs(bp_signs) do
-    local breakpoints = {}
-    local bufnr = buf_bp_signs.bufnr
-    for _, bp in pairs(buf_bp_signs.signs) do
-      local bp_entry = bp_info[bp.id] or {}
-      table.insert(breakpoints, {
-        line = bp.lnum;
-        condition = bp_entry.condition;
-        hitCondition = bp_entry.hitCondition;
-        logMessage = bp_entry.logMessage;
-      })
+  function Session:set_breakpoints(bufexpr, on_done)
+    local bps = breakpoints.get(bufexpr)
+    if #bps == 0 then
+      on_done()
+      return
     end
-    if non_empty(bp_info.condition) and not self.capabilities.supportsConditionalBreakpoints then
-      print("Debug adapter doesn't support breakpoints with conditions")
-    end
-    if non_empty(bp_info.hitCondition) and not self.capabilities.supportsHitConditionalBreakpoints then
-      print("Debug adapter doesn't support breakpoints with hit conditions")
-    end
-    if non_empty(bp_info.logMessage) and not self.capabilities.supportsLogPoints then
-      print("Debug adapter doesn't support log points")
-    end
-    local path = api.nvim_buf_get_name(bufnr)
-    local payload = {
-      source = {
-        path = path;
-        name = vim.fn.fnamemodify(path, ':t')
-      };
-      breakpoints = breakpoints;
-      lines = vim.tbl_map(function(x) return x.line end, breakpoints);
-    }
-    self:request('setBreakpoints', payload, function(err1, resp)
+    local num_requests = #bps
+    for bufnr, buf_bps in pairs(bps) do
+      notify_if_missing_capability(bufnr, buf_bps, self.capabilities)
+      local path = api.nvim_buf_get_name(bufnr)
+      local payload = {
+        source = {
+          path = path;
+          name = vim.fn.fnamemodify(path, ':t')
+        };
+        breakpoints = buf_bps;
+        lines = vim.tbl_map(function(x) return x.line end, buf_bps);
+      }
+      self:request('setBreakpoints', payload, function(err1, resp)
         if err1 then
           print("Error setting breakpoints: " .. err1.message)
         else
           for _, bp in pairs(resp.breakpoints) do
             if not bp.verified then
               log.info('Server rejected breakpoint', bp)
-              remove_breakpoint_signs(bufnr, bp.line)
+              require('breakpoints').remove(bufnr, bp.line)
             end
           end
         end
-        num_bufs = num_bufs - 1
-        if num_bufs == 0 and on_done then
+        num_requests = num_requests - 1
+        if num_requests == 0 and on_done then
           on_done()
         end
-      end
-    )
+      end)
+    end
   end
 end
 
@@ -1155,6 +1121,7 @@ function M.goto_(line)
   end
 end
 
+
 function M.restart()
   if not session then return end
   if session.capabilities.supportsRestartRequest then
@@ -1170,41 +1137,16 @@ function M.restart()
   end
 end
 
-function M.list_breakpoints(open_quickfix)
-  local bp_signs = get_breakpoint_signs()
-  local num_bufs = #bp_signs
-  local qf_list = {}
-  for _, buf_bp_signs in pairs(bp_signs) do
-    local bufnr = buf_bp_signs.bufnr
-    for _, bp in pairs(buf_bp_signs.signs) do
-      local bp_entry = bp_info[bp.id] or {}
-      local condition = bp_entry.condition;
-      local hitCondition = bp_entry.hitCondition;
-      local logMessage = bp_entry.logMessage;
-      local text = table.concat(
-        vim.tbl_filter(
-          function(v) return v end,
-          {
-            unpack(api.nvim_buf_get_lines(bufnr, bp.lnum - 1, bp.lnum, false), 1),
-            non_empty(logMessage) and "Log message: "..logMessage,
-            non_empty(condition) and "Condition: "..condition,
-            non_empty(hitCondition) and "Hit condition: "..hitCondition,
-          }
-        ),
-        ', '
-      )
-      table.insert(qf_list, {
-        bufnr = bufnr,
-        lnum = bp.lnum,
-        col = 0,
-        text = text,
-      })
-    end
-  end
 
-  vim.fn.setqflist({}, 'r', {items = qf_list, context = DAP_QUICKFIX_CONTEXT, title = DAP_QUICKFIX_TITLE })
-  if open_quickfix ~= false then
-    if num_bufs == 0 then
+function M.list_breakpoints(open_quickfix)
+  local qf_list = breakpoints.to_qf_list(breakpoints.get())
+  vim.fn.setqflist({}, 'r', {
+    items = qf_list,
+    context = DAP_QUICKFIX_CONTEXT,
+    title = DAP_QUICKFIX_TITLE
+  })
+  if open_quickfix then
+    if #qf_list == 0 then
       print('No breakpoints set!')
     else
       api.nvim_command('copen')
@@ -1212,30 +1154,21 @@ function M.list_breakpoints(open_quickfix)
   end
 end
 
+
 function M.set_breakpoint(condition, hit_condition, log_message)
   M.toggle_breakpoint(condition, hit_condition, log_message, true)
 end
 
+
 function M.toggle_breakpoint(condition, hit_condition, log_message, replace_old)
-  local bufnr = api.nvim_get_current_buf()
-  local lnum, _ = unpack(api.nvim_win_get_cursor(0))
-  if not remove_breakpoint_signs(bufnr, lnum) or replace_old then
-    local sign_id = vim.fn.sign_place(
-      0,
-      ns_breakpoints,
-      non_empty(log_message) and 'DapLogPoint' or 'DapBreakpoint',
-      bufnr,
-      { lnum = lnum; priority = 11; }
-    )
-    if sign_id ~= -1 then
-      bp_info[sign_id] = {
-        condition = condition,
-        logMessage = log_message,
-        hitCondition = hit_condition
-      }
-    end
-  end
+  breakpoints.toggle({
+    condition = condition,
+    hit_condition = hit_condition,
+    log_message = log_message,
+    replace = replace_old
+  })
   if session and session.initialized then
+    local bufnr = api.nvim_get_current_buf()
     session:set_breakpoints(bufnr)
   end
   if vim.fn.getqflist({context = DAP_QUICKFIX_CONTEXT}).context == DAP_QUICKFIX_CONTEXT then
