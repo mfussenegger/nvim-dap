@@ -1,6 +1,3 @@
-dap = {} -- luacheck: ignore 111 - to support v:lua.dap... uses
-
-
 local uv = vim.loop
 local api = vim.api
 local log = require('dap.log').create_logger('dap.log')
@@ -1348,7 +1345,6 @@ function M.omnifunc(findstart, base)
   -- cancel but stay in completion mode for completion via `completions` callback
   return -2
 end
-dap.omnifunc = M.omnifunc  -- luacheck: ignore 112
 
 
 --- Attach to an existing debug-adapter running on host, port

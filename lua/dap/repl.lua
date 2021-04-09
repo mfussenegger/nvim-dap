@@ -230,7 +230,7 @@ function M.open(winopts, wincmd)
     api.nvim_buf_set_name(buf, '[dap-repl]')
     api.nvim_buf_set_option(buf, 'buftype', 'prompt')
     api.nvim_buf_set_option(buf, 'filetype', 'dap-repl')
-    api.nvim_buf_set_option(buf, 'omnifunc', 'v:lua.dap.omnifunc')
+    api.nvim_buf_set_option(buf, 'omnifunc', "v:lua.require'dap'.omnifunc")
     local ok, path = pcall(api.nvim_buf_get_option, prev_buf, 'path')
     if ok then
       api.nvim_buf_set_option(buf, 'path', path)
