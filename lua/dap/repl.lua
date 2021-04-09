@@ -200,7 +200,7 @@ function M.close()
   end
 
   if buf then
-    vim.cmd('bd' .. buf)
+    api.nvim_buf_delete(buf, {force = true})
     buf = nil
   end
 
@@ -242,12 +242,6 @@ function M.open(winopts, wincmd)
     vim.fn.prompt_setprompt(buf, 'dap> ')
     vim.fn.prompt_setcallback(buf, execute)
     api.nvim_buf_attach(buf, false, {
-      on_lines = function(b)
-        api.nvim_buf_set_option(b, 'modified', false)
-      end;
-      on_changedtick = function(b)
-        api.nvim_buf_set_option(b, 'modified', false)
-      end;
       on_detach = function()
         buf = nil
         return true

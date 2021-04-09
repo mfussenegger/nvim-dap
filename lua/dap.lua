@@ -1402,6 +1402,7 @@ function M._vim_exit_handler()
   if session then
     session:close()
   end
+  repl.close()
 end
 
 
@@ -1411,5 +1412,5 @@ function M.session()
 end
 
 
-api.nvim_command("autocmd VimLeavePre * lua require('dap')._vim_exit_handler()")
+api.nvim_command("autocmd ExitPre * lua require('dap')._vim_exit_handler()")
 return M
