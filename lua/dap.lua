@@ -656,7 +656,7 @@ do
           for _, bp in pairs(resp.breakpoints) do
             if not bp.verified then
               log.info('Server rejected breakpoint', bp)
-              require('breakpoints').remove(bufnr, bp.line)
+              breakpoints.remove(bufnr, bp.line)
             end
           end
         end
