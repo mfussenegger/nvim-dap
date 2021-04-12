@@ -397,8 +397,36 @@ end
 function M.continue()
   if not session then
     select_config_and_run()
-  else
+  elseif session.stopped_thread_id then
     session:_step('continue')
+  else
+    local prompt = (session.initialized
+      and "Session active, but not stopped at breakpoint> "
+      or "Session still initializing> "
+    )
+    local choices = {
+      {
+        label = "Stop session",
+        action = M.stop
+      },
+      {
+        label = "Pause a thread",
+        action = M.pause
+      },
+      {
+        label = "Restart session",
+        action = M.restart,
+      },
+      {
+        label = "Do nothing",
+        action = function() end,
+      },
+    }
+    ui.pick_one(choices, prompt, function(x) return x.label end, function(choice)
+      if choice then
+        choice.action()
+      end
+    end)
   end
 end
 
