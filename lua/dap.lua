@@ -127,8 +127,10 @@ end
 
 local function run_adapter(adapter, configuration, opts)
   if adapter.type == 'executable' then
+    vim.notify('Running config: ' .. configuration.name)
     M.launch(adapter, configuration, opts)
   elseif adapter.type == 'server' then
+    vim.notify('Running config: ' .. configuration.name)
     M.attach(adapter.host, adapter.port, configuration, opts)
   else
     print(string.format('Invalid adapter type %s, expected `executable` or `server`', adapter.type))
@@ -198,8 +200,10 @@ function M.run(config, opts)
   config = vim.tbl_map(expand_config_variables, config)
   local adapter = M.adapters[config.type]
   if type(adapter) == 'table' then
+    vim.notify('Launching debug adapter')
     maybe_enrich_config_and_run(adapter, config, opts)
   elseif type(adapter) == 'function' then
+    vim.notify('Launching debug adapter')
     adapter(
       function(resolved_adapter)
         maybe_enrich_config_and_run(resolved_adapter, config, opts)
