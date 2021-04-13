@@ -647,7 +647,7 @@ function Session:_pause(thread_id)
       print('Error requesting threads: ' .. err0.message)
       return
     end
-    ui().pick_one(
+    ui().pick_if_many(
       response.threads,
       "Which thread?: ",
       function(t) return t.name end,
