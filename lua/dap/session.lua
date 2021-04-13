@@ -647,7 +647,7 @@ function Session:_pause(thread_id)
       print('Error requesting threads: ' .. err0.message)
       return
     end
-    ui.pick_one(
+    ui().pick_one(
       response.threads,
       "Which thread?: ",
       function(t) return t.name end,
@@ -655,7 +655,7 @@ function Session:_pause(thread_id)
         if not thread or not thread.id then
           print('No thread to stop. Not pausing...')
         else
-          pause_thread(thread.id)
+          pause_thread(self, thread.id)
         end
       end
     )
