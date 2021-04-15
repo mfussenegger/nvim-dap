@@ -2,12 +2,15 @@ local api = vim.api
 local log = require('dap.log').create_logger('dap.log')
 local ui = require('dap.ui')
 local repl = require('dap.repl')
+local progress = require('dap.progress')
 local breakpoints = require('dap.breakpoints')
 local M = {}
 local session = nil
 local last_run = nil
 
 
+
+M.status = progress.status
 M.repl = repl
 M.listeners = {
   before = setmetatable({}, {
@@ -126,9 +129,12 @@ end
 
 
 local function run_adapter(adapter, configuration, opts)
+  local name = configuration.name or '[no name]'
   if adapter.type == 'executable' then
+    progress.report('Running: ' .. name)
     M.launch(adapter, configuration, opts)
   elseif adapter.type == 'server' then
+    progress.report('Running: ' .. name)
     M.attach(adapter.host, adapter.port, configuration, opts)
   else
     print(string.format('Invalid adapter type %s, expected `executable` or `server`', adapter.type))
@@ -198,8 +204,10 @@ function M.run(config, opts)
   config = vim.tbl_map(expand_config_variables, config)
   local adapter = M.adapters[config.type]
   if type(adapter) == 'table' then
+    progress.report('Launching debug adapter')
     maybe_enrich_config_and_run(adapter, config, opts)
   elseif type(adapter) == 'function' then
+    progress.report('Launching debug adapter')
     adapter(
       function(resolved_adapter)
         maybe_enrich_config_and_run(resolved_adapter, config, opts)

@@ -4,6 +4,7 @@ local rpc = require('dap.rpc')
 
 local utils = require('dap.utils')
 local breakpoints = require('dap.breakpoints')
+local progress = require('dap.progress')
 local log = require('dap.log').create_logger('dap.log')
 local non_empty = utils.non_empty
 local index_of = utils.index_of
@@ -175,6 +176,7 @@ local function jump_to_location(bufnr, line, column)
   if not ok then
     print(failure)
   end
+  progress.report('Stopped at line ' .. line)
   -- vscode-go sends columns with 0
   -- That would cause a "Column value outside range" error calling nvim_win_set_cursor
   -- nvim-dap says "columnsStartAt1 = true" on initialize :/
@@ -249,6 +251,7 @@ function Session:event_stopped(stopped)
     self:request('continue', { threadId = stopped.threadId })
     return
   end
+  progress.report('Thread stopped: ' .. stopped.threadId)
   self.stopped_thread_id = stopped.threadId
   self:request('threads', nil, function(err0, threads_resp)
     if err0 then
@@ -679,6 +682,7 @@ function Session:_step(step, params)
     if err then
       print('Error on '.. step .. ': ' .. err.message)
     end
+    progress.report('Running')
   end)
 end
 

@@ -596,6 +596,13 @@ set_log_level(level)                                       *dap.set_log_level()*
 session()                                                        *dap.session()*
         Returns the current session or nil if no session exists.
 
+
+status()
+        Returns the status of the current debug session as text
+        This is intended to be used within the statusline
+
+        If no debug session is active the result is empty.
+
 ==============================================================================
 VARIABLES API                                           *dap-ui-variables-api*
 
