@@ -638,7 +638,10 @@ end
 
 function Session:_pause(thread_id)
   if self.stopped_thread_id then
-    print('One thread is already stopped. Cannot pause!')
+    print(
+      'Thread', self.stopped_thread_id, 'is stopped.',
+      'Cannot pause another one. Use `continue()` to resume paused thread.'
+    )
     return
   end
   if thread_id then
