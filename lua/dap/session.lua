@@ -743,6 +743,7 @@ function Session:initialize(config)
     columnsStartAt1 = true;
     linesStartAt1 = true;
     supportsRunInTerminalRequest = true;
+    supportsVariableType = true;
     locale = os.getenv('LANG') or 'en_US';
   }, function(err0, result)
     if err0 then
