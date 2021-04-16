@@ -4,6 +4,7 @@ local M = {}
 
 local win = nil
 local buf = nil
+local layer = nil
 local session = nil
 
 
@@ -15,8 +16,7 @@ local history = {
 
 
 local variables_ns = api.nvim_create_namespace('dap.repl.variables')
-local frames_ns = api.nvim_create_namespace('dap.repl.frames')
-local frames_marks = {}
+
 
 M.commands = {
   continue = {'.continue', '.c'},
@@ -39,25 +39,38 @@ M.commands = {
   custom_commands = {}
 }
 
-function M.print_stackframes()
-  local frames = (session.threads[session.stopped_thread_id] or {}).frames or {}
-  frames_marks = {}
-  if buf then
-    api.nvim_buf_clear_namespace(buf, frames_ns, 0, -1)
+
+local function render_frame(frame)
+  if frame.id == session.current_frame.id then
+    return '→ ' .. frame.name
+  else
+    return '  ' .. frame.name
   end
-  for _, frame in pairs(frames) do
-    local line
-    if frame.id == session.current_frame.id then
-      line = '→ ' .. frame.name
-    else
-      line = '  ' .. frame.name
-    end
-    local lnum = M.append(line)
-    if lnum and buf then
-      local mark = api.nvim_buf_set_extmark(buf, frames_ns, lnum, 0, {})
-      frames_marks[mark] = frame
-    end
+end
+
+
+function M.print_stackframes(frames)
+  if not layer then
+    return
   end
+  frames = frames or (session.threads[session.stopped_thread_id] or {}).frames or {}
+  local context = {}
+  M.append('(press enter on line to jump to frame)')
+  local start = ui.get_last_line(buf)
+  context.actions = {
+    {
+      label = 'Jump to frame',
+      fn = function(frame)
+        if session then
+          session:_frame_set(frame)
+          layer.render(frames, render_frame, context, start, start + #frames)
+        else
+          print('Cannot navigate to frame without active session')
+        end
+      end,
+    },
+  }
+  layer.render(frames, render_frame, context)
 end
 
 
@@ -266,19 +279,21 @@ function M.open(winopts, wincmd)
     api.nvim_buf_set_name(buf, '[dap-repl]')
     api.nvim_buf_set_option(buf, 'buftype', 'prompt')
     api.nvim_buf_set_option(buf, 'omnifunc', "v:lua.require'dap'.omnifunc")
+    layer = ui.layer(buf)
     local ok, path = pcall(api.nvim_buf_get_option, prev_buf, 'path')
     if ok then
       api.nvim_buf_set_option(buf, 'path', path)
     end
 
-    api.nvim_buf_set_keymap(buf, 'n', '<CR>', "<Cmd>lua require('dap').repl.on_enter()<CR>", {})
-    api.nvim_buf_set_keymap(buf, 'i', '<up>', "<Cmd>lua require('dap').repl.on_up()<CR>", {})
-    api.nvim_buf_set_keymap(buf, 'i', '<down>', "<Cmd>lua require('dap').repl.on_down()<CR>", {})
+    api.nvim_buf_set_keymap(buf, 'n', '<CR>', "<Cmd>lua require('dap.repl').on_enter()<CR>", {})
+    api.nvim_buf_set_keymap(buf, 'i', '<up>', "<Cmd>lua require('dap.repl').on_up()<CR>", {})
+    api.nvim_buf_set_keymap(buf, 'i', '<down>', "<Cmd>lua require('dap.repl').on_down()<CR>", {})
     vim.fn.prompt_setprompt(buf, 'dap> ')
     vim.fn.prompt_setcallback(buf, execute)
     api.nvim_buf_attach(buf, false, {
       on_detach = function()
         buf = nil
+        layer = nil
         return true
       end;
     })
@@ -303,32 +318,30 @@ end
 
 
 function M.on_enter()
-  if not buf or not session then
+  if not layer then
     return
   end
-  local lnum = api.nvim_win_get_cursor(0)[1]
-  local start = {lnum - 1, 0}
-  local frame_marks = api.nvim_buf_get_extmarks(buf, frames_ns, start, start, {})
-  if #frame_marks > 0 then
-    local mark_id = frame_marks[1][1]
-    local frame = frames_marks[mark_id]
-    if frame then
-      session:_frame_set(frame)
-      local new_marks = {}
-      for m, f in pairs(frames_marks) do
-        local mark = api.nvim_buf_get_extmark_by_id(buf, frames_ns, m, {})
-        local line =  mark[1]
-        if f.id == frame.id then
-          api.nvim_buf_set_lines(buf, line, line + 1, true, {'→ '..f.name})
-        else
-          api.nvim_buf_set_lines(buf, line, line + 1, true, {'  '..f.name})
-        end
-        local new_mark = api.nvim_buf_set_extmark(buf, frames_ns, line, 0, {})
-        new_marks[new_mark] = f
-      end
-      frames_marks = new_marks
-    end
+  local lnum, col = unpack(api.nvim_win_get_cursor(0))
+  lnum = lnum - 1
+  local info = layer.get(lnum, 0, col)
+  if not info then
+    vim.notify('No action possible on: ' .. api.nvim_buf_get_lines(buf, lnum, lnum + 1, true)[1])
+    return
   end
+  local actions = info.context.actions
+  if not actions or #actions == 0 then
+    return
+  end
+  ui.pick_if_many(
+    actions,
+    'Actions> ',
+    function(x) return type(x.label) == 'string' and x.label or x.label(info.item) end,
+    function(action)
+      if action then
+        action.fn(info.item, lnum)
+      end
+    end
+  )
 end
 
 
@@ -365,8 +378,10 @@ function M.append(line, lnum)
       lnum = nil
     end
     local lines = vim.split(line, '\n')
-    lnum = lnum or (vim.fn.line('$') - 1)
-    vim.fn.appendbufline(buf, lnum, lines)
+    api.nvim_buf_call(buf, function()
+      lnum = lnum or (vim.fn.line('$') - 1)
+      vim.fn.appendbufline(buf, lnum, lines)
+    end)
     return lnum
   end
   return nil
