@@ -14,6 +14,7 @@ local history = {
 }
 
 
+local variables_ns = api.nvim_create_namespace('dap.repl.variables')
 local frames_ns = api.nvim_create_namespace('dap.repl.frames')
 local frames_marks = {}
 
@@ -60,6 +61,41 @@ function M.print_stackframes()
 end
 
 
+local syntax_mapping = {
+  boolean = 'Boolean',
+  String = 'String',
+  int = 'Number',
+  long = 'Number',
+  double = 'Float',
+  float = 'Float',
+}
+
+
+local function print_var(resp, lnum)
+  M.append(resp.result, lnum)
+  local syntax_group = resp.type and syntax_mapping[resp.type]
+  if syntax_group then
+    api.nvim_buf_add_highlight(buf, variables_ns, syntax_group, lnum, 0, -1)
+  end
+end
+
+
+local function print_children(variables)
+  for _, val in ipairs(variables) do
+    local prefix = '  ' .. val.name .. ': '
+    local lnum = M.append(prefix .. val.value)
+    if not lnum then
+      break -- buffer disappeared
+    end
+    api.nvim_buf_add_highlight(buf, variables_ns, 'Identifier', lnum, 2, #val.name + 3)
+    local syntax_group = val.type and syntax_mapping[val.type]
+    if syntax_group then
+      api.nvim_buf_add_highlight(buf, variables_ns, syntax_group, lnum, #prefix, -1)
+    end
+  end
+end
+
+
 local function evaluate_input(text, lnum)
   session:evaluate(text, function(err, resp)
     if err then
@@ -67,7 +103,7 @@ local function evaluate_input(text, lnum)
       return
     end
     if resp.variablesReference == 0 then
-      M.append(resp.result, lnum)
+      print_var(resp, lnum)
       return
     end
 
@@ -79,11 +115,8 @@ local function evaluate_input(text, lnum)
         M.append(err1.message, lnum)
         return
       end
-
-      M.append(resp.result, lnum)
-      for _, val in ipairs(v_resp.variables) do
-        M.append('  ' .. val.name .. ': ' .. val.value)
-      end
+      print_var(resp, lnum)
+      print_children(v_resp.variables)
     end)
   end)
 end
