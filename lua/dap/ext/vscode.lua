@@ -22,7 +22,8 @@ function M.load_launchjs(path)
     local configurations = dap.configurations[config.type]
     if not configurations then
       configurations = {}
-      dap.configurations[config.type] = configurations
+      local config_key = config.nvimKey or config.type
+      dap.configurations[config_key] = configurations
     end
     table.insert(configurations, config)
   end

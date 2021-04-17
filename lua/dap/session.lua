@@ -732,9 +732,9 @@ end
 function Session:initialize(config)
   self.config = config
   self:request('initialize', {
-    clientId = 'neovim';
-    clientname = 'neovim';
-    adapterID = 'nvim-dap';
+    clientID = config.clientID or 'neovim';
+    clientName = config.clientName or 'neovim';
+    adapterID = config.type or 'nvim-dap';
     pathFormat = 'path';
     columnsStartAt1 = true;
     linesStartAt1 = true;
