@@ -19,10 +19,10 @@ function M.load_launchjs(path)
   assert(data.configurations, "launch.json must have a 'configurations' key")
   for _, config in ipairs(data.configurations) do
     assert(config.type, "Configuration in launch.json must have a 'type' key")
-    local configurations = dap.configurations[config.type]
+    local config_key = config.nvimKey or config.type
+    local configurations = dap.configurations[config_key]
     if not configurations then
       configurations = {}
-      local config_key = config.nvimKey or config.type
       dap.configurations[config_key] = configurations
     end
     table.insert(configurations, config)
