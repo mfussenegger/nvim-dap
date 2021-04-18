@@ -15,9 +15,6 @@ local history = {
 }
 
 
-local variables_ns = api.nvim_create_namespace('dap.repl.variables')
-
-
 M.commands = {
   continue = {'.continue', '.c'},
   next_ = {'.next', '.n'},
@@ -56,7 +53,7 @@ function M.print_stackframes(frames)
   frames = frames or (session.threads[session.stopped_thread_id] or {}).frames or {}
   local context = {}
   M.append('(press enter on line to jump to frame)')
-  local start = ui.get_last_line(buf)
+  local start = ui.get_last_lnum(buf)
   context.actions = {
     {
       label = 'Jump to frame',
@@ -74,6 +71,16 @@ function M.print_stackframes(frames)
 end
 
 
+local function print_commands()
+  M.append('Commands:')
+  for _, commands in pairs(M.commands) do
+    if #commands > 0 then
+      M.append('  ' .. table.concat(commands, ', '))
+    end
+  end
+end
+
+
 local syntax_mapping = {
   boolean = 'Boolean',
   String = 'String',
@@ -84,64 +91,113 @@ local syntax_mapping = {
 }
 
 
-local function print_var(resp, lnum)
-  M.append(resp.result, lnum)
-  local syntax_group = resp.type and syntax_mapping[resp.type]
+local function render_var(var)
+  local syntax_group = var.type and syntax_mapping[var.type]
   if syntax_group then
-    api.nvim_buf_add_highlight(buf, variables_ns, syntax_group, lnum, 0, -1)
+    return var.result, {{syntax_group, 0, -1},}
   end
+  return var.result
 end
 
 
-local function print_children(variables)
-  for _, val in ipairs(variables) do
-    local prefix = '  ' .. val.name .. ': '
-    local lnum = M.append(prefix .. val.value)
-    if not lnum then
-      break -- buffer disappeared
-    end
-    api.nvim_buf_add_highlight(buf, variables_ns, 'Identifier', lnum, 2, #val.name + 3)
-    local syntax_group = val.type and syntax_mapping[val.type]
-    if syntax_group then
-      api.nvim_buf_add_highlight(buf, variables_ns, syntax_group, lnum, #prefix, -1)
-    end
+local function render_named_var(var)
+  local hl_regions = {
+    {'Identifier', 2, #var.name + 3}
+  }
+  local prefix = '  ' .. var.name .. ': '
+  local syntax_group = var.type and syntax_mapping[var.type]
+  if syntax_group then
+    table.insert(hl_regions, {syntax_group, #prefix, -1})
   end
+  return prefix .. var.value, hl_regions
 end
 
 
-local function evaluate_input(text, lnum)
-  session:evaluate(text, function(err, resp)
+local function fetch_variables(ref, cb)
+  local params = {
+      variablesReference = ref
+  }
+  session:request('variables', params, function(err, resp)
     if err then
-      M.append(err.message, lnum)
+      M.append(err.message)
       return
     end
-    if resp.variablesReference == 0 then
-      print_var(resp, lnum)
-      return
-    end
-
-    local params = {
-      variablesReference = resp.variablesReference
-    }
-    session:request('variables', params, function(err1, v_resp)
-      if err1 then
-        M.append(err1.message, lnum)
-        return
-      end
-      print_var(resp, lnum)
-      print_children(v_resp.variables)
-    end)
+    cb(resp)
   end)
 end
 
 
-local function print_commands()
-  M.append('Commands:')
-  for _, commands in pairs(M.commands) do
-    if #commands > 0 then
-      M.append('  ' .. table.concat(commands, ', '))
+local function with_indent(indent, fn)
+  local move_cols = function(hl_group)
+    local end_col = hl_group[3] == -1 and -1 or hl_group[3] + indent
+    return {hl_group[1], hl_group[2] + indent, end_col}
+  end
+  return function(...)
+    local text, hl_groups = fn(...)
+    return string.rep(' ', indent) .. text, vim.tbl_map(move_cols, hl_groups)
+  end
+end
+
+
+local function collapse(var, lnum_, context)
+  if not var.__expanded then
+    return
+  end
+  local num_vars = 1
+  local collapse_child
+  collapse_child = function(x)
+    num_vars = num_vars + 1
+    if x.__expanded then
+      x.__expanded = false
+      for _, child in pairs(x.variables) do
+        collapse_child(child)
+      end
     end
   end
+  var.__expanded = false
+  for _, child in ipairs(var.variables or {}) do
+    collapse_child(child)
+  end
+  layer.render({}, render_named_var, context, lnum_ + 1 , lnum_ + num_vars)
+end
+
+
+local function expand_or_collapse(var, lnum_, context)
+  if var.__expanded and var.variables then
+    collapse(var, lnum_, context)
+  elseif var.variablesReference ~= 0 then
+    var.__expanded = true
+    fetch_variables(var.variablesReference, function(v_resp)
+      local ctx = {
+        actions = context.actions,
+        indent = context.indent + 2,
+      }
+      var.variables = v_resp.variables
+      local render = with_indent(ctx.indent, render_named_var)
+      layer.render(v_resp.variables, render, ctx, lnum_ + 1)
+    end)
+  end
+end
+
+
+local function evaluate_handler(err, resp)
+  if err then
+    M.append(err.message)
+    return
+  end
+  layer.render({resp}, render_var)
+  if resp.variablesReference == 0 then
+    return
+  end
+  local context = {
+    indent = 0,
+    actions = {
+      { label = "Expand", fn = expand_or_collapse, }
+    }
+  }
+  fetch_variables(resp.variablesReference, function(v_resp)
+    layer.render(v_resp.variables, render_named_var, context)
+  end)
 end
 
 
@@ -227,8 +283,7 @@ local function execute(text)
     local command = table.remove(splitted_text, 1)
     M.commands.custom_commands[command](text)
   else
-    local lnum = vim.fn.line('$') - 1
-    evaluate_input(text, lnum)
+    session:evaluate(text, evaluate_handler)
   end
 end
 
@@ -324,12 +379,9 @@ function M.on_enter()
   local lnum, col = unpack(api.nvim_win_get_cursor(0))
   lnum = lnum - 1
   local info = layer.get(lnum, 0, col)
-  if not info then
-    vim.notify('No action possible on: ' .. api.nvim_buf_get_lines(buf, lnum, lnum + 1, true)[1])
-    return
-  end
-  local actions = info.context.actions
+  local actions = info and info.context and info.context.actions
   if not actions or #actions == 0 then
+    vim.notify('No action possible on: ' .. api.nvim_buf_get_lines(buf, lnum, lnum + 1, true)[1])
     return
   end
   ui.pick_if_many(
@@ -338,7 +390,7 @@ function M.on_enter()
     function(x) return type(x.label) == 'string' and x.label or x.label(info.item) end,
     function(action)
       if action then
-        action.fn(info.item, lnum)
+        action.fn(info.item, lnum, info.context)
       end
     end
   )

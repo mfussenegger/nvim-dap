@@ -46,7 +46,7 @@ end
 
 
 do
-  function M.get_last_line(bufnr)
+  function M.get_last_lnum(bufnr)
     return api.nvim_buf_call(bufnr, function() return vim.fn.line('$') - 1 end)
   end
 
@@ -54,6 +54,7 @@ do
     assert(buf, 'Need a buffer to operate on')
     local marks = {}
     local ns = api.nvim_create_namespace('dap.ui_layer_' .. buf)
+    local nshl = api.nvim_create_namespace('dap.ui_layer_hl_' .. buf)
     return {
       __marks = marks,
       --- Render the items and associate each item to the rendered line
@@ -66,7 +67,7 @@ do
       -- start is 0-indexed
       -- end_ is 0-indexed exclusive
       render = function(xs, render_fn, context, start, end_)
-        start = start or M.get_last_line(buf)
+        start = start or M.get_last_lnum(buf)
         end_ = end_ or start
         if end_ > start then
           local extmarks = api.nvim_buf_get_extmarks(buf, ns, {start, 0}, {end_ - 1, -1}, {})
@@ -76,12 +77,25 @@ do
             api.nvim_buf_del_extmark(buf, ns, mark_id)
           end
         end
-        local lines = vim.tbl_map(render_fn, xs)
+        -- This is a dummy call to insert new lines in a region
+        -- the loop below will add the actual values
+        local lines = vim.tbl_map(function() return 'PLACEHOLDER' end, xs)
         api.nvim_buf_set_lines(buf, start, end_, true, lines)
+
         for i = start, start + #lines - 1 do
+          local item = xs[i + 1 - start]
+          local text, hl_regions = render_fn(item)
+          text = text:gsub('\n', ' ') -- Might make sense to change this and preserve newlines?
+          api.nvim_buf_set_lines(buf, i, i + 1, true, {text})
+          if hl_regions then
+            for _, hl_region in pairs(hl_regions) do
+              api.nvim_buf_add_highlight(
+                buf, nshl, hl_region[1], i, hl_region[2], hl_region[3])
+            end
+          end
           local line = api.nvim_buf_get_lines(buf, i, i + 1, true)[1]
           local mark_id = api.nvim_buf_set_extmark(buf, ns, i, 0, {end_col=(#line - 1)})
-          marks[mark_id] = { mark_id = mark_id, item = xs[i + 1 - start], context = context }
+          marks[mark_id] = { mark_id = mark_id, item = item, context = context }
         end
       end,
 
