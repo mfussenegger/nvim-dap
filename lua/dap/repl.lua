@@ -201,6 +201,19 @@ local function evaluate_handler(err, resp)
 end
 
 
+local function print_scopes(frame)
+  if not frame then return end
+  local context = {
+    indent = 0,
+    actions = {{ label = 'Expand', fn = expand_or_collapse, },},
+  }
+  for _, scope in pairs(frame.scopes or {}) do
+    M.append(string.format("%s  (frame: %s)", scope.name, frame.name))
+    layer.render(vim.tbl_values(scope.variables or {}), render_named_var, context)
+  end
+end
+
+
 local function execute(text)
   if text == '' then
     if history.last then
@@ -260,15 +273,7 @@ local function execute(text)
       session:_goto(tonumber(splitted_text[2]))
     end
   elseif vim.tbl_contains(M.commands.scopes, text) then
-    local frame = session.current_frame
-    if frame then
-      for _, scope in pairs(frame.scopes) do
-        M.append(string.format("%s  (frame: %s)", scope.name, frame.name))
-        for _, variable in pairs(scope.variables or {}) do
-          M.append(string.rep(' ', 2) .. variable.name .. ': ' .. variable.value)
-        end
-      end
-    end
+    print_scopes(session.current_frame)
   elseif vim.tbl_contains(M.commands.threads, text) then
     for _, thread in pairs(session.threads) do
       if session.stopped_thread_id == thread.id then
