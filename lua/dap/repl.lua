@@ -81,135 +81,28 @@ local function print_commands()
 end
 
 
-local syntax_mapping = {
-  boolean = 'Boolean',
-  String = 'String',
-  int = 'Number',
-  long = 'Number',
-  double = 'Float',
-  float = 'Float',
-}
-
-
-local function render_var(var)
-  local syntax_group = var.type and syntax_mapping[var.type]
-  if syntax_group then
-    return var.result, {{syntax_group, 0, -1},}
-  end
-  return var.result
-end
-
-
-local function render_named_var(var)
-  local hl_regions = {
-    {'Identifier', 2, #var.name + 3}
-  }
-  local prefix = '  ' .. var.name .. ': '
-  local syntax_group = var.type and syntax_mapping[var.type]
-  if syntax_group then
-    table.insert(hl_regions, {syntax_group, #prefix, -1})
-  end
-  return prefix .. var.value, hl_regions
-end
-
-
-local function fetch_variables(ref, cb)
-  local params = {
-      variablesReference = ref
-  }
-  session:request('variables', params, function(err, resp)
-    if err then
-      M.append(err.message)
-      return
-    end
-    cb(resp)
-  end)
-end
-
-
-local function with_indent(indent, fn)
-  local move_cols = function(hl_group)
-    local end_col = hl_group[3] == -1 and -1 or hl_group[3] + indent
-    return {hl_group[1], hl_group[2] + indent, end_col}
-  end
-  return function(...)
-    local text, hl_groups = fn(...)
-    return string.rep(' ', indent) .. text, vim.tbl_map(move_cols, hl_groups)
-  end
-end
-
-
-local function collapse(var, lnum_, context)
-  if not var.__expanded then
-    return
-  end
-  local num_vars = 1
-  local collapse_child
-  collapse_child = function(x)
-    num_vars = num_vars + 1
-    if x.__expanded then
-      x.__expanded = false
-      for _, child in pairs(x.variables) do
-        collapse_child(child)
-      end
-    end
-  end
-  var.__expanded = false
-  for _, child in ipairs(var.variables or {}) do
-    collapse_child(child)
-  end
-  layer.render({}, render_named_var, context, lnum_ + 1 , lnum_ + num_vars)
-end
-
-
-local function expand_or_collapse(var, lnum_, context)
-  if var.__expanded and var.variables then
-    collapse(var, lnum_, context)
-  elseif var.variablesReference ~= 0 then
-    var.__expanded = true
-    fetch_variables(var.variablesReference, function(v_resp)
-      local ctx = {
-        actions = context.actions,
-        indent = context.indent + 2,
-      }
-      var.variables = v_resp.variables
-      local render = with_indent(ctx.indent, render_named_var)
-      layer.render(v_resp.variables, render, ctx, lnum_ + 1)
-    end)
-  end
-end
-
 
 local function evaluate_handler(err, resp)
   if err then
     M.append(err.message)
     return
   end
-  layer.render({resp}, render_var)
-  if resp.variablesReference == 0 then
-    return
-  end
-  local context = {
-    indent = 0,
-    actions = {
-      { label = "Expand", fn = expand_or_collapse, }
-    }
-  }
-  fetch_variables(resp.variablesReference, function(v_resp)
-    layer.render(v_resp.variables, render_named_var, context)
-  end)
+  local tree = ui.new_tree(require('dap.entity').variable.tree_spec)
+  tree.render(layer, resp)
 end
 
 
 local function print_scopes(frame)
   if not frame then return end
+  local variable = require('dap.entity').variable
+  local tree = ui.new_tree(variable.tree_spec)
   local context = {
     indent = 0,
-    actions = {{ label = 'Expand', fn = expand_or_collapse, },},
+    actions = {{ label = 'Expand', fn = tree.toggle, },},
   }
   for _, scope in pairs(frame.scopes or {}) do
     M.append(string.format("%s  (frame: %s)", scope.name, frame.name))
-    layer.render(vim.tbl_values(scope.variables or {}), render_named_var, context)
+    layer.render(vim.tbl_values(scope.variables or {}), variable.render_child, context)
   end
 end
 
@@ -395,7 +288,7 @@ function M.on_enter()
     function(x) return type(x.label) == 'string' and x.label or x.label(info.item) end,
     function(action)
       if action then
-        action.fn(info.item, lnum, info.context)
+        action.fn(layer, info.item, lnum, info.context)
       end
     end
   )

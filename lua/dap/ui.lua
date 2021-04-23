@@ -45,6 +45,85 @@ function M.pick_one(items, prompt, label_fn, cb)
 end
 
 
+local function with_indent(indent, fn)
+  local move_cols = function(hl_group)
+    local end_col = hl_group[3] == -1 and -1 or hl_group[3] + indent
+    return {hl_group[1], hl_group[2] + indent, end_col}
+  end
+  return function(...)
+    local text, hl_groups = fn(...)
+    return string.rep(' ', indent) .. text, vim.tbl_map(move_cols, hl_groups)
+  end
+end
+
+
+function M.new_tree(opts)
+  local expanded = {}
+
+  local expand = function(layer, value, lnum, context)
+    expanded[value] = true
+    opts.fetch_children(value, function(children)
+      local ctx = {
+        actions = context.actions,
+        indent = context.indent + 2,
+      }
+      local render = with_indent(ctx.indent, opts.render_child)
+      layer.render(children, render, ctx, lnum + 1)
+    end)
+  end
+
+  local collapse = function(layer, value, lnum, context)
+    if not expanded[value] then
+      return
+    end
+    local num_vars = 1
+    local collapse_child
+    collapse_child = function(parent)
+      num_vars = num_vars + 1
+      if expanded[parent] then
+        expanded[parent] = false
+        for _, child in pairs(opts.get_children(parent)) do
+          collapse_child(child)
+        end
+      end
+    end
+    expanded[value] = nil
+    for _, child in ipairs(opts.get_children(value)) do
+      collapse_child(child)
+    end
+    layer.render({}, tostring, context, lnum + 1, lnum + num_vars)
+  end
+
+  local self
+  self = {
+    toggle = function(layer, value, lnum, context)
+      if expanded[value] then
+        collapse(layer, value, lnum, context)
+      elseif opts.has_children(value) then
+        expand(layer, value, lnum, context)
+      end
+    end,
+
+    render = function(layer, value)
+      layer.render({value}, opts.render_parent)
+      if not opts.has_children(value) then
+        return
+      end
+      local context = {
+        indent = 0,
+        actions = {
+          { label = "Expand", fn = self.toggle, }
+        }
+      }
+      opts.fetch_children(value, function(children)
+        layer.render(children, opts.render_child, context)
+      end)
+    end,
+  }
+  return self
+end
+
+
 do
   function M.get_last_lnum(bufnr)
     return api.nvim_buf_call(bufnr, function() return vim.fn.line('$') - 1 end)
@@ -79,7 +158,7 @@ do
         end
         -- This is a dummy call to insert new lines in a region
         -- the loop below will add the actual values
-        local lines = vim.tbl_map(function() return 'PLACEHOLDER' end, xs)
+        local lines = vim.tbl_map(function() return '' end, xs)
         api.nvim_buf_set_lines(buf, start, end_, true, lines)
 
         for i = start, start + #lines - 1 do
