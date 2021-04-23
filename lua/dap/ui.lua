@@ -124,79 +124,125 @@ function M.new_tree(opts)
 end
 
 
-do
-  function M.get_last_lnum(bufnr)
-    return api.nvim_buf_call(bufnr, function() return vim.fn.line('$') - 1 end)
+function M.trigger_actions()
+  local buf = api.nvim_get_current_buf()
+  local layer = M.get_layer(buf)
+  if not layer then return end
+  local lnum, col = unpack(api.nvim_win_get_cursor(0))
+  lnum = lnum - 1
+  local info = layer.get(lnum, 0, col)
+  local actions = info and info.context and info.context.actions
+  if not actions or #actions == 0 then
+    vim.notify('No action possible on: ' .. api.nvim_buf_get_lines(buf, lnum, lnum + 1, true)[1])
+    return
   end
-
-  function M.layer(buf)
-    assert(buf, 'Need a buffer to operate on')
-    local marks = {}
-    local ns = api.nvim_create_namespace('dap.ui_layer_' .. buf)
-    local nshl = api.nvim_create_namespace('dap.ui_layer_hl_' .. buf)
-    return {
-      __marks = marks,
-      --- Render the items and associate each item to the rendered line
-      -- The item and context can then be retrieved using `.get(lnum)`
-      --
-      -- lines between start and end_ are replaced
-      -- If start == end_, new lines are inserted at the given position
-      -- If start == nil, appends to the end of the buffer
-      --
-      -- start is 0-indexed
-      -- end_ is 0-indexed exclusive
-      render = function(xs, render_fn, context, start, end_)
-        start = start or M.get_last_lnum(buf)
-        end_ = end_ or start
-        if end_ > start then
-          local extmarks = api.nvim_buf_get_extmarks(buf, ns, {start, 0}, {end_ - 1, -1}, {})
-          for _, mark in pairs(extmarks) do
-            local mark_id = mark[1]
-            marks[mark_id] = nil
-            api.nvim_buf_del_extmark(buf, ns, mark_id)
-          end
-        end
-        -- This is a dummy call to insert new lines in a region
-        -- the loop below will add the actual values
-        local lines = vim.tbl_map(function() return '' end, xs)
-        api.nvim_buf_set_lines(buf, start, end_, true, lines)
-
-        for i = start, start + #lines - 1 do
-          local item = xs[i + 1 - start]
-          local text, hl_regions = render_fn(item)
-          text = text:gsub('\n', ' ') -- Might make sense to change this and preserve newlines?
-          api.nvim_buf_set_lines(buf, i, i + 1, true, {text})
-          if hl_regions then
-            for _, hl_region in pairs(hl_regions) do
-              api.nvim_buf_add_highlight(
-                buf, nshl, hl_region[1], i, hl_region[2], hl_region[3])
-            end
-          end
-          local line = api.nvim_buf_get_lines(buf, i, i + 1, true)[1]
-          local mark_id = api.nvim_buf_set_extmark(buf, ns, i, 0, {end_col=(#line - 1)})
-          marks[mark_id] = { mark_id = mark_id, item = item, context = context }
-        end
-      end,
-
-      --- Get the information associated with a line
-      --
-      -- lnum is 0-indexed
-      get = function(lnum, start_col, end_col)
-        local line = api.nvim_buf_get_lines(buf, lnum, lnum + 1, true)[1]
-        start_col = start_col or 0
-        end_col = end_col or #line
-        local start = {lnum, start_col}
-        local end_ = {lnum, end_col}
-        local extmarks = api.nvim_buf_get_extmarks(buf, ns, start, end_, {})
-        if not extmarks or #extmarks == 0 then
-          return
-        end
-        assert(#extmarks == 1, 'Expecting only a single mark per line and region: ' .. vim.inspect(extmarks))
-        local extmark = extmarks[1]
-        return marks[extmark[1]]
+  M.pick_if_many(
+    actions,
+    'Actions> ',
+    function(x) return type(x.label) == 'string' and x.label or x.label(info.item) end,
+    function(action)
+      if action then
+        action.fn(layer, info.item, lnum, info.context)
       end
-    }
+    end
+  )
+end
+
+
+function M.get_last_lnum(bufnr)
+  return api.nvim_buf_call(bufnr, function() return vim.fn.line('$') - 1 end)
+end
+
+
+local layers = {}
+
+function M.get_layer(buf)
+  return layers[buf]
+end
+
+function M.layer(buf)
+  assert(buf, 'Need a buffer to operate on')
+  local layer = layers[buf]
+  if layer then
+    return layer
   end
+  local marks = {}
+  local ns = api.nvim_create_namespace('dap.ui_layer_' .. buf)
+  local nshl = api.nvim_create_namespace('dap.ui_layer_hl_' .. buf)
+  layer = {
+    __marks = marks,
+    --- Render the items and associate each item to the rendered line
+    -- The item and context can then be retrieved using `.get(lnum)`
+    --
+    -- lines between start and end_ are replaced
+    -- If start == end_, new lines are inserted at the given position
+    -- If start == nil, appends to the end of the buffer
+    --
+    -- start is 0-indexed
+    -- end_ is 0-indexed exclusive
+    render = function(xs, render_fn, context, start, end_)
+      start = start or M.get_last_lnum(buf)
+      end_ = end_ or start
+      render_fn = render_fn or tostring
+      if end_ > start then
+        local extmarks = api.nvim_buf_get_extmarks(buf, ns, {start, 0}, {end_ - 1, -1}, {})
+        for _, mark in pairs(extmarks) do
+          local mark_id = mark[1]
+          marks[mark_id] = nil
+          api.nvim_buf_del_extmark(buf, ns, mark_id)
+        end
+      end
+      -- This is a dummy call to insert new lines in a region
+      -- the loop below will add the actual values
+      local lines = vim.tbl_map(function() return '' end, xs)
+      api.nvim_buf_set_lines(buf, start, end_, true, lines)
+
+      for i = start, start + #lines - 1 do
+        local item = xs[i + 1 - start]
+        local text, hl_regions = render_fn(item)
+        if not text then
+          local debuginfo = debug.getinfo(render_fn)
+          error(('render function must return a string, got nil instead. render_fn: '
+            .. debuginfo.short_src .. ':' .. debuginfo.linedefined
+            .. ' '
+            .. vim.inspect(xs)
+          ))
+        end
+        text = text:gsub('\n', '\\n')
+        api.nvim_buf_set_lines(buf, i, i + 1, true, {text})
+        if hl_regions then
+          for _, hl_region in pairs(hl_regions) do
+            api.nvim_buf_add_highlight(
+              buf, nshl, hl_region[1], i, hl_region[2], hl_region[3])
+          end
+        end
+        local line = api.nvim_buf_get_lines(buf, i, i + 1, true)[1]
+        local mark_id = api.nvim_buf_set_extmark(buf, ns, i, 0, {end_col=(#line - 1)})
+        marks[mark_id] = { mark_id = mark_id, item = item, context = context }
+      end
+    end,
+
+    --- Get the information associated with a line
+    --
+    -- lnum is 0-indexed
+    get = function(lnum, start_col, end_col)
+      local line = api.nvim_buf_get_lines(buf, lnum, lnum + 1, true)[1]
+      start_col = start_col or 0
+      end_col = end_col or #line
+      local start = {lnum, start_col}
+      local end_ = {lnum, end_col}
+      local extmarks = api.nvim_buf_get_extmarks(buf, ns, start, end_, {})
+      if not extmarks or #extmarks == 0 then
+        return
+      end
+      assert(#extmarks == 1, 'Expecting only a single mark per line and region: ' .. vim.inspect(extmarks))
+      local extmark = extmarks[1]
+      return marks[extmark[1]]
+    end
+  }
+  layers[buf] = layer
+  api.nvim_buf_attach(buf, false, { on_detach = function(b) layers[b] = nil end })
+  return layer
 end
 
 

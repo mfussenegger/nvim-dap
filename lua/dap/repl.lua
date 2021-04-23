@@ -274,24 +274,7 @@ function M.on_enter()
   if not layer then
     return
   end
-  local lnum, col = unpack(api.nvim_win_get_cursor(0))
-  lnum = lnum - 1
-  local info = layer.get(lnum, 0, col)
-  local actions = info and info.context and info.context.actions
-  if not actions or #actions == 0 then
-    vim.notify('No action possible on: ' .. api.nvim_buf_get_lines(buf, lnum, lnum + 1, true)[1])
-    return
-  end
-  ui.pick_if_many(
-    actions,
-    'Actions> ',
-    function(x) return type(x.label) == 'string' and x.label or x.label(info.item) end,
-    function(action)
-      if action then
-        action.fn(layer, info.item, lnum, info.context)
-      end
-    end
-  )
+  ui.trigger_actions()
 end
 
 
