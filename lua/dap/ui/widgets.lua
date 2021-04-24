@@ -4,6 +4,8 @@ local M = {}
 M.max_win_width = 100
 
 
+-- TODO: better defaults, distinguish per widget, make composable
+
 local function new_buf()
   local buf = api.nvim_create_buf(false, true)
   api.nvim_buf_set_option(buf, 'bufhidden', 'wipe')
@@ -19,6 +21,15 @@ end
 local function new_float_win(buf)
   local opts = vim.lsp.util.make_floating_popup_options(50, 30, {})
   local win = api.nvim_open_win(buf, true, opts)
+  return win
+end
+
+
+local function new_sidebar_win()
+  vim.cmd('30 vsplit')
+  local win = api.nvim_get_current_win()
+  api.nvim_win_set_option(win, 'number', false)
+  api.nvim_win_set_option(win, 'relativenumber', false)
   return win
 end
 
@@ -162,16 +173,25 @@ function M.builder(widget)
     end,
 
     build = function()
+      local after_open_args
       local view = ui.new_view(nbuf, nwin, {
         before_open = before_open,
-        after_open = widget.render,
+        after_open = function(view, ...)
+          after_open_args = ...
+          return widget.render(view, ...)
+        end
       })
       view.layer = function()
-        if nwin.resize then
+        if type(nwin) == "table" and nwin.resize then
           return resizing_layer(view.win, view.buf)
         else
           return ui.layer(view.buf)
         end
+      end
+      view.refresh = function()
+        local layer = view.layer()
+        layer.render({}, tostring, nil, 0, -1)
+        widget.render(view, after_open_args)
       end
       return view
     end
@@ -184,6 +204,27 @@ function M.hover(widget, ...)
   return M.builder(widget)
     .build()
     .open(...)
+end
+
+
+function M.sidebar(widget)
+  local dap = require('dap')
+  local view
+  -- TODO: provide a `with_refresh` combinator(?)
+  view = M.builder(widget)
+    .new_win(new_sidebar_win)
+    .new_buf(function()
+      dap.listeners.after['variables'][view] = view.refresh
+      return new_buf()
+    end)
+    .build()
+  view.open()
+  api.nvim_buf_attach(view.buf, false, {
+    on_detach = function()
+      dap.listeners.after['variables'][view] = nil
+    end
+  })
+  return view
 end
 
 

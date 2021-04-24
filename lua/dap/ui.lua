@@ -174,6 +174,7 @@ function M.new_view(new_buf, new_win, opts)
       end
       if not buf then
         buf = new_buf()
+        assert(buf, 'The `new_buf` function is supposed to return a buffer')
         api.nvim_buf_attach(buf, false, { on_detach = function() self.buf = nil end })
       end
       if not win or not api.nvim_win_is_valid(win) then
