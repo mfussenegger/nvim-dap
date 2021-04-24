@@ -644,6 +644,48 @@ toggle_multiline_display({value})  *dap.ui.variables.toggle_multiline_display()*
         in a hover window.
 
 
+
+==============================================================================
+WIDGET API                                                    *dap-widgets*
+
+The UI of nvim-dap is by default minimal and noninvasive, but it provides
+widget primitives that can be used to build and customize a UI.
+
+Assume you want to view all scopes within a sidebar, you can use the following:
+
+>
+  local widgets = require('dap.ui.widgets')
+
+  local function new_sidebar(buf)
+    vim.cmd('30 vsplit')
+    vim.api.nvim_win_set_buf(0, buf)
+    return vim.api.nvim_get_current_win()
+  end
+
+  local sidebar = widgets.builder(widgets.scopes)
+                    .new_win(new_sidebar)
+                    .build()
+  sidebar.open()
+
+<
+
+
+If you'd further like to open the sidebar automatically each time a session
+starts, you can combine this with the |dap-extensions| API explained further
+below. Here's an example:
+
+>
+  dap.listeners.after['event_initialized']['your-plugin-id'] = function()
+    sidebar.open()
+  end
+
+<
+
+
+TODO: document available widgets and builder API + shortcuts
+
+
+
 ==============================================================================
 EXTENSIONS API                                                *dap-extensions*
 

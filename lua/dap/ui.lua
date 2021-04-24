@@ -124,6 +124,16 @@ function M.new_tree(opts)
 end
 
 
+--- Create a view that can be opened, closed and toggled.
+--
+-- The view manages a single buffer and a single window. Both are created when
+-- the view is opened and destroyed when the view is closed.
+--
+-- Arguments passed to `view.open()` are forwarded to the `new_win` function
+--
+-- @param new_buf (-> number): function to create a new buffer. Must return the bufnr
+-- @param new_win (-> number): function to create a new window. Must return the winnr
+-- @param opts A dictionary with `before_open` and `after_open` hooks.
 function M.new_view(new_buf, new_win, opts)
   assert(new_buf, 'new_buf must not be nil')
   assert(new_win, 'new_win must not be nil')
@@ -158,7 +168,10 @@ function M.new_view(new_buf, new_win, opts)
     open = function(...)
       local buf = self.buf
       local win = self.win
-      local current_win = api.nvim_get_current_win()
+      local before_open_result
+      if opts.before_open then
+        before_open_result = opts.before_open(...)
+      end
       if not buf then
         buf = new_buf()
         api.nvim_buf_attach(buf, false, { on_detach = function() self.buf = nil end })
@@ -174,8 +187,8 @@ function M.new_view(new_buf, new_win, opts)
 
       self.buf = buf
       self.win = win
-      if opts.keep_focus then
-        api.nvim_set_current_win(current_win)
+      if opts.after_open then
+        opts.after_open(self, before_open_result, ...)
       end
       return buf, win
     end

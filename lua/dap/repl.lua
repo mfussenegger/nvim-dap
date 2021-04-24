@@ -41,8 +41,17 @@ local function new_win(buf, winopts, wincmd)
   return win
 end
 
-local repl = ui.new_view(new_buf, new_win, {keep_focus = true})
-
+local repl = ui.new_view(
+  new_buf,
+  new_win, {
+    before_open = function()
+      return api.nvim_get_current_win()
+    end,
+    after_open = function(_, prev_win)
+      api.nvim_set_current_win(prev_win)
+    end
+  }
+)
 
 
 M.commands = {
