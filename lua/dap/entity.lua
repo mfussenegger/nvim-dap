@@ -93,4 +93,18 @@ scope.tree_spec = {
 }
 
 
+local frames = {}
+M.frames = frames
+
+function frames.render_item(frame)
+  local session = require('dap').session()
+  if session and frame.id == session.current_frame.id then
+    return '→ ' .. frame.name
+  else
+    return '  ' .. frame.name
+  end
+end
+
+
+
 return M

@@ -77,6 +77,33 @@ M.scopes = {
 }
 
 
+M.frames = {
+  new_buf = new_buf,
+  new_win = with_resize(new_float_win),
+  render = function(view)
+    local session = require('dap').session()
+    local frames = (session and session.threads[session.stopped_thread_id] or {}).frames or {}
+    local context = {}
+    context.actions = {
+      {
+        label = "Jump to frame",
+        fn = function(_, frame)
+          if session then
+            session:_frame_set(frame)
+            view.close()
+          else
+            print('Cannot navigate to frame without active session')
+          end
+        end
+      },
+    }
+    local layer = view.layer()
+    local render_frame = require('dap.entity').frames.render_item
+    layer.render(frames, render_frame, context)
+  end
+}
+
+
 M.expression = {
   new_buf = new_buf,
   new_win = with_resize(new_float_win),

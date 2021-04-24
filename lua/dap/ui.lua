@@ -159,7 +159,7 @@ function M.new_view(new_buf, new_win, opts)
         closed = true
       end
       if buf then
-        api.nvim_buf_delete(buf, {force=true})
+        pcall(api.nvim_buf_delete, buf, {force=true})
         self.buf = nil
       end
       return closed

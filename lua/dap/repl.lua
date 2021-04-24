@@ -76,15 +76,6 @@ M.commands = {
 }
 
 
-local function render_frame(frame)
-  if frame.id == session.current_frame.id then
-    return '→ ' .. frame.name
-  else
-    return '  ' .. frame.name
-  end
-end
-
-
 function M.print_stackframes(frames)
   if not repl.buf then
     return
@@ -93,11 +84,11 @@ function M.print_stackframes(frames)
   local context = {}
   M.append('(press enter on line to jump to frame)')
   local start = ui.get_last_lnum(repl.buf)
-  local layer = ui.layer(repl.buf)
+  local render_frame = require('dap.entity').frames.render_item
   context.actions = {
     {
       label = 'Jump to frame',
-      fn = function(frame)
+      fn = function(layer, frame)
         if session then
           session:_frame_set(frame)
           layer.render(frames, render_frame, context, start, start + #frames)
@@ -107,6 +98,7 @@ function M.print_stackframes(frames)
       end,
     },
   }
+  local layer = ui.layer(repl.buf)
   layer.render(frames, render_frame, context)
 end
 
