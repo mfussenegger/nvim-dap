@@ -124,6 +124,66 @@ function M.new_tree(opts)
 end
 
 
+function M.new_view(new_buf, new_win, opts)
+  assert(new_buf, 'new_buf must not be nil')
+  assert(new_win, 'new_win must not be nil')
+  opts = opts or {}
+  local self
+  self = {
+    buf = nil,
+    win = nil,
+
+    toggle = function(...)
+      if not self.close() then
+        self.open(...)
+      end
+    end,
+
+    close = function()
+      local closed = false
+      local win = self.win
+      local buf = self.buf
+      if win and api.nvim_win_is_valid(win) and api.nvim_win_get_buf(win) == buf then
+        api.nvim_win_close(win, true)
+        self.win = nil
+        closed = true
+      end
+      if buf then
+        api.nvim_buf_delete(buf, {force=true})
+        self.buf = nil
+      end
+      return closed
+    end,
+
+    open = function(...)
+      local buf = self.buf
+      local win = self.win
+      local current_win = api.nvim_get_current_win()
+      if not buf then
+        buf = new_buf()
+        api.nvim_buf_attach(buf, false, { on_detach = function() self.buf = nil end })
+      end
+      if not win or not api.nvim_win_is_valid(win) then
+        win = new_win(buf, ...)
+      end
+      api.nvim_win_set_buf(win, buf)
+
+      -- Trigger filetype again to ensure ftplugin files can change window settings
+      local ft = api.nvim_buf_get_option(buf, 'filetype')
+      api.nvim_buf_set_option(buf, 'filetype', ft)
+
+      self.buf = buf
+      self.win = win
+      if opts.keep_focus then
+        api.nvim_set_current_win(current_win)
+      end
+      return buf, win
+    end
+  }
+  return self
+end
+
+
 function M.trigger_actions()
   local buf = api.nvim_get_current_buf()
   local layer = M.get_layer(buf)

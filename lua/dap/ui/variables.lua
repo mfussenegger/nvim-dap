@@ -4,16 +4,12 @@ local ui = require('dap.ui')
 
 local M = {}
 
+M.toggle_variable_expanded = ui.trigger_actions
 M.multiline_variable_display = false
 M.max_win_width = 100
 
-local floating_buf = nil
-local floating_win = nil
 
-M.toggle_variable_expanded = ui.trigger_actions
-
-
-local function popup()
+local function new_variable_buf()
   local buf = api.nvim_create_buf(false, true)
   api.nvim_buf_set_option(buf, 'bufhidden', 'wipe')
   api.nvim_buf_set_option(buf, 'buftype', 'nofile')
@@ -40,11 +36,18 @@ local function popup()
     "<Cmd>lua require('dap.ui.variables').toggle_multiline_display()<CR>",
     {}
   )
+  return buf
+end
+
+local function new_float_win(buf)
   -- width and height are increased later once variables are written to the buffer
   local opts = vim.lsp.util.make_floating_popup_options(50, 30, {})
   local win = api.nvim_open_win(buf, true, opts)
-  return win, buf
+  return win
 end
+
+
+local float_view = ui.new_view(new_variable_buf, new_float_win)
 
 
 function M.resolve_expression()
@@ -101,14 +104,14 @@ function M.scopes()
 
   local session = require('dap').session()
 
-  floating_win, floating_buf = popup()
+  float_view.open()
   local tree = ui.new_tree(require('dap.entity').scope.tree_spec)
   local frame = session.current_frame or {}
-  local layer = resizing_layer(floating_win, floating_buf)
+  local layer = resizing_layer(float_view.win, float_view.buf)
   for _, scope in pairs(frame.scopes or {}) do
     tree.render(layer, scope)
   end
-  resize_window(floating_win, floating_buf)
+  resize_window(float_view.win, float_view.buf)
 end
 
 
@@ -118,36 +121,32 @@ function M.hover(resolve_expression_fn)
   local session = require('dap').session()
   local frame = session.current_frame
 
-  if vim.tbl_contains(vim.api.nvim_list_wins(), floating_win) then
-    vim.api.nvim_set_current_win(floating_win)
-  else
-    local expression = resolve_expression_fn and resolve_expression_fn() or M.resolve_expression()
-    local variable
-    local scopes = frame.scopes or {}
-    for _, s in pairs(scopes) do
-      variable = s.variables and s.variables[expression]
-      if variable then
-        break
-      end
-    end
-    local tree = ui.new_tree(require('dap.entity').variable.tree_spec)
+
+  local expression = resolve_expression_fn and resolve_expression_fn() or M.resolve_expression()
+  local variable
+  local scopes = frame.scopes or {}
+  for _, s in pairs(scopes) do
+    variable = s.variables and s.variables[expression]
     if variable then
-      floating_win, floating_buf = popup()
-      local layer = resizing_layer(floating_win, floating_buf)
-      tree.render(layer, variable)
-    else
-      session:evaluate(expression, function(err, resp)
-        if err then
-          print('Cannot evaluate "'..expression..'"!')
-        else
-          if resp and resp.result then
-            floating_win, floating_buf = popup()
-            local layer = resizing_layer(floating_win, floating_buf)
-            tree.render(layer, resp)
-          end
-        end
-      end)
+      break
     end
+  end
+  if variable then
+    float_view.open()
+    local layer = resizing_layer(float_view.win, float_view.buf)
+    local tree = ui.new_tree(require('dap.entity').variable.tree_spec)
+    tree.render(layer, variable)
+  else
+    session:evaluate(expression, function(err, resp)
+      if err then
+        print('Cannot evaluate "'..expression..'"!')
+      elseif resp and resp.result then
+        float_view.open()
+        local layer = resizing_layer(float_view.win, float_view.buf)
+        local tree = ui.new_tree(require('dap.entity').variable.tree_spec)
+        tree.render(layer, resp)
+      end
+    end)
   end
 end
 

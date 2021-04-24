@@ -2,17 +2,47 @@ local api = vim.api
 local ui = require('dap.ui')
 local M = {}
 
-local win = nil
-local buf = nil
-local layer = nil
 local session = nil
-
-
 local history = {
   last = nil,
   entries = {},
   idx = 1
 }
+
+local execute  -- required for forward reference
+
+
+local function new_buf()
+  local prev_buf = api.nvim_get_current_buf()
+  local buf = api.nvim_create_buf(true, true)
+  api.nvim_buf_set_name(buf, '[dap-repl]')
+  api.nvim_buf_set_option(buf, 'buftype', 'prompt')
+  api.nvim_buf_set_option(buf, 'filetype', 'dap-repl')
+  api.nvim_buf_set_option(buf, 'omnifunc', "v:lua.require'dap'.omnifunc")
+  local ok, path = pcall(api.nvim_buf_get_option, prev_buf, 'path')
+  if ok then
+    api.nvim_buf_set_option(buf, 'path', path)
+  end
+  api.nvim_buf_set_keymap(buf, 'n', '<CR>', "<Cmd>lua require('dap.repl').on_enter()<CR>", {})
+  api.nvim_buf_set_keymap(buf, 'i', '<up>', "<Cmd>lua require('dap.repl').on_up()<CR>", {})
+  api.nvim_buf_set_keymap(buf, 'i', '<down>', "<Cmd>lua require('dap.repl').on_down()<CR>", {})
+  vim.fn.prompt_setprompt(buf, 'dap> ')
+  vim.fn.prompt_setcallback(buf, execute)
+  return buf
+end
+
+
+local function new_win(buf, winopts, wincmd)
+  assert(not wincmd or type(wincmd) == 'string', 'wincmd must be nil or a string')
+  api.nvim_command(wincmd or 'belowright split')
+  local win = api.nvim_get_current_win()
+  api.nvim_win_set_buf(win, buf)
+  ui.apply_winopts(win, winopts)
+  return win
+end
+
+local repl = ui.new_view(new_buf, new_win, {keep_focus = true})
+
 
 
 M.commands = {
@@ -47,13 +77,14 @@ end
 
 
 function M.print_stackframes(frames)
-  if not layer then
+  if not repl.buf then
     return
   end
   frames = frames or (session.threads[session.stopped_thread_id] or {}).frames or {}
   local context = {}
   M.append('(press enter on line to jump to frame)')
-  local start = ui.get_last_lnum(buf)
+  local start = ui.get_last_lnum(repl.buf)
+  local layer = ui.layer(repl.buf)
   context.actions = {
     {
       label = 'Jump to frame',
@@ -88,12 +119,13 @@ local function evaluate_handler(err, resp)
     return
   end
   local tree = ui.new_tree(require('dap.entity').variable.tree_spec)
-  tree.render(layer, resp)
+  tree.render(ui.layer(repl.buf), resp)
 end
 
 
 local function print_scopes(frame)
   if not frame then return end
+  local layer = ui.layer(repl.buf)
   local variable = require('dap.entity').variable
   local tree = ui.new_tree(variable.tree_spec)
   local context = {
@@ -107,7 +139,7 @@ local function print_scopes(frame)
 end
 
 
-local function execute(text)
+function execute(text)
   if text == '' then
     if history.last then
       text = history.last
@@ -191,24 +223,7 @@ end
 -- Does not disconnect an active session.
 --
 -- Returns true if the REPL was open and got closed. false otherwise
-function M.close()
-  local closed
-  if win and api.nvim_win_is_valid(win) and api.nvim_win_get_buf(win) == buf then
-    api.nvim_win_close(win, true)
-    win = nil
-    closed = true
-  else
-    closed = false
-  end
-
-  if buf then
-    api.nvim_buf_delete(buf, {force = true})
-    buf = nil
-  end
-
-  return closed
-end
-
+M.close = repl.close
 
 --- Open the REPL
 --
@@ -221,65 +236,16 @@ end
 --
 --@param wincmd command that is used to create the window for the REPL.
 --              Defaults to 'belowright split'
-function M.open(winopts, wincmd)
-  if win and api.nvim_win_is_valid(win) and api.nvim_win_get_buf(win) == buf then
-    return
-  end
-  if not buf then
-    local prev_buf = api.nvim_get_current_buf()
-
-    buf = api.nvim_create_buf(true, true)
-    api.nvim_buf_set_name(buf, '[dap-repl]')
-    api.nvim_buf_set_option(buf, 'buftype', 'prompt')
-    api.nvim_buf_set_option(buf, 'omnifunc', "v:lua.require'dap'.omnifunc")
-    layer = ui.layer(buf)
-    local ok, path = pcall(api.nvim_buf_get_option, prev_buf, 'path')
-    if ok then
-      api.nvim_buf_set_option(buf, 'path', path)
-    end
-
-    api.nvim_buf_set_keymap(buf, 'n', '<CR>', "<Cmd>lua require('dap.repl').on_enter()<CR>", {})
-    api.nvim_buf_set_keymap(buf, 'i', '<up>', "<Cmd>lua require('dap.repl').on_up()<CR>", {})
-    api.nvim_buf_set_keymap(buf, 'i', '<down>', "<Cmd>lua require('dap.repl').on_down()<CR>", {})
-    vim.fn.prompt_setprompt(buf, 'dap> ')
-    vim.fn.prompt_setcallback(buf, execute)
-    api.nvim_buf_attach(buf, false, {
-      on_detach = function()
-        buf = nil
-        layer = nil
-        return true
-      end;
-    })
-  end
-  local current_win = api.nvim_get_current_win()
-  assert(not wincmd or type(wincmd) == 'string', 'wincmd must be nil or a string')
-  api.nvim_command(wincmd or 'belowright split')
-  win = api.nvim_get_current_win()
-  api.nvim_win_set_buf(win, buf)
-  api.nvim_buf_set_option(buf, 'filetype', 'dap-repl')
-  api.nvim_set_current_win(current_win)
-  ui.apply_winopts(win, winopts)
-end
-
+M.open = repl.open
 
 --- Open the REPL if it is closed, close it if it is open.
-function M.toggle(winopts, wincmd)
-  if not M.close() then
-    M.open(winopts, wincmd)
-  end
-end
+M.toggle = repl.toggle
 
-
-function M.on_enter()
-  if not layer then
-    return
-  end
-  ui.trigger_actions()
-end
+M.on_enter = ui.trigger_actions
 
 
 local function select_history(delta)
-  if not buf then
+  if not repl.buf then
     return
   end
   history.idx = history.idx + delta
@@ -291,7 +257,7 @@ local function select_history(delta)
   local text = history.entries[history.idx]
   if text then
     local lnum = vim.fn.line('$') - 1
-    api.nvim_buf_set_lines(buf, lnum, lnum + 1, true, {'dap> ' .. text })
+    api.nvim_buf_set_lines(repl.buf, lnum, lnum + 1, true, {'dap> ' .. text })
   end
 end
 
@@ -306,14 +272,14 @@ end
 
 
 function M.append(line, lnum)
-  if buf then
-    if api.nvim_get_current_win() == win and lnum == '$' then
+  if repl.buf then
+    if api.nvim_get_current_win() == repl.win and lnum == '$' then
       lnum = nil
     end
     local lines = vim.split(line, '\n')
-    api.nvim_buf_call(buf, function()
+    api.nvim_buf_call(repl.buf, function()
       lnum = lnum or (vim.fn.line('$') - 1)
-      vim.fn.appendbufline(buf, lnum, lines)
+      vim.fn.appendbufline(repl.buf, lnum, lines)
     end)
     return lnum
   end
@@ -326,8 +292,8 @@ function M.set_session(s)
   history.last = nil
   history.entries = {}
   history.idx = 1
-  if s and buf and api.nvim_buf_is_loaded(buf) then
-    api.nvim_buf_set_lines(buf, 0, -1, true, {})
+  if s and repl.buf and api.nvim_buf_is_loaded(repl.buf) then
+    api.nvim_buf_set_lines(repl.buf, 0, -1, true, {})
   end
 end
 
