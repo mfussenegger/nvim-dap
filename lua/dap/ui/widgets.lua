@@ -79,7 +79,11 @@ M.scopes = {
   render = function(view)
     local session = require('dap').session()
     local frame = session and session.current_frame or {}
-    local tree = ui.new_tree(require('dap.entity').scope.tree_spec)
+    local tree = view.tree
+    if not tree then
+      tree = ui.new_tree(require('dap.entity').scope.tree_spec)
+      view.tree = tree
+    end
     local layer = view.layer()
     for _, scope in pairs(frame.scopes or {}) do
       tree.render(layer, scope)
@@ -154,6 +158,7 @@ function M.builder(widget)
   local nbuf = widget.new_buf
   local nwin = widget.new_win
   local before_open = widget.before_open
+  local after_open = widget.after_open
   local builder
   builder = {
 
@@ -172,12 +177,20 @@ function M.builder(widget)
       return builder
     end,
 
+    after_open = function(val)
+      after_open = val
+      return builder
+    end,
+
     build = function()
       local after_open_args
       local view = ui.new_view(nbuf, nwin, {
         before_open = before_open,
         after_open = function(view, ...)
           after_open_args = ...
+          if after_open then
+            pcall(after_open, ...)
+          end
           return widget.render(view, ...)
         end
       })
@@ -188,6 +201,7 @@ function M.builder(widget)
           return ui.layer(view.buf)
         end
       end
+
       view.refresh = function()
         local layer = view.layer()
         layer.render({}, tostring, nil, 0, -1)
@@ -211,7 +225,13 @@ function M.sidebar(widget)
   local dap = require('dap')
   local view
   -- TODO: provide a `with_refresh` combinator(?)
+  -- TODO: Make it possible to create arbitrary before/open pairs to pass
+  -- args correctly
   view = M.builder(widget)
+    .before_open(function() return api.nvim_get_current_win() end)
+    .after_open(function(win)
+      api.nvim_set_current_win(win)
+    end)
     .new_win(new_sidebar_win)
     .new_buf(function()
       dap.listeners.after['variables'][view] = view.refresh

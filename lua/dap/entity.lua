@@ -14,6 +14,11 @@ local syntax_mapping = {
 }
 
 
+function variable.get_key(var)
+  return var.variablesReference or var
+end
+
+
 function variable.render_parent(var)
   if var.name then
     return variable.render_child(var, 0)
@@ -50,6 +55,28 @@ function variable.get_children(var)
   end
 end
 
+
+local function sort_vars(vars)
+  local sorted_variables = {}
+  for _, v in pairs(vars) do
+    table.insert(sorted_variables, v)
+  end
+  table.sort(
+    sorted_variables,
+    function(a, b)
+      local num_a = string.match(a.name, '^%[?(%d+)%]?$')
+      local num_b = string.match(b.name, '^%[?(%d+)%]?$')
+      if num_a and num_b then
+        return tonumber(num_a) < tonumber(num_b)
+      else
+        return a.name < b.name
+      end
+    end
+  )
+  return sorted_variables
+end
+
+
 function variable.fetch_children(var, cb)
   local session = require('dap').session()
   if var.variables then
@@ -60,28 +87,29 @@ function variable.fetch_children(var, cb)
     -- TODO: get rid of this workaround
     -- refresh on variables shouldn't cancel out toggle/expansion
     -- but refresh also shouldn't automatically collapse all items
-    local dap = require('dap')
-    local var_listeners = dap.listeners.after['variables']
-    local temp_mute = function(k, v)
-      return function()
-        var_listeners[k] = v
-      end
-    end
-    for k, v in pairs(var_listeners) do
-      var_listeners[k] = temp_mute(k, v)
-    end
+    -- local dap = require('dap')
+    -- local var_listeners = dap.listeners.after['variables']
+    -- local temp_mute = function(k, v)
+    --   return function()
+    --     var_listeners[k] = v
+    --   end
+    -- end
+    -- for k, v in pairs(var_listeners) do
+    --   var_listeners[k] = temp_mute(k, v)
+    -- end
     session:request('variables', params, function(err, resp)
       if err then
         M.append(err.message)
       else
-        var.variables = resp.variables
-        cb(resp.variables)
+        var.variables = sort_vars(resp.variables)
+        cb(var.variables)
       end
     end)
   end
 end
 
 variable.tree_spec = {
+  get_key = variable.get_key,
   render_parent = variable.render_parent,
   render_child = variable.render_child,
   has_children = variable.has_children,
@@ -99,6 +127,7 @@ function scope.render_parent(value)
 end
 
 scope.tree_spec = {
+  get_key = variable.get_key,
   render_parent = scope.render_parent,
   render_child = variable.render_child,
   has_children = variable.has_children,

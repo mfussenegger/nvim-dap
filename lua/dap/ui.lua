@@ -58,10 +58,12 @@ end
 
 
 function M.new_tree(opts)
+  local get_key = opts.get_key or function(x) return x end
   local expanded = {}
+  local expand_expanded  -- forward reference
 
   local expand = function(layer, value, lnum, context)
-    expanded[value] = true
+    expanded[get_key(value)] = true
     opts.fetch_children(value, function(children)
       local ctx = {
         actions = context.actions,
@@ -69,25 +71,35 @@ function M.new_tree(opts)
       }
       local render = with_indent(ctx.indent, opts.render_child)
       layer.render(children, render, ctx, lnum + 1)
+      expand_expanded(layer, children)
     end)
   end
 
+  expand_expanded = function(layer, items)
+    for _, item in pairs(items or {}) do
+      if expanded[get_key(item)] then
+        local info = layer.find_item(item)
+        expand(layer, item, info.lnum, info.context)
+      end
+    end
+  end
+
   local collapse = function(layer, value, lnum, context)
-    if not expanded[value] then
+    if not expanded[get_key(value)] then
       return
     end
     local num_vars = 1
     local collapse_child
     collapse_child = function(parent)
       num_vars = num_vars + 1
-      if expanded[parent] then
-        expanded[parent] = false
+      if expanded[get_key(parent)] then
+        expanded[get_key(parent)] = false
         for _, child in pairs(opts.get_children(parent)) do
           collapse_child(child)
         end
       end
     end
-    expanded[value] = nil
+    expanded[get_key(value)] = nil
     for _, child in ipairs(opts.get_children(value)) do
       collapse_child(child)
     end
@@ -97,7 +109,7 @@ function M.new_tree(opts)
   local self
   self = {
     toggle = function(layer, value, lnum, context)
-      if expanded[value] then
+      if expanded[get_key(value)] then
         collapse(layer, value, lnum, context)
       elseif opts.has_children(value) then
         expand(layer, value, lnum, context)
@@ -117,6 +129,7 @@ function M.new_tree(opts)
       }
       opts.fetch_children(value, function(children)
         layer.render(children, opts.render_child, context)
+        expand_expanded(layer, children)
       end)
     end,
   }
@@ -243,6 +256,14 @@ function M.layer(buf)
   local marks = {}
   local ns = api.nvim_create_namespace('dap.ui_layer_' .. buf)
   local nshl = api.nvim_create_namespace('dap.ui_layer_hl_' .. buf)
+  local remove_marks = function(extmarks)
+    for _, mark in pairs(extmarks) do
+      local mark_id = mark[1]
+      marks[mark_id] = nil
+      api.nvim_buf_del_extmark(buf, ns, mark_id)
+    end
+  end
+
   layer = {
     __marks = marks,
     --- Render the items and associate each item to the rendered line
@@ -259,12 +280,9 @@ function M.layer(buf)
       end_ = end_ or start
       render_fn = render_fn or tostring
       if end_ > start then
-        local extmarks = api.nvim_buf_get_extmarks(buf, ns, {start, 0}, {end_ - 1, -1}, {})
-        for _, mark in pairs(extmarks) do
-          local mark_id = mark[1]
-          marks[mark_id] = nil
-          api.nvim_buf_del_extmark(buf, ns, mark_id)
-        end
+        remove_marks(api.nvim_buf_get_extmarks(buf, ns, {start, 0}, {end_ - 1, -1}, {}))
+      elseif end_ == -1 then
+        remove_marks(api.nvim_buf_get_extmarks(buf, ns, {start, 0}, {-1, -1}, {}))
       end
       -- This is a dummy call to insert new lines in a region
       -- the loop below will add the actual values
@@ -312,6 +330,24 @@ function M.layer(buf)
       assert(#extmarks == 1, 'Expecting only a single mark per line and region: ' .. vim.inspect(extmarks))
       local extmark = extmarks[1]
       return marks[extmark[1]]
+    end,
+
+    --- Get the context and lnum for the item
+    --
+    -- lnum is 0-indexed.
+    --
+    -- The first match found is returned.
+    -- Returns nil if the item is not present in the layer
+    find_item = function(item)
+      for mark_id, info in pairs(marks) do
+        if info.item == item then
+          local extmark = api.nvim_buf_get_extmark_by_id(buf, ns, mark_id, {})
+          return {
+            context = info.context,
+            lnum = extmark[1]
+          }
+        end
+      end
     end
   }
   layers[buf] = layer
