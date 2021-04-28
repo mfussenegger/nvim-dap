@@ -244,6 +244,8 @@ function M.sidebar(widget)
       dap.listeners.after['variables'][view] = nil
     end
   })
+  -- TODO: on new session the internal trees
+  -- should be re-created to avoid `expanded` from leaking memory
   return view
 end
 

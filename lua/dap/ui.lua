@@ -59,11 +59,20 @@ end
 
 function M.new_tree(opts)
   local get_key = opts.get_key or function(x) return x end
-  local expanded = {}
-  local expand_expanded  -- forward reference
+
+  -- expanded[indent][get_key(val)] indicates if an entry in the tree is expanded
+  -- `indent` is used because `get_key` might not be unique across the whole hierarchy
+  local expanded = setmetatable({}, {
+    __index = function(tbl, key)
+      rawset(tbl, key, {})
+      return rawget(tbl, key)
+    end
+  })
+
+  local self  -- forward reference
 
   local expand = function(layer, value, lnum, context)
-    expanded[get_key(value)] = true
+    expanded[context.indent][get_key(value)] = true
     opts.fetch_children(value, function(children)
       local ctx = {
         actions = context.actions,
@@ -71,45 +80,69 @@ function M.new_tree(opts)
       }
       local render = with_indent(ctx.indent, opts.render_child)
       layer.render(children, render, ctx, lnum + 1)
-      expand_expanded(layer, children)
     end)
   end
 
-  expand_expanded = function(layer, items)
-    for _, item in pairs(items or {}) do
-      if expanded[get_key(item)] then
-        local info = layer.find_item(item)
-        expand(layer, item, info.lnum, info.context)
+  local function eager_fetch_expanded_children(value, cb, ctx, indent)
+    indent = indent or 0
+    ctx = ctx or { to_traverse = 1 }
+    opts.fetch_children(value, function(children)
+      ctx.to_traverse = ctx.to_traverse + #children
+      for _, child in pairs(children) do
+        local key = get_key(child)
+        if expanded[indent][key] then
+          eager_fetch_expanded_children(child, cb, ctx, indent + 2)
+        else
+          ctx.to_traverse = ctx.to_traverse - 1
+        end
+      end
+      ctx.to_traverse = ctx.to_traverse - 1
+      if ctx.to_traverse == 0 then
+        cb()
+      end
+    end)
+  end
+
+  local function render_all_expanded(layer, value, indent)
+    indent = indent or 0
+    local context = {
+      actions = { { label ='Expand', fn = self.toggle, }, },
+      indent = indent,
+    }
+    for _, child in pairs(opts.get_children(value)) do
+      layer.render({child}, with_indent(indent, opts.render_child), context)
+      if expanded[indent][get_key(child)] then
+        render_all_expanded(layer, child, indent + 2)
       end
     end
   end
 
   local collapse = function(layer, value, lnum, context)
-    if not expanded[get_key(value)] then
+    local indent = context.indent
+    if not expanded[indent][get_key(value)] then
       return
     end
     local num_vars = 1
     local collapse_child
-    collapse_child = function(parent)
+    collapse_child = function(parent, indent_)
       num_vars = num_vars + 1
-      if expanded[get_key(parent)] then
-        expanded[get_key(parent)] = false
+      if expanded[indent_][get_key(parent)] then
+        expanded[indent_][get_key(parent)] = nil
         for _, child in pairs(opts.get_children(parent)) do
-          collapse_child(child)
+          collapse_child(child, indent_ + 2)
         end
       end
     end
-    expanded[get_key(value)] = nil
+    expanded[indent][get_key(value)] = nil
     for _, child in ipairs(opts.get_children(value)) do
-      collapse_child(child)
+      collapse_child(child, indent + 2)
     end
     layer.render({}, tostring, context, lnum + 1, lnum + num_vars)
   end
 
-  local self
   self = {
     toggle = function(layer, value, lnum, context)
-      if expanded[get_key(value)] then
+      if expanded[context.indent][get_key(value)] then
         collapse(layer, value, lnum, context)
       elseif opts.has_children(value) then
         expand(layer, value, lnum, context)
@@ -121,15 +154,8 @@ function M.new_tree(opts)
       if not opts.has_children(value) then
         return
       end
-      local context = {
-        indent = 0,
-        actions = {
-          { label = "Expand", fn = self.toggle, }
-        }
-      }
-      opts.fetch_children(value, function(children)
-        layer.render(children, opts.render_child, context)
-        expand_expanded(layer, children)
+      eager_fetch_expanded_children(value, function()
+        render_all_expanded(layer, value)
       end)
     end,
   }

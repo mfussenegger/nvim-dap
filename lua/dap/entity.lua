@@ -15,7 +15,7 @@ local syntax_mapping = {
 
 
 function variable.get_key(var)
-  return var.variablesReference or var
+  return var.name or var
 end
 
 
