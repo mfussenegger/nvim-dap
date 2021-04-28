@@ -14,8 +14,9 @@ function M.hover(resolve_expression_fn)
   -- if not is_stopped_at_frame() then return end
   local widgets = require('dap.ui.widgets')
   local builder = widgets.builder(widgets.expression)
+    .new_win(widgets.with_resize(widgets.new_float_win))
   if resolve_expression_fn then
-    builder.before_open(resolve_expression_fn)
+    builder.add_hooks(resolve_expression_fn)
   end
   builder.build().open()
 end

@@ -83,20 +83,6 @@ function variable.fetch_children(var, cb)
     cb(variable.get_children(var))
   elseif session then
     local params = { variablesReference = var.variablesReference }
-
-    -- TODO: get rid of this workaround
-    -- refresh on variables shouldn't cancel out toggle/expansion
-    -- but refresh also shouldn't automatically collapse all items
-    -- local dap = require('dap')
-    -- local var_listeners = dap.listeners.after['variables']
-    -- local temp_mute = function(k, v)
-    --   return function()
-    --     var_listeners[k] = v
-    --   end
-    -- end
-    -- for k, v in pairs(var_listeners) do
-    --   var_listeners[k] = temp_mute(k, v)
-    -- end
     session:request('variables', params, function(err, resp)
       if err then
         M.append(err.message)
@@ -107,6 +93,7 @@ function variable.fetch_children(var, cb)
     end)
   end
 end
+
 
 variable.tree_spec = {
   get_key = variable.get_key,

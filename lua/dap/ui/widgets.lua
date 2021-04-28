@@ -18,7 +18,7 @@ local function new_buf()
 end
 
 
-local function new_float_win(buf)
+function M.new_float_win(buf)
   local opts = vim.lsp.util.make_floating_popup_options(50, 30, {})
   local win = api.nvim_open_win(buf, true, opts)
   return win
@@ -34,7 +34,9 @@ local function new_sidebar_win()
 end
 
 
-local function with_resize(new_win)
+--- Decorates a `new_win` function, adding a hook that will cause the window to
+-- be resized if the content changes.
+function M.with_resize(new_win)
   return setmetatable({resize=true}, {
     __call = function(_, buf)
       return new_win(buf)
@@ -74,8 +76,22 @@ end
 
 
 M.scopes = {
-  new_buf = new_buf,
-  new_win = with_resize(new_float_win),
+  new_buf = function(view)
+    local dap = require('dap')
+    local function reset_tree()
+      view.tree = nil
+    end
+    dap.listeners.after['event_terminated'][view] = reset_tree
+    dap.listeners.after['event_exited'][view] = reset_tree
+    local buf = new_buf()
+    api.nvim_buf_attach(buf, false, {
+      on_detach = function()
+        dap.listeners.after['event_terminated'][view] = nil
+        dap.listeners.after['event_exited'][view] = nil
+      end
+    })
+    return buf
+  end,
   render = function(view)
     local session = require('dap').session()
     local frame = session and session.current_frame or {}
@@ -94,7 +110,6 @@ M.scopes = {
 
 M.frames = {
   new_buf = new_buf,
-  new_win = with_resize(new_float_win),
   render = function(view)
     local session = require('dap').session()
     local frames = (session and session.threads[session.stopped_thread_id] or {}).frames or {}
@@ -121,11 +136,13 @@ M.frames = {
 
 M.expression = {
   new_buf = new_buf,
-  new_win = with_resize(new_float_win),
-  before_open = M.resolve_expression,
-  render = function(view, expression)
+  before_open = function(view)
+    view.__expression = M.resolve_expression()
+  end,
+  render = function(view)
     local session = require('dap').session()
     local frame = session and session.current_frame
+    local expression = view.__expression
     local variable
     local scopes = frame.scopes or {}
     for _, s in pairs(scopes) do
@@ -157,95 +174,110 @@ function M.builder(widget)
   assert(widget, 'widget is required')
   local nbuf = widget.new_buf
   local nwin = widget.new_win
-  local before_open = widget.before_open
-  local after_open = widget.after_open
-  local builder
-  builder = {
+  local hooks = {{widget.before_open, widget.after_open},}
+  local builder = {}
 
-    new_buf = function(val)
-      nbuf = val
-      return builder
-    end,
+  function builder.add_hooks(before_open, after_open)
+    table.insert(hooks, {before_open, after_open})
+    return builder
+  end
 
-    new_win = function(val)
-      nwin = val
-      return builder
-    end,
+  function builder.keep_focus()
+    builder.add_hooks(
+      function() return api.nvim_get_current_win() end,
+      function(win)
+        api.nvim_set_current_win(win)
+      end
+    )
+    return builder
+  end
 
-    before_open = function(val)
-      before_open = val
-      return builder
-    end,
+  function builder.new_buf(val)
+    nbuf = val
+    return builder
+  end
 
-    after_open = function(val)
-      after_open = val
-      return builder
-    end,
+  function builder.new_win(val)
+    nwin = val
+    return builder
+  end
 
-    build = function()
-      local after_open_args
-      local view = ui.new_view(nbuf, nwin, {
-        before_open = before_open,
-        after_open = function(view, ...)
-          after_open_args = ...
-          if after_open then
-            pcall(after_open, ...)
+  function builder.build()
+    local before_open_results
+    local view = ui.new_view(nbuf, nwin, {
+
+      before_open = function(view)
+        before_open_results = {}
+        for _, hook in pairs(hooks) do
+          local result = hook[1] and hook[1](view) or vim.NIL
+          table.insert(before_open_results, result)
+        end
+      end,
+
+      after_open = function(view, ...)
+        for idx, hook in pairs(hooks) do
+          if hook[2] then
+            local result = hook[2](view, before_open_results[idx])
+            table.insert(before_open_results, result)
           end
-          return widget.render(view, ...)
         end
-      })
-      view.layer = function()
-        if type(nwin) == "table" and nwin.resize then
-          return resizing_layer(view.win, view.buf)
-        else
-          return ui.layer(view.buf)
-        end
+        return widget.render(view, ...)
       end
-
-      view.refresh = function()
-        local layer = view.layer()
-        layer.render({}, tostring, nil, 0, -1)
-        widget.render(view, after_open_args)
+    })
+    view.layer = function()
+      if type(nwin) == "table" and nwin.resize then
+        return resizing_layer(view.win, view.buf)
+      else
+        return ui.layer(view.buf)
       end
-      return view
     end
-  }
+
+    view.refresh = function()
+      local layer = view.layer()
+      layer.render({}, tostring, nil, 0, -1)
+      widget.render(view)
+    end
+    return view
+  end
   return builder
 end
 
 
 function M.hover(widget, ...)
   return M.builder(widget)
+    .new_win(M.with_resize(M.new_float_win))
     .build()
     .open(...)
 end
 
 
+--- Decorate a `new_buf` function so that it will register a
+-- `dap.listeners.after[listener]` which will trigger a `view.refresh` call.
+--
+-- Use this if you want a widget to live-update.
+function M.with_refresh(new_buf_, listener)
+  return function(view)
+    local dap = require('dap')
+    dap.listeners.after[listener][view] = view.refresh
+    local buf = new_buf_(view)
+    api.nvim_buf_attach(buf, false, {
+      on_detach = function()
+        dap.listeners.after[listener][view] = nil
+      end
+    })
+    return buf
+  end
+end
+
+
+--- Open the given widget in a sidebar
 function M.sidebar(widget)
-  local dap = require('dap')
-  local view
-  -- TODO: provide a `with_refresh` combinator(?)
-  -- TODO: Make it possible to create arbitrary before/open pairs to pass
-  -- args correctly
-  view = M.builder(widget)
-    .before_open(function() return api.nvim_get_current_win() end)
-    .after_open(function(win)
-      api.nvim_set_current_win(win)
-    end)
+  local view = M.builder(widget)
+    .keep_focus()
     .new_win(new_sidebar_win)
-    .new_buf(function()
-      dap.listeners.after['variables'][view] = view.refresh
-      return new_buf()
-    end)
+    .new_buf(M.with_refresh(widget.new_buf, 'variables'))
     .build()
   view.open()
-  api.nvim_buf_attach(view.buf, false, {
-    on_detach = function()
-      dap.listeners.after['variables'][view] = nil
-    end
-  })
-  -- TODO: on new session the internal trees
-  -- should be re-created to avoid `expanded` from leaking memory
   return view
 end
 

@@ -170,7 +170,7 @@ end
 --
 -- Arguments passed to `view.open()` are forwarded to the `new_win` function
 --
--- @param new_buf (-> number): function to create a new buffer. Must return the bufnr
+-- @param new_buf (view -> number): function to create a new buffer. Must return the bufnr
 -- @param new_win (-> number): function to create a new window. Must return the winnr
 -- @param opts A dictionary with `before_open` and `after_open` hooks.
 function M.new_view(new_buf, new_win, opts)
@@ -209,10 +209,10 @@ function M.new_view(new_buf, new_win, opts)
       local win = self.win
       local before_open_result
       if opts.before_open then
-        before_open_result = opts.before_open(...)
+        before_open_result = opts.before_open(self, ...)
       end
       if not buf then
-        buf = new_buf()
+        buf = new_buf(self)
         assert(buf, 'The `new_buf` function is supposed to return a buffer')
         api.nvim_buf_attach(buf, false, { on_detach = function() self.buf = nil end })
       end
