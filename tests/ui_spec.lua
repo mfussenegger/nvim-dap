@@ -66,4 +66,90 @@ describe('ui', function()
       assert.are.same('cc', layer.get(3).item.label)
     end)
   end)
+
+
+  it('tree can render a tree structure', function()
+    local opts = {
+      get_key = function(val) return val.name end,
+      render_parent = function(val) return val.name end,
+      has_children = function(val) return val.children end,
+      get_children = function(val) return val.children end
+    }
+    local tree = ui.new_tree(opts)
+    local buf = api.nvim_create_buf(true, true)
+    local layer = ui.layer(buf)
+    local d = { name = 'd' }
+    local c = { name = 'c', children = { d, } }
+    local b = { name = 'b', children = { c, } }
+    local a = { name = 'a' }
+    local root = {
+      name = 'root',
+      children = { a, b }
+    }
+    local root_copy = vim.deepcopy(root)
+    tree.render(layer, root)
+    local lines = api.nvim_buf_get_lines(buf, 0, -1, true)
+    assert.are.same({
+      'root',
+      '  a',
+      '  b',
+      '',
+    }, lines)
+
+    it('can expand an element with children', function()
+      local lnum = 2
+      local info = layer.get(lnum)
+      info.context.actions[1].fn(layer, info.item, lnum, info.context)
+      lines = api.nvim_buf_get_lines(buf, 0, -1, true)
+      assert.are.same({
+        'root',
+        '  a',
+        '  b',
+        '    c',
+        '',
+      }, lines)
+
+      lnum = 3
+      info = layer.get(lnum)
+      info.context.actions[1].fn(layer, info.item, lnum, info.context)
+      lines = api.nvim_buf_get_lines(buf, 0, -1, true)
+      assert.are.same({
+        'root',
+        '  a',
+        '  b',
+        '    c',
+        '      d',
+        '',
+      }, lines)
+    end)
+
+    it('can render with new data and previously expanded elements are still expanded', function()
+      layer.render({}, tostring, nil, 0, -1)
+      lines = api.nvim_buf_get_lines(buf, 0, -1, true)
+      assert.are.same({''}, lines)
+      tree.render(layer, root_copy)
+      lines = api.nvim_buf_get_lines(buf, 0, -1, true)
+      assert.are.same({
+        'root',
+        '  a',
+        '  b',
+        '    c',
+        '      d',
+        '',
+      }, lines)
+    end)
+
+    it('can collapse an expanded item', function()
+      local lnum = 2
+      local info = layer.get(lnum)
+      info.context.actions[1].fn(layer, info.item, lnum, info.context)
+      lines = api.nvim_buf_get_lines(buf, 0, -1, true)
+      assert.are.same({
+        'root',
+        '  a',
+        '  b',
+        '',
+      }, lines)
+    end)
+  end)
 end)

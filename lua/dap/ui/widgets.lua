@@ -120,6 +120,7 @@ M.frames = {
         fn = function(_, frame)
           if session then
             session:_frame_set(frame)
+            -- TODO: view shouldn't close if it is a sidebar
             view.close()
           else
             print('Cannot navigate to frame without active session')

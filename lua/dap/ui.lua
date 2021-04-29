@@ -52,46 +52,103 @@ local function with_indent(indent, fn)
   end
   return function(...)
     local text, hl_groups = fn(...)
-    return string.rep(' ', indent) .. text, vim.tbl_map(move_cols, hl_groups)
+    return string.rep(' ', indent) .. text, vim.tbl_map(move_cols, hl_groups or {})
   end
 end
 
 
 function M.new_tree(opts)
+  assert(opts.render_parent, 'opts for tree requires a `render_parent` function')
+  assert(opts.get_children, 'opts for tree requires a `get_children` function')
+  assert(opts.has_children, 'opts for tree requires a `has_children` function')
   local get_key = opts.get_key or function(x) return x end
-
-  -- expanded[indent][get_key(val)] indicates if an entry in the tree is expanded
-  -- `indent` is used because `get_key` might not be unique across the whole hierarchy
-  local expanded = setmetatable({}, {
-    __index = function(tbl, key)
-      rawset(tbl, key, {})
-      return rawget(tbl, key)
-    end
-  })
+  opts.fetch_children = opts.fetch_children or function(item, cb)
+    cb(opts.get_children(item))
+  end
+  opts.render_child = opts.render_child or opts.render_parent
 
   local self  -- forward reference
 
+  -- tree supports to re-draw with new data while retaining previously
+  -- expansion information.
+  --
+  -- Since the data is completely changed, the expansion information must be
+  -- held separately.
+  --
+  -- The structure must supports constructs like this:
+  --
+  --         root
+  --       /     \
+  --      a      b
+  --     /       \
+  --    x        x
+  --   / \
+  --  aa bb
+  --
+  -- It must be possible to distinguish the two `x`
+  -- This assumes that `get_key` within a level is unique and that it is
+  -- deterministic between two `render` operations.
+  local expanded_root = {}
+
+  local function get_expanded(item)
+    local ancestors = {}
+    local parent = item
+    while true do
+      parent = parent.__parent
+      if parent then
+        table.insert(ancestors, parent)
+      else
+        break
+      end
+    end
+    local expanded = expanded_root
+    for i = #ancestors, 1, -1 do
+      expanded = assert(expanded[ancestors[i].key], 'expanded entry for parent must exist.'
+        .. '\nexpanded=' .. vim.inspect(expanded)
+        .. '\ni=' .. tostring(i)
+        .. '\nancestors=' .. vim.inspect(vim.tbl_map(function(x) return x.key end, ancestors))
+        .. '\nitem=' .. vim.inspect(item)
+      )
+    end
+    return expanded
+  end
+
+  local function set_expanded(item, value)
+    get_expanded(item)[get_key(item)] = value
+  end
+
+  local function is_expanded(item)
+    local expanded = get_expanded(item)
+    return expanded[get_key(item)] ~= nil
+  end
+
   local expand = function(layer, value, lnum, context)
-    expanded[context.indent][get_key(value)] = true
+    set_expanded(value, {})
     opts.fetch_children(value, function(children)
       local ctx = {
         actions = context.actions,
         indent = context.indent + 2,
       }
+      for _, child in pairs(children) do
+        if opts.has_children(child) then
+          child.__parent = { key = get_key(value), __parent = value.__parent }
+        end
+      end
       local render = with_indent(ctx.indent, opts.render_child)
       layer.render(children, render, ctx, lnum + 1)
     end)
   end
 
-  local function eager_fetch_expanded_children(value, cb, ctx, indent)
-    indent = indent or 0
+  local function eager_fetch_expanded_children(value, cb, ctx)
     ctx = ctx or { to_traverse = 1 }
     opts.fetch_children(value, function(children)
       ctx.to_traverse = ctx.to_traverse + #children
       for _, child in pairs(children) do
-        local key = get_key(child)
-        if expanded[indent][key] then
-          eager_fetch_expanded_children(child, cb, ctx, indent + 2)
+        if opts.has_children(child) then
+          child.__parent = { key = get_key(value), __parent = value.__parent }
+        end
+        if is_expanded(child) then
+          eager_fetch_expanded_children(child, cb, ctx)
         else
           ctx.to_traverse = ctx.to_traverse - 1
         end
@@ -104,45 +161,44 @@ function M.new_tree(opts)
   end
 
   local function render_all_expanded(layer, value, indent)
-    indent = indent or 0
+    indent = indent or 2
     local context = {
       actions = { { label ='Expand', fn = self.toggle, }, },
       indent = indent,
     }
     for _, child in pairs(opts.get_children(value)) do
       layer.render({child}, with_indent(indent, opts.render_child), context)
-      if expanded[indent][get_key(child)] then
+      if is_expanded(child) then
         render_all_expanded(layer, child, indent + 2)
       end
     end
   end
 
   local collapse = function(layer, value, lnum, context)
-    local indent = context.indent
-    if not expanded[indent][get_key(value)] then
+    if not is_expanded(value) then
       return
     end
     local num_vars = 1
     local collapse_child
-    collapse_child = function(parent, indent_)
+    collapse_child = function(parent)
       num_vars = num_vars + 1
-      if expanded[indent_][get_key(parent)] then
-        expanded[indent_][get_key(parent)] = nil
+      if is_expanded(parent) then
+        set_expanded(parent, nil)
         for _, child in pairs(opts.get_children(parent)) do
-          collapse_child(child, indent_ + 2)
+          collapse_child(child)
         end
       end
     end
-    expanded[indent][get_key(value)] = nil
     for _, child in ipairs(opts.get_children(value)) do
-      collapse_child(child, indent + 2)
+      collapse_child(child)
     end
+    set_expanded(value, nil)
     layer.render({}, tostring, context, lnum + 1, lnum + num_vars)
   end
 
   self = {
     toggle = function(layer, value, lnum, context)
-      if expanded[context.indent][get_key(value)] then
+      if is_expanded(value) then
         collapse(layer, value, lnum, context)
       elseif opts.has_children(value) then
         expand(layer, value, lnum, context)
@@ -153,6 +209,9 @@ function M.new_tree(opts)
       layer.render({value}, opts.render_parent)
       if not opts.has_children(value) then
         return
+      end
+      if not is_expanded(value) then
+        set_expanded(value, {})
       end
       eager_fetch_expanded_children(value, function()
         render_all_expanded(layer, value)

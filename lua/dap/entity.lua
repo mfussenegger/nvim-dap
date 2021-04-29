@@ -31,7 +31,7 @@ function variable.render_parent(var)
 end
 
 function variable.render_child(var, indent)
-  indent = indent or 2
+  indent = indent or 0
   local hl_regions = {
     {'Identifier', indent, #var.name + indent + 1}
   }
