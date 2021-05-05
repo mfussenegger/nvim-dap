@@ -45,6 +45,183 @@ function M.pick_one(items, prompt, label_fn, cb)
 end
 
 
+local function with_indent(indent, fn)
+  local move_cols = function(hl_group)
+    local end_col = hl_group[3] == -1 and -1 or hl_group[3] + indent
+    return {hl_group[1], hl_group[2] + indent, end_col}
+  end
+  return function(...)
+    local text, hl_groups = fn(...)
+    return string.rep(' ', indent) .. text, vim.tbl_map(move_cols, hl_groups or {})
+  end
+end
+
+
+function M.new_tree(opts)
+  assert(opts.render_parent, 'opts for tree requires a `render_parent` function')
+  assert(opts.get_children, 'opts for tree requires a `get_children` function')
+  assert(opts.has_children, 'opts for tree requires a `has_children` function')
+  local get_key = opts.get_key or function(x) return x end
+  opts.fetch_children = opts.fetch_children or function(item, cb)
+    cb(opts.get_children(item))
+  end
+  opts.render_child = opts.render_child or opts.render_parent
+
+  local self  -- forward reference
+
+  -- tree supports to re-draw with new data while retaining previously
+  -- expansion information.
+  --
+  -- Since the data is completely changed, the expansion information must be
+  -- held separately.
+  --
+  -- The structure must supports constructs like this:
+  --
+  --         root
+  --       /     \
+  --      a      b
+  --     /       \
+  --    x        x
+  --   / \
+  --  aa bb
+  --
+  -- It must be possible to distinguish the two `x`
+  -- This assumes that `get_key` within a level is unique and that it is
+  -- deterministic between two `render` operations.
+  local expanded_root = {}
+
+  local function get_expanded(item)
+    local ancestors = {}
+    local parent = item
+    while true do
+      parent = parent.__parent
+      if parent then
+        table.insert(ancestors, parent.key)
+      else
+        break
+      end
+    end
+    local expanded = expanded_root
+    for i = #ancestors, 1, -1 do
+      expanded = assert(expanded[ancestors[i]], 'expanded entry for parent must exist.'
+        .. '\nexpanded=' .. vim.inspect(expanded_root)
+        .. '\ni=' .. tostring(i)
+        .. '\nancestors=' .. vim.inspect(ancestors)
+        .. '\nitem=' .. vim.inspect(item)
+      )
+    end
+    return expanded
+  end
+
+  local function set_expanded(item, value)
+    local expanded = get_expanded(item)
+    expanded[get_key(item)] = value
+  end
+
+  local function is_expanded(item)
+    local expanded = get_expanded(item)
+    return expanded[get_key(item)] ~= nil
+  end
+
+  local expand = function(layer, value, lnum, context)
+    set_expanded(value, {})
+    opts.fetch_children(value, function(children)
+      local ctx = {
+        actions = context.actions,
+        indent = context.indent + 2,
+      }
+      for _, child in pairs(children) do
+        if opts.has_children(child) then
+          child.__parent = { key = get_key(value), __parent = value.__parent }
+        end
+      end
+      local render = with_indent(ctx.indent, opts.render_child)
+      layer.render(children, render, ctx, lnum + 1)
+    end)
+  end
+
+  local function eager_fetch_expanded_children(value, cb, ctx)
+    ctx = ctx or { to_traverse = 1 }
+    opts.fetch_children(value, function(children)
+      ctx.to_traverse = ctx.to_traverse + #children
+      for _, child in pairs(children) do
+        if opts.has_children(child) then
+          child.__parent = { key = get_key(value), __parent = value.__parent }
+        end
+        if is_expanded(child) then
+          eager_fetch_expanded_children(child, cb, ctx)
+        else
+          ctx.to_traverse = ctx.to_traverse - 1
+        end
+      end
+      ctx.to_traverse = ctx.to_traverse - 1
+      if ctx.to_traverse == 0 then
+        cb()
+      end
+    end)
+  end
+
+  local function render_all_expanded(layer, value, indent)
+    indent = indent or 2
+    local context = {
+      actions = { { label ='Expand', fn = self.toggle, }, },
+      indent = indent,
+    }
+    for _, child in pairs(opts.get_children(value)) do
+      layer.render({child}, with_indent(indent, opts.render_child), context)
+      if is_expanded(child) then
+        render_all_expanded(layer, child, indent + 2)
+      end
+    end
+  end
+
+  local collapse = function(layer, value, lnum, context)
+    if not is_expanded(value) then
+      return
+    end
+    local num_vars = 1
+    local collapse_child
+    collapse_child = function(parent)
+      num_vars = num_vars + 1
+      if is_expanded(parent) then
+        for _, child in pairs(opts.get_children(parent)) do
+          collapse_child(child)
+        end
+        set_expanded(parent, nil)
+      end
+    end
+    for _, child in ipairs(opts.get_children(value)) do
+      collapse_child(child)
+    end
+    set_expanded(value, nil)
+    layer.render({}, tostring, context, lnum + 1, lnum + num_vars)
+  end
+
+  self = {
+    toggle = function(layer, value, lnum, context)
+      if is_expanded(value) then
+        collapse(layer, value, lnum, context)
+      elseif opts.has_children(value) then
+        expand(layer, value, lnum, context)
+      end
+    end,
+
+    render = function(layer, value)
+      layer.render({value}, opts.render_parent)
+      if not opts.has_children(value) then
+        return
+      end
+      if not is_expanded(value) then
+        set_expanded(value, {})
+      end
+      eager_fetch_expanded_children(value, function()
+        render_all_expanded(layer, value)
+      end)
+    end,
+  }
+  return self
+end
+
 do
   function M.get_last_lnum(bufnr)
     return api.nvim_buf_call(bufnr, function() return vim.fn.line('$') - 1 end)
