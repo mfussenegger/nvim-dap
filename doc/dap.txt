@@ -644,6 +644,95 @@ toggle_multiline_display({value})  *dap.ui.variables.toggle_multiline_display()*
         in a hover window.
 
 
+
+==============================================================================
+WIDGET API                                                    *dap-widgets*
+
+
+Warning: API is experimental and subject to change.
+
+
+The UI of nvim-dap is by default minimal and noninvasive, but it provides
+widget primitives that can be used to build and customize a UI.
+
+Some examples:
+
+
+View the current scopes in a sidebar:
+
+>
+  local widgets = require('dap.ui.widgets')
+  local my_sidebar = widgets.sidebar(widgets.scopes)
+  my_sidebar.open()
+<
+
+View the current frames in a sidebar:
+
+>
+  local widgets = require('dap.ui.widgets')
+  local my_sidebar = widgets.sidebar(widgets.frames)
+  my_sidebar.open()
+<
+
+
+View the current scopes in a centered floating window:
+
+>
+  local widgets = require('dap.ui.widgets')
+  widgets.centered_float(widgets.scopes)
+<
+
+
+View the value for the expression under the cursor in a floating window:
+
+>
+  require('dap.ui.widgets').hover()
+<
+
+
+Available widgets entities:
+
+- scopes
+- frames
+- expression
+
+
+Available widget builder functions:
+
+- sidebar({widget})
+    Creates a view for a sidebar. You must call `open` on the result to open the window.
+
+- cursor_float({widget})
+    Opens the contents of the widget in a floating window anchored at the cursor.
+
+- centered_float({widget}
+    Opens the contents of the widget in a centered floating window.
+
+- hover({expr})
+    Evaluates the expression and displays the result in a floating window.
+
+    {expr} defaults to `<cexpr>`.
+    It can be either a string as described in |expand()| or a function that
+    should return the variable or expression that should be evaluated.
+
+All widget builder functions return a `view`. A view has the following methods:
+
+- open()
+- close()
+- toggle()
+
+
+You could also customize the buffer and window creation using a low-level builder:
+
+>
+  local widgets = require('dap.ui.widgets')
+  widgets.builder(widgets.scopes)
+    .new_buf(function_that_creates_and_returns_a_buffer)
+    .new_win(function_that_creates_and_returns_a_window)
+    .build()
+<
+
+
 ==============================================================================
 EXTENSIONS API                                                *dap-extensions*
 

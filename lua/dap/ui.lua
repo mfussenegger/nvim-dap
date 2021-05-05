@@ -223,16 +223,134 @@ function M.new_tree(opts)
 end
 
 
+--- Create a view that can be opened, closed and toggled.
+--
+-- The view manages a single buffer and a single window. Both are created when
+-- the view is opened and destroyed when the view is closed.
+--
+-- Arguments passed to `view.open()` are forwarded to the `new_win` function
+--
+-- @param new_buf (view -> number): function to create a new buffer. Must return the bufnr
+-- @param new_win (-> number): function to create a new window. Must return the winnr
+-- @param opts A dictionary with `before_open` and `after_open` hooks.
+function M.new_view(new_buf, new_win, opts)
+  assert(new_buf, 'new_buf must not be nil')
+  assert(new_win, 'new_win must not be nil')
+  opts = opts or {}
+  local self
+  self = {
+    buf = nil,
+    win = nil,
+
+    toggle = function(...)
+      if not self.close() then
+        self.open(...)
+      end
+    end,
+
+    close = function()
+      local closed = false
+      local win = self.win
+      local buf = self.buf
+      if win and api.nvim_win_is_valid(win) and api.nvim_win_get_buf(win) == buf then
+        api.nvim_win_close(win, true)
+        self.win = nil
+        closed = true
+      end
+      if buf then
+        pcall(api.nvim_buf_delete, buf, {force=true})
+        self.buf = nil
+      end
+      return closed
+    end,
+
+    open = function(...)
+      local buf = self.buf
+      local win = self.win
+      local before_open_result
+      if opts.before_open then
+        before_open_result = opts.before_open(self, ...)
+      end
+      if not buf then
+        buf = new_buf(self)
+        assert(buf, 'The `new_buf` function is supposed to return a buffer')
+        api.nvim_buf_attach(buf, false, { on_detach = function() self.buf = nil end })
+      end
+      if not win or not api.nvim_win_is_valid(win) then
+        win = new_win(buf, ...)
+      end
+      api.nvim_win_set_buf(win, buf)
+
+      -- Trigger filetype again to ensure ftplugin files can change window settings
+      local ft = api.nvim_buf_get_option(buf, 'filetype')
+      api.nvim_buf_set_option(buf, 'filetype', ft)
+
+      self.buf = buf
+      self.win = win
+      if opts.after_open then
+        opts.after_open(self, before_open_result, ...)
+      end
+      return buf, win
+    end
+  }
+  return self
+end
+
+
+function M.trigger_actions()
+  local buf = api.nvim_get_current_buf()
+  local layer = M.get_layer(buf)
+  if not layer then return end
+  local lnum, col = unpack(api.nvim_win_get_cursor(0))
+  lnum = lnum - 1
+  local info = layer.get(lnum, 0, col)
+  local actions = info and info.context and info.context.actions
+  if not actions or #actions == 0 then
+    vim.notify('No action possible on: ' .. api.nvim_buf_get_lines(buf, lnum, lnum + 1, true)[1])
+    return
+  end
+  M.pick_if_many(
+    actions,
+    'Actions> ',
+    function(x) return type(x.label) == 'string' and x.label or x.label(info.item) end,
+    function(action)
+      if action then
+        action.fn(layer, info.item, lnum, info.context)
+      end
+    end
+  )
+end
+
+
 function M.get_last_lnum(bufnr)
   return api.nvim_buf_call(bufnr, function() return vim.fn.line('$') - 1 end)
 end
 
+
+local layers = {}
+
+function M.get_layer(buf)
+  return layers[buf]
+end
+
 function M.layer(buf)
   assert(buf, 'Need a buffer to operate on')
+  local layer = layers[buf]
+  if layer then
+    return layer
+  end
   local marks = {}
   local ns = api.nvim_create_namespace('dap.ui_layer_' .. buf)
   local nshl = api.nvim_create_namespace('dap.ui_layer_hl_' .. buf)
-  return {
+  local remove_marks = function(extmarks)
+    for _, mark in pairs(extmarks) do
+      local mark_id = mark[1]
+      marks[mark_id] = nil
+      api.nvim_buf_del_extmark(buf, ns, mark_id)
+    end
+  end
+
+  layer = {
     __marks = marks,
     --- Render the items and associate each item to the rendered line
     -- The item and context can then be retrieved using `.get(lnum)`
@@ -246,23 +364,29 @@ function M.layer(buf)
     render = function(xs, render_fn, context, start, end_)
       start = start or M.get_last_lnum(buf)
       end_ = end_ or start
+      render_fn = render_fn or tostring
       if end_ > start then
-        local extmarks = api.nvim_buf_get_extmarks(buf, ns, {start, 0}, {end_ - 1, -1}, {})
-        for _, mark in pairs(extmarks) do
-          local mark_id = mark[1]
-          marks[mark_id] = nil
-          api.nvim_buf_del_extmark(buf, ns, mark_id)
-        end
+        remove_marks(api.nvim_buf_get_extmarks(buf, ns, {start, 0}, {end_ - 1, -1}, {}))
+      elseif end_ == -1 then
+        remove_marks(api.nvim_buf_get_extmarks(buf, ns, {start, 0}, {-1, -1}, {}))
       end
       -- This is a dummy call to insert new lines in a region
       -- the loop below will add the actual values
-      local lines = vim.tbl_map(function() return 'PLACEHOLDER' end, xs)
+      local lines = vim.tbl_map(function() return '' end, xs)
       api.nvim_buf_set_lines(buf, start, end_, true, lines)
 
       for i = start, start + #lines - 1 do
         local item = xs[i + 1 - start]
         local text, hl_regions = render_fn(item)
-        text = text:gsub('\n', ' ') -- Might make sense to change this and preserve newlines?
+        if not text then
+          local debuginfo = debug.getinfo(render_fn)
+          error(('render function must return a string, got nil instead. render_fn: '
+            .. debuginfo.short_src .. ':' .. debuginfo.linedefined
+            .. ' '
+            .. vim.inspect(xs)
+          ))
+        end
+        text = text:gsub('\n', '\\n')
         api.nvim_buf_set_lines(buf, i, i + 1, true, {text})
         if hl_regions then
           for _, hl_region in pairs(hl_regions) do
@@ -294,6 +418,9 @@ function M.layer(buf)
       return marks[extmark[1]]
     end
   }
+  layers[buf] = layer
+  api.nvim_buf_attach(buf, false, { on_detach = function(b) layers[b] = nil end })
+  return layer
 end
 
 
