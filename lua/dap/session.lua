@@ -66,7 +66,8 @@ function Session:run_in_terminal(request)
   if terminal_buf and api.nvim_buf_is_valid(terminal_buf) then
     api.nvim_buf_delete(terminal_buf, {force=true})
   end
-  api.nvim_command('belowright new')
+  local termWinCmd = dap().defaults[self.config.type].terminal_win_cmd
+  api.nvim_command(termWinCmd)
   terminal_buf = api.nvim_get_current_buf()
   local opts = {
     clear_env = false;

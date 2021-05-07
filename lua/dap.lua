@@ -37,6 +37,7 @@ M.defaults = setmetatable(
       exception_breakpoints = 'default';
       -- type SteppingGranularity = 'statement' | 'line' | 'instruction'
       stepping_granularity = 'statement';
+      terminal_win_cmd = 'belowright new';
     },
   },
   {
