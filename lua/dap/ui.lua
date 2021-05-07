@@ -14,6 +14,8 @@ function M.apply_winopts(win, opts)
       api.nvim_win_set_width(win, v)
     elseif k == 'height' then
       api.nvim_win_set_height(win, v)
+    elseif k == 'border' then
+      api.nvim_win_set_config(win, {[k]=v})
     else
       api.nvim_win_set_option(win, k, v)
     end

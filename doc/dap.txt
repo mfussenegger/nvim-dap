@@ -699,16 +699,18 @@ Available widgets entities:
 
 Available widget builder functions:
 
-- sidebar({widget})
+- sidebar({widget}, {winopts}, {wincmd})
     Creates a view for a sidebar. You must call `open` on the result to open the window.
 
-- cursor_float({widget})
+    See |dap.repl.open()| for a description of `winopts` and `wincmd`.
+
+- cursor_float({widget}, {winopts})
     Opens the contents of the widget in a floating window anchored at the cursor.
 
-- centered_float({widget}
+- centered_float({widget}, {winopts})
     Opens the contents of the widget in a centered floating window.
 
-- hover({expr})
+- hover({expr}, {winopts})
     Evaluates the expression and displays the result in a floating window.
 
     {expr} defaults to `<cexpr>`.

@@ -41,13 +41,25 @@ function M.new_centered_float_win(buf)
 end
 
 
-local function new_sidebar_win()
-  vim.cmd('30 vsplit')
-  local win = api.nvim_get_current_win()
-  api.nvim_win_set_option(win, 'number', false)
-  api.nvim_win_set_option(win, 'relativenumber', false)
-  api.nvim_win_set_option(win, 'statusline', ' ')
-  return win
+local function with_winopts(new_win, winopts)
+  return function(...)
+    local win = new_win(...)
+    ui.apply_winopts(win, winopts)
+    return win
+  end
+end
+
+
+local function mk_sidebar_win_func(winopts, wincmd)
+  return function()
+    vim.cmd(wincmd or '30 vsplit')
+    local win = api.nvim_get_current_win()
+    api.nvim_win_set_option(win, 'number', false)
+    api.nvim_win_set_option(win, 'relativenumber', false)
+    api.nvim_win_set_option(win, 'statusline', ' ')
+    ui.apply_winopts(win, winopts)
+    return win
+  end
 end
 
 
@@ -266,7 +278,7 @@ function M.builder(widget)
 end
 
 
-function M.hover(expr)
+function M.hover(expr, winopts)
   expr = expr or '<cexpr>'
   local value
   if type(expr) == "function" then
@@ -275,25 +287,25 @@ function M.hover(expr)
     value = vim.fn.expand(expr)
   end
   local view = M.builder(M.expression)
-    .new_win(M.with_resize(M.new_cursor_anchored_float_win))
+    .new_win(M.with_resize(with_winopts(M.new_cursor_anchored_float_win, winopts)))
     .build()
   view.open(value)
   return view
 end
 
 
-function M.cursor_float(widget)
+function M.cursor_float(widget, winopts)
   local view = M.builder(widget)
-    .new_win(M.with_resize(M.new_cursor_anchored_float_win))
+    .new_win(M.with_resize(with_winopts(M.new_cursor_anchored_float_win, winopts)))
     .build()
   view.open()
   return view
 end
 
 
-function M.centered_float(widget)
+function M.centered_float(widget, winopts)
   local view = M.builder(widget)
-    .new_win(M.new_centered_float_win)
+    .new_win(with_winopts(M.new_centered_float_win, winopts))
     .build()
   view.open()
   return view
@@ -320,10 +332,12 @@ end
 
 
 --- Open the given widget in a sidebar
-function M.sidebar(widget)
+--@param winopts with options that configure the window
+--@param wincmd command used to create the sidebar
+function M.sidebar(widget, winopts, wincmd)
   return M.builder(widget)
     .keep_focus()
-    .new_win(new_sidebar_win)
+    .new_win(mk_sidebar_win_func(winopts, wincmd))
     .new_buf(M.with_refresh(widget.new_buf, widget.refresh_listener or 'event_stopped'))
     .build()
 end
