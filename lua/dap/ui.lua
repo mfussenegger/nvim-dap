@@ -103,12 +103,12 @@ function M.new_tree(opts)
     end
     local expanded = expanded_root
     for i = #ancestors, 1, -1 do
-      expanded = assert(expanded[ancestors[i]], 'expanded entry for parent must exist.'
-        .. '\nexpanded=' .. vim.inspect(expanded_root)
-        .. '\ni=' .. tostring(i)
-        .. '\nancestors=' .. vim.inspect(ancestors)
-        .. '\nitem=' .. vim.inspect(item)
-      )
+      local parent_expanded = expanded[ancestors[i]]
+      if parent_expanded then
+        expanded = parent_expanded
+      else
+        break
+      end
     end
     return expanded
   end

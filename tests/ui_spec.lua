@@ -67,14 +67,14 @@ describe('ui', function()
     end)
   end)
 
+  local opts = {
+    get_key = function(val) return val.name end,
+    render_parent = function(val) return val.name end,
+    has_children = function(val) return val.children end,
+    get_children = function(val) return val.children end
+  }
 
   it('tree can render a tree structure', function()
-    local opts = {
-      get_key = function(val) return val.name end,
-      render_parent = function(val) return val.name end,
-      has_children = function(val) return val.children end,
-      get_children = function(val) return val.children end
-    }
     local tree = ui.new_tree(opts)
     local buf = api.nvim_create_buf(true, true)
     local layer = ui.layer(buf)
@@ -148,6 +148,29 @@ describe('ui', function()
         'root',
         '  a',
         '  b',
+        '',
+      }, lines)
+    end)
+
+    it('can re-use a subnode in a different tree', function()
+      local lnum = 2
+      local info = layer.get(lnum)
+      info.context.actions[1].fn(layer, info.item, lnum, info.context)
+      lines = api.nvim_buf_get_lines(buf, 0, -1, true)
+      assert.are.same({
+        'root',
+        '  a',
+        '  b',
+        '    c',
+        '',
+      }, lines)
+      layer.render({}, tostring, nil, 0, -1)
+      local subtree = ui.new_tree(opts)
+      subtree.render(layer, b)
+      lines = api.nvim_buf_get_lines(buf, 0, -1, true)
+      assert.are.same({
+        'b',
+        '  c',
         '',
       }, lines)
     end)
