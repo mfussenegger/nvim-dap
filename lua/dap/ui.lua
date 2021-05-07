@@ -394,8 +394,7 @@ function M.layer(buf)
               buf, nshl, hl_region[1], i, hl_region[2], hl_region[3])
           end
         end
-        local line = api.nvim_buf_get_lines(buf, i, i + 1, true)[1]
-        local mark_id = api.nvim_buf_set_extmark(buf, ns, i, 0, {end_col=(#line - 1)})
+        local mark_id = api.nvim_buf_set_extmark(buf, ns, i, 0, {end_col=(#text - 1)})
         marks[mark_id] = { mark_id = mark_id, item = item, context = context }
       end
     end,
