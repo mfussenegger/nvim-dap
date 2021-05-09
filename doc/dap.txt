@@ -372,6 +372,17 @@ launch({adapter}, {config})                                       *dap.launch()*
                         not required in this case.
             {config}    |dap-configuration|
 
+stop()                                                              *dap.stop()*
+        Closes the current session.
+        To disconnect the adapter as well, call |dap.disconnect()| before
+        calling |dap.stop()|
+
+disconnect()                                                  *dap.disconnect()*
+        Disconnects the adapter from the current session. The session is not
+        closed. To close the session, call |dap.stop()|.
+ 
+        Requires an active session.
+
 
 attach({host}, {port}, {config})                                 *dap.attach()*
         Attach to a running debug adapter and then initialize it with the
