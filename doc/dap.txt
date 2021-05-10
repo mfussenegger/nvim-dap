@@ -297,9 +297,24 @@ should be launched by nvim-dap:
 
 <
 
-`fallback` here can be replaced with the |dap-adapter| type to have type
-specific terminal configurations.
 
+If you're using the integrated terminal, you can also configure the command
+that is used to create a split window:
+
+
+>
+
+  lua << EOF
+  local dap = require('dap')
+  dap.defaults.fallback.terminal_win_cmd = '50vsplit new'
+  EOF
+<
+
+The `terminal_win_cmd` defaults to `belowright new`.
+
+
+`fallback` can be replaced with the |dap-adapter| type to have type
+specific terminal configurations.
 
 ==============================================================================
 API                                                  *dap-api*
