@@ -754,7 +754,8 @@ function Session:initialize(config)
       print("Could not initialize debug adapter: " .. err0.message)
       return
     end
-    self.capabilities = result or {}
+    local capabilities = self.capabilities or {}
+    self.capabilities = vim.tbl_extend('force', capabilities, result or {})
     self:request(config.request, config, function(err)
       if err then
         print(string.format('Error on %s: %s', config.request, err.message))
@@ -831,6 +832,11 @@ function Session.event_continued()
 end
 
 function Session.event_breakpoint()
+end
+
+function Session:event_capabilities(body)
+  local capabilities = self.capabilities or {}
+  self.capabilities = vim.tbl_extend('force', capabilities, body.capabilities)
 end
 
 return Session
