@@ -754,7 +754,7 @@ function Session:initialize(config)
       print("Could not initialize debug adapter: " .. err0.message)
       return
     end
-    self.capabilities = result
+    self.capabilities = result or {}
     self:request(config.request, config, function(err)
       if err then
         print(string.format('Error on %s: %s', config.request, err.message))
