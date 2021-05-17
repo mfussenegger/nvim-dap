@@ -484,6 +484,7 @@ end
 function Session:handle_body(body)
   local decoded = convert_nil(vim.fn.json_decode(body))
   log.debug(decoded)
+  local listeners = dap().listeners
   if decoded.request_seq then
     local callback = self.message_callbacks[decoded.request_seq]
     local request = self.message_requests[decoded.request_seq]
@@ -495,41 +496,46 @@ function Session:handle_body(body)
     end
     if decoded.success then
       vim.schedule(function()
-        for _, c in pairs(dap().listeners.before[decoded.command]) do
+        for _, c in pairs(listeners.before[decoded.command]) do
           c(self, nil, decoded.body, request)
         end
         callback(nil, decoded.body)
-        for _, c in pairs(dap().listeners.after[decoded.command]) do
+        for _, c in pairs(listeners.after[decoded.command]) do
           c(self, nil, decoded.body, request)
         end
       end)
     else
       vim.schedule(function()
         local err = { message = decoded.message; body = decoded.body; }
-        for _, c in pairs(dap().listeners.before[decoded.command]) do
+        for _, c in pairs(listeners.before[decoded.command]) do
           c(self, err, nil, request)
         end
         callback(err, nil)
-        for _, c in pairs(dap().listeners.after[decoded.command]) do
+        for _, c in pairs(listeners.after[decoded.command]) do
           c(self, err, nil, request)
         end
       end)
     end
   elseif decoded.event then
     local callback = self['event_' .. decoded.event]
-    if callback then
-      vim.schedule(function()
-        for _, c in pairs(dap().listeners.before['event_' .. decoded.event]) do
-          c(self, decoded.body)
-        end
+    vim.schedule(function()
+      local event_handled = false
+      for _, c in pairs(listeners.before['event_' .. decoded.event]) do
+        event_handled = true
+        c(self, decoded.body)
+      end
+      if callback then
+        event_handled = true
         callback(self, decoded.body)
-        for _, c in pairs(dap().listeners.after['event_' .. decoded.event]) do
-          c(self, decoded.body)
-        end
-      end)
-    else
-      log.warn('No event handler for ', decoded)
-    end
+      end
+      for _, c in pairs(listeners.after['event_' .. decoded.event]) do
+        event_handled = true
+        c(self, decoded.body)
+      end
+      if not event_handled then
+        log.warn('No event handler for ', decoded)
+      end
+    end)
   elseif decoded.type == 'request' and decoded.command == 'runInTerminal' then
     self:run_in_terminal(decoded)
   else
