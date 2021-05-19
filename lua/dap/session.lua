@@ -66,9 +66,13 @@ function Session:run_in_terminal(request)
   if terminal_buf and api.nvim_buf_is_valid(terminal_buf) then
     api.nvim_buf_delete(terminal_buf, {force=true})
   end
-  local termWinCmd = dap().defaults[self.config.type].terminal_win_cmd
-  api.nvim_command(termWinCmd)
+  local cur_buf = api.nvim_get_current_buf()
+  api.nvim_command(dap().defaults[self.config.type].terminal_win_cmd)
   terminal_buf = api.nvim_get_current_buf()
+  local ok, path = pcall(api.nvim_buf_get_option, cur_buf, 'path')
+  if ok then
+    api.nvim_buf_set_option(terminal_buf, 'path', path)
+  end
   local opts = {
     clear_env = false;
     env = non_empty(body.env) and body.env or vim.empty_dict()
