@@ -14,13 +14,15 @@ end
 
 
 local function trigger_completion()
+  destroy_timer()
   dap.omnifunc(1, "")
 end
 
 
 function M._InsertCharPre()
-  destroy_timer()
-  local char = api.nvim_get_vvar('char')
+  if timer then
+    return
+  end
   if tonumber(vim.fn.pumvisible()) == 1 then
     return
   end
@@ -28,11 +30,12 @@ function M._InsertCharPre()
   if not session then
     return
   end
+  local char = api.nvim_get_vvar('char')
   local capabilities = session.capabilities or {}
   local triggers = capabilities.completionTriggerCharacters or {'.'}
   if vim.tbl_contains(triggers, char) then
     timer = vim.loop.new_timer()
-    timer:start(150, 0, vim.schedule_wrap(trigger_completion))
+    timer:start(50, 0, vim.schedule_wrap(trigger_completion))
   end
 end
 
