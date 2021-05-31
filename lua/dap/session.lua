@@ -788,11 +788,12 @@ function Session:evaluate(expression, fn)
 end
 
 
-function Session:disconnect()
-  self:request('disconnect', {
+function Session:disconnect(opts)
+  opts = vim.tbl_extend('force', {
     restart = false,
     terminateDebuggee = true;
-  })
+  }, opts)
+  self:request('disconnect', opts)
 end
 
 

@@ -437,10 +437,11 @@ end
 
 
 --- Disconnects an active session
-function M.disconnect()
+function M.disconnect(opts)
   if session then
-    -- Should result in a `terminated` event which closes the session and sets it to nil
-    session:disconnect()
+    session:disconnect(opts)
+    session:close()
+    session = nil
   else
     print('No active session. Doing nothing.')
   end
