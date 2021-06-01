@@ -37,10 +37,10 @@ function M.remove(bufnr, lnum)
 end
 
 
-function M.toggle(opts)
+function M.toggle(opts, bufnr, lnum)
   opts = opts or {}
-  local bufnr = api.nvim_get_current_buf()
-  local lnum = api.nvim_win_get_cursor(0)[1]
+  bufnr = bufnr or api.nvim_get_current_buf()
+  lnum = lnum or api.nvim_win_get_cursor(0)[1]
   if M.remove(bufnr, lnum) and not opts.replace then
     return
   end
@@ -61,10 +61,10 @@ function M.toggle(opts)
 end
 
 
-function M.set(opts)
+function M.set(opts, bufnr, lnum)
   opts = opts or {}
   opts.replace = true
-  M.toggle(opts)
+  M.toggle(opts, bufnr, lnum)
 end
 
 

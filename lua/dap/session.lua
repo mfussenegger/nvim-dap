@@ -393,7 +393,9 @@ do
     local bps = breakpoints.get(bufexpr)
     local num_requests = vim.tbl_count(bps)
     if num_requests == 0 then
-      on_done()
+      if on_done then
+        on_done()
+      end
       return
     end
     for bufnr, buf_bps in pairs(bps) do

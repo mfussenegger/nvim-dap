@@ -522,9 +522,20 @@ down()                                                              *dap.down()*
 
 goto_({line})                                                      *dap.goto_()*
         Let the debugger jump to a specific line or line under cursor.
+        This is an optional feature and not all debug adapters support it.
+
+        The code between the current location and the goto target is not
+        executed but skipped.
 
         Parameters: ~
             {line}  Line number or line under cursor if nil.
+
+
+run_to_cursor()                                            *dap.run_to_cursor()*
+        Continues execution to the current cursor.
+
+        This temporarily removes all breakpoints, sets a breakpoint at the
+        cursor, resumes execution and then adds back all breakpoints again.
 
 
 repl.open({winopts}, {wincmd})                                 *dap.repl.open()*

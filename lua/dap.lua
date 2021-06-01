@@ -399,6 +399,48 @@ function M.set_exception_breakpoints(filters, exceptionOptions)
 end
 
 
+function M.run_to_cursor()
+  if not session then
+    vim.notify('Cannot use run_to_cursor without active session')
+    return
+  end
+  if not session.stopped_thread_id then
+    vim.notify('run_to_cursor can only be used if stopped at a breakpoint')
+    return
+  end
+
+  local bps = breakpoints.get()
+  breakpoints.clear()
+  local bufnr = api.nvim_get_current_buf()
+  local lnum = api.nvim_win_get_cursor(0)[1]
+  breakpoints.set({}, bufnr, lnum)
+
+  local function restore_breakpoints()
+    M.listeners.before.event_stopped['dap.run_to_cursor'] = nil
+    M.listeners.before.event_terminated['dap.run_to_cursor'] = nil
+    breakpoints.clear()
+    for buf, buf_bps in pairs(bps) do
+      for _, bp in pairs(buf_bps) do
+        local line = bp.line
+        local opts = {
+          condition = bp.condition,
+          log_message = bp.logMessage,
+          hit_condition = bp.hitCondition
+        }
+        breakpoints.set(opts, buf, line)
+      end
+    end
+    session:set_breakpoints()
+  end
+
+  M.listeners.before.event_stopped['dap.run_to_cursor'] = restore_breakpoints
+  M.listeners.before.event_terminated['dap.run_to_cursor'] = restore_breakpoints
+  session:set_breakpoints(nil, function()
+    session:_step('continue')
+  end)
+end
+
+
 function M.continue()
   if not session then
     select_config_and_run()
