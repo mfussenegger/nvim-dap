@@ -420,7 +420,7 @@ function M.layer(buf)
     end
   }
   layers[buf] = layer
-  api.nvim_buf_attach(buf, false, { on_detach = function(b) layers[b] = nil end })
+  api.nvim_buf_attach(buf, false, { on_detach = function(_, b) layers[b] = nil end })
   return layer
 end
 
