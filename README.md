@@ -60,7 +60,7 @@ please create an issue.
   to extend the debugging experience. Either by improving the UI or by making
   it easier to debug parts of an application.
 
-  - An example UI/UX extension is [nvim-dap-virtual-text][7]
+  - Examples of UI/UX extensions are [nvim-dap-virtual-text][7] and [nvim-dap-ui][15]
   - Examples for language specific extensions include [nvim-jdtls][8] and [nvim-dap-python][9]
 
 ## Extensions
@@ -74,6 +74,7 @@ that's not listed.
 - Debug adapter installations are out of scope. It's not the business of an
   editor plugin to re-invent a package manager. Use your system package
   manager. Use Nix. Use Ansible.
+  If you disagree, check out [DAPInstall][14].
 
 - Vim support. It's not going to happen. Use [vimspector][2] instead.
 
@@ -113,3 +114,5 @@ that's not listed.
 [11]: https://github.com/junegunn/vim-plug
 [12]: https://github.com/wbthomason/packer.nvim
 [13]: https://microsoft.github.io/debug-adapter-protocol/implementors/adapters/
+[14]: https://github.com/Pocco81/DAPInstall.nvim
+[15]: https://github.com/rcarriga/nvim-dap-ui
