@@ -270,8 +270,11 @@ function M.append(line, lnum)
     if api.nvim_get_current_win() == repl.win and lnum == '$' then
       lnum = nil
     end
-    if api.nvim_buf_get_option(repl.buf, 'fileformat') ~= 'dos' then
+    local fileformat = api.nvim_buf_get_option(repl.buf, 'fileformat')
+    if fileformat == 'unix' then
       line = line:gsub('\r\n', '\n')
+    elseif fileformat == 'mac' then
+      line = line:gsub('\r\n', '\r')
     end
     local lines = vim.split(line, '\n')
     api.nvim_buf_call(repl.buf, function()
