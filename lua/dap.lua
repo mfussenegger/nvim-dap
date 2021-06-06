@@ -1,17 +1,31 @@
 local api = vim.api
-local log = require('dap.log').create_logger('dap.log')
-local ui = require('dap.ui')
-local repl = require('dap.repl')
-local progress = require('dap.progress')
-local breakpoints = require('dap.breakpoints')
 local M = {}
 local session = nil
 local last_run = nil
 
+-- lazy import other modules to have a lower startup footprint
+local lazy = setmetatable({}, {
+  __index = function(tbl, key)
+    local val = require('dap.' .. key)
+    rawset(tbl, key, val)
+    return val
+  end
+})
 
 
-M.status = progress.status
-M.repl = repl
+local function log()
+  require('dap.log').create_logger('dap.log')
+end
+
+
+M.status = function(...)
+  return lazy.progress.status(...)
+end
+M.repl = setmetatable({}, {
+  __index = function(_, key)
+    return require('dap.repl')[key]
+  end
+})
 M.listeners = {
   before = setmetatable({}, {
     __index = function(tbl, key)
@@ -132,10 +146,10 @@ end
 local function run_adapter(adapter, configuration, opts)
   local name = configuration.name or '[no name]'
   if adapter.type == 'executable' then
-    progress.report('Running: ' .. name)
+    lazy.progress.report('Running: ' .. name)
     M.launch(adapter, configuration, opts)
   elseif adapter.type == 'server' then
-    progress.report('Running: ' .. name)
+    lazy.progress.report('Running: ' .. name)
     M.attach(adapter.host, adapter.port, configuration, opts)
   else
     print(string.format('Invalid adapter type %s, expected `executable` or `server`', adapter.type))
@@ -178,7 +192,7 @@ local function select_config_and_run()
     print('No configuration found for ' .. filetype)
     return
   end
-  ui.pick_if_many(
+  lazy.ui.pick_if_many(
     configurations,
     "Configuration: ",
     function(i) return i.name end,
@@ -205,10 +219,10 @@ function M.run(config, opts)
   config = vim.tbl_map(expand_config_variables, config)
   local adapter = M.adapters[config.type]
   if type(adapter) == 'table' then
-    progress.report('Launching debug adapter')
+    lazy.progress.report('Launching debug adapter')
     maybe_enrich_config_and_run(adapter, config, opts)
   elseif type(adapter) == 'function' then
-    progress.report('Launching debug adapter')
+    lazy.progress.report('Launching debug adapter')
     adapter(
       function(resolved_adapter)
         maybe_enrich_config_and_run(resolved_adapter, config, opts)
@@ -252,7 +266,7 @@ function M.step_into(opts)
       return
     end
 
-    ui.pick_if_many(
+    lazy.ui.pick_if_many(
       response.targets,
       "Step into which function?",
       function(target) return target.label end,
@@ -351,7 +365,7 @@ end
 
 
 function M.list_breakpoints(open_quickfix)
-  local qf_list = breakpoints.to_qf_list(breakpoints.get())
+  local qf_list = lazy.breakpoints.to_qf_list(lazy.breakpoints.get())
   vim.fn.setqflist({}, 'r', {
     items = qf_list,
     context = DAP_QUICKFIX_CONTEXT,
@@ -371,7 +385,7 @@ function M.set_breakpoint(condition, hit_condition, log_message)
 end
 
 function M.toggle_breakpoint(condition, hit_condition, log_message, replace_old)
-  breakpoints.toggle({
+  lazy.breakpoints.toggle({
     condition = condition,
     hit_condition = hit_condition,
     log_message = log_message,
@@ -409,16 +423,16 @@ function M.run_to_cursor()
     return
   end
 
-  local bps = breakpoints.get()
-  breakpoints.clear()
+  local bps = lazy.breakpoints.get()
+  lazy.breakpoints.clear()
   local bufnr = api.nvim_get_current_buf()
   local lnum = api.nvim_win_get_cursor(0)[1]
-  breakpoints.set({}, bufnr, lnum)
+  lazy.breakpoints.set({}, bufnr, lnum)
 
   local function restore_breakpoints()
     M.listeners.before.event_stopped['dap.run_to_cursor'] = nil
     M.listeners.before.event_terminated['dap.run_to_cursor'] = nil
-    breakpoints.clear()
+    lazy.breakpoints.clear()
     for buf, buf_bps in pairs(bps) do
       for _, bp in pairs(buf_bps) do
         local line = bp.line
@@ -427,7 +441,7 @@ function M.run_to_cursor()
           log_message = bp.logMessage,
           hit_condition = bp.hitCondition
         }
-        breakpoints.set(opts, buf, line)
+        lazy.breakpoints.set(opts, buf, line)
       end
     end
     session:set_breakpoints()
@@ -469,7 +483,7 @@ function M.continue()
         action = function() end,
       },
     }
-    ui.pick_one(choices, prompt, function(x) return x.label end, function(choice)
+    lazy.ui.pick_one(choices, prompt, function(x) return x.label end, function(choice)
       if choice then
         choice.action()
       end
@@ -515,7 +529,7 @@ end
 
 function M.omnifunc(findstart, base)
   local supportsCompletionsRequest = ((session or {}).capabilities or {}).supportsCompletionsRequest;
-  local _ = log.debug() and log.debug('omnifunc.findstart', {
+  log().debug('omnifunc.findstart', {
     findstart = findstart;
     base = base;
     supportsCompletionsRequest = supportsCompletionsRequest;
@@ -534,7 +548,7 @@ function M.omnifunc(findstart, base)
   local text_match = vim.fn.match(line_to_cursor, '\\k*$')
   local prefix = line_to_cursor:sub(text_match + 1)
 
-  local _ = log.debug() and log.debug('omnifunc.line', {
+  log().debug('omnifunc.line', {
     line = line;
     col = col + 1 - offset;
     line_to_cursor = line_to_cursor;
@@ -548,7 +562,7 @@ function M.omnifunc(findstart, base)
     column = col + 1 - offset;
   }, function(err, response)
     if err then
-      local _ = log.error() and log.error('completions.callback', err.message)
+      log().error('completions.callback', err.message)
       return
     end
 
@@ -608,7 +622,7 @@ end
 
 
 function M.set_log_level(level)
-  log.set_level(level)
+  log().set_level(level)
 end
 
 
@@ -616,7 +630,7 @@ function M._vim_exit_handler()
   if session then
     session:close()
   end
-  repl.close()
+  M.repl.close()
 end
 
 function M._reset_session()
