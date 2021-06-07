@@ -77,6 +77,22 @@ function Session:run_in_terminal(request)
     clear_env = false;
     env = non_empty(body.env) and body.env or vim.empty_dict()
   }
+
+  if vim.tbl_count(opts.env) > 0 then
+    local term_env = {}
+    for k, v in pairs(opts.env) do
+      if type(k) == 'string' and type(v) == 'string' then
+        term_env[k] = v
+      elseif type(v) == 'string' then
+        local sep = v:find("=")
+        if sep ~= nil then
+          term_env[v:sub(1, sep - 1)] = v:sub(sep + 1)
+        end
+      end
+    end
+    opts.env = term_env
+  end
+
   local jobid = vim.fn.termopen(body.args, opts)
   api.nvim_set_current_win(win)
   if jobid == 0 or jobid == -1 then
