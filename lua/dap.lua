@@ -14,7 +14,7 @@ local lazy = setmetatable({}, {
 
 
 local function log()
-  require('dap.log').create_logger('dap.log')
+  return require('dap.log').create_logger('dap.log')
 end
 
 
