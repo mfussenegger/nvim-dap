@@ -75,7 +75,7 @@ function Session:run_in_terminal(request)
   end
   local opts = {
     clear_env = false;
-    env = vim.tbl_count(body.env) > 0 and body.env or vim.empty_dict()
+    env = next(body.env or {}) and body.env or vim.empty_dict()
   }
   local jobid = vim.fn.termopen(body.args, opts)
   api.nvim_set_current_win(win)
