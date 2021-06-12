@@ -1,22 +1,25 @@
+local luassert = require('luassert')
+local spy = require('luassert.spy')
+local venv_dir = os.tmpname()
+
 describe('dap', function()
-  local venv_dir
-  before_each(function()
-    venv_dir = os.tmpname()
-    os.remove(venv_dir)
-    os.execute('python -m venv "' .. venv_dir .. '"')
-    os.execute(venv_dir .. '/bin/python -m pip install debugpy')
-  end)
+  local dap = require('dap')
+  os.remove(venv_dir)
+  os.execute('python -m venv "' .. venv_dir .. '"')
+  os.execute(venv_dir .. '/bin/python -m pip install debugpy')
   after_each(function()
-    vim.fn.delete(venv_dir, 'rf')
+    dap.stop()
   end)
 
   it('Basic debugging flow', function()
-    local dap = require('dap')
     local breakpoints = require('dap.breakpoints')
     dap.adapters.python = {
       type = 'executable',
       command = venv_dir .. '/bin/python',
-      args = {'-m', 'debugpy.adapter'}
+      args = {'-m', 'debugpy.adapter'},
+      options = {
+        cwd = venv_dir,
+      }
     }
     local program = vim.fn.expand('%:p:h') .. '/tests/example.py'
     local config = {
@@ -25,8 +28,9 @@ describe('dap', function()
       name = 'Launch file',
       program = program,
     }
+    local bp_lnum = 8
     local bufnr = vim.fn.bufadd(program)
-    breakpoints.set({}, bufnr, 5)
+    breakpoints.set({}, bufnr, bp_lnum)
     local events = {}
     dap.listeners.after.event_initialized['dap.tests'] = function()
       events.initialized = true
@@ -35,9 +39,11 @@ describe('dap', function()
       events.setBreakpoints = resp
     end
     dap.listeners.after.event_stopped['dap.tests'] = function()
-      events.stopped = true
       dap.continue()
+      events.stopped = true
     end
+
+    local launch = spy.on(dap, 'launch')
     dap.run(config)
     vim.wait(1000, function() return dap.session() == nil end, 100)
     assert.are.same({
@@ -46,7 +52,7 @@ describe('dap', function()
         breakpoints = {
           {
             id = 0,
-            line = 5,
+            line = bp_lnum,
             source = {
               name = 'example.py',
               path = program,
@@ -57,5 +63,11 @@ describe('dap', function()
       },
       stopped = true,
     }, events)
+
+    it('passed cwd to adapter process', function()
+      luassert.spy(launch).was.called_with(dap.adapters.python, config, { cwd = venv_dir })
+    end)
   end)
 end)
+
+vim.fn.delete(venv_dir, 'rf')
