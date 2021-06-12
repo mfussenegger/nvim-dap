@@ -20,3 +20,4 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           VALIDATE_JSCPD: false
+          VALIDATE_PYTHON_BLACK: false
