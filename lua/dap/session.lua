@@ -414,9 +414,12 @@ do
           print("Error setting breakpoints: " .. err1.message)
         else
           for _, bp in pairs(resp.breakpoints) do
+            breakpoints.set_state(bufnr, bp.line, bp)
             if not bp.verified then
               log.info('Server rejected breakpoint', bp)
-              breakpoints.remove(bufnr, bp.line)
+              if bp.message then
+                vim.notify(bp.message)
+              end
             end
           end
         end

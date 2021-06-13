@@ -215,12 +215,14 @@ call it once.
 SIGNS CONFIGURATION
 
 
-nvim-dap uses three signs:
+nvim-dap uses four signs:
 
 - `DapBreakpoint` which defaults to `B` for breakpoints
 - `DapLogPoint` which defaults to `L` and is for log-points
 - `DapStopped` which defaults to `→` and is used to indicate the position where
   the debugee is stopped.
+- `DapBreakpointRejected`, defaults to `R` for breakpoints which the debug
+  adapter rejected.
 
 You can customize the signs by overriding the definition after you've loaded `dap`.
 An example:

@@ -22,6 +22,30 @@ local function get_breakpoint_signs(bufexpr)
 end
 
 
+function M.set_state(bufnr, lnum, state)
+  local placements = vim.fn.sign_getplaced(bufnr, { group = ns; lnum = lnum; })
+  local signs = placements[1].signs
+  if not signs or next(signs) == nil then
+    return
+  end
+  for _, sign in pairs(signs) do
+    local bp = bp_by_sign[sign.id]
+    if bp then
+      bp.state = state
+    end
+    if not state.verified then
+      vim.fn.sign_place(
+        sign.id,
+        ns,
+        'DapBreakpointRejected',
+        bufnr,
+        { lnum = lnum; priority = 11; }
+      )
+    end
+  end
+end
+
+
 function M.remove(bufnr, lnum)
   local placements = vim.fn.sign_getplaced(bufnr, { group = ns; lnum = lnum; })
   local signs = placements[1].signs
@@ -86,6 +110,7 @@ function M.get(bufexpr)
         condition = bp_entry.condition;
         hitCondition = bp_entry.hitCondition;
         logMessage = bp_entry.logMessage;
+        state = bp_entry.state,
       })
     end
   end
@@ -108,8 +133,10 @@ do
     local qf_list = {}
     for bufnr, buf_bps in pairs(breakpoints) do
       for _, bp in pairs(buf_bps) do
+        local state = bp.state or {}
         local text_parts = {
           unpack(api.nvim_buf_get_lines(bufnr, bp.line - 1, bp.line, false), 1),
+          state.verified == false and (state.message and 'Rejected: ' .. state.message or 'Rejected') or nil,
           non_empty(bp.logMessage) and "Log message: " .. bp.logMessage,
           non_empty(bp.condition) and "Condition: " .. bp.condition,
           non_empty(bp.hitCondition) and "Hit condition: " .. bp.hitCondition,
