@@ -280,8 +280,9 @@ Some debug adapters support launching the debugee in an integrated terminal or
 an external terminal.
 
 For that they usually provide a `console` option in their |dap-configuration|.
-The supported values are usually called `internalConsole`, `integratedTerminal`
-and `externalTerminal`.
+The supported values are sometimes called `internalConsole`,
+`integratedTerminal` and `externalTerminal`, but you need to consult the debug
+adapter documentation to figure out the concrete property name and values.
 
 
 If you want to use the `externalTerminal` you need to setup the terminal which
@@ -299,8 +300,22 @@ should be launched by nvim-dap:
 
 <
 
+Some debug adapters support launching the debugee in a terminal, but don't
+provide an option to choose between integrated terminal or external terminal.
+`nvim-dap` provides an option to force the external terminal.
 
-If you're using the integrated terminal, you can also configure the command
+
+>
+
+  lua << EOF
+  local dap = require('dap')
+  dap.defaults.fallback.force_external_terminal = true
+  EOF
+
+<
+
+
+If you're using the integrated terminal, you can configure the command
 that is used to create a split window:
 
 

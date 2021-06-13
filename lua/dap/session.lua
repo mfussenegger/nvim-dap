@@ -46,8 +46,9 @@ end
 function Session:run_in_terminal(request)
   local body = request.arguments
   log.debug('run_in_terminal', body)
-  if body.kind == 'external' then
-    local terminal = dap().defaults[self.config.type].external_terminal
+  local settings = dap().defaults[self.config.type]
+  if body.kind == 'external' or (settings.force_external_terminal and settings.external_terminal) then
+    local terminal = settings.external_terminal
     if not terminal then
       print('Requested external terminal, but none configured. Fallback to integratedTerminal')
     else
