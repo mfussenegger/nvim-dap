@@ -194,7 +194,12 @@ local function select_config_and_run()
     )
   )
   if #configurations == 0 then
-    print('No configuration found for ' .. filetype)
+    print(string.format(
+      ('No configuration found for `%s`. '
+        .. 'You need to add configs to `dap.configurations.%s` (See `:h dap-configuration`)'),
+      filetype,
+      filetype
+    ))
     return
   end
   lazy.ui.pick_if_many(
