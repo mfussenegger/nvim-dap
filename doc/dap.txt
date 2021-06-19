@@ -189,10 +189,15 @@ Things to note:
   they will be evaluated once the configuration is used.
 
 - Some variables are supported:
-
   - `${file}`: Active filename
+  - `${fileBasename}`: The current file's basename
+  - `${fileBasenameNoExtension}`: The current file's basename without extension
+  - `${fileDirname}`: The current file's dirname
+  - `${fileExtname}`: The current file's extension
+  - `${relativeFile}`: The current file relative to |getcwd()|
+  - `${relativeFileDirname}`: The current file's dirname relative to |getcwd()|
   - `${workspaceFolder}`: The current working directory of Neovim
-
+  - `${workspaceFolderBasename}`: The name of the folder opened in Neovim
 
 ==============================================================================
 DEBUGEE CONFIGURATION via launch.json                *dap-launch.json*

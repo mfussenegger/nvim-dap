@@ -96,7 +96,18 @@ M.adapters = {}
 --    request = 'launch';
 --    name = "Launch file";
 --
---    -- ${file} and ${workspaceFolder} variables are supported
+--    -- Some predefined variables are supported. Their definitions can be found here
+--    -- https://code.visualstudio.com/docs/editor/variables-reference#_predefined-variables-examples
+--    -- The supported variables are:
+--    -- ${file}
+--    -- ${fileBasename}
+--    -- ${fileBasenameNoExtension}
+--    -- ${fileDirname}
+--    -- ${fileExtname}
+--    -- ${relativeFile}
+--    -- ${relativeFileDirname}
+--    -- ${workspaceFolder}
+--    -- ${workspaceFolderBasename}
 --    program = "${file}";
 --
 --    -- values other than type, request and name can be functions, they'll be evaluated when the configuration is used
@@ -134,7 +145,14 @@ local function expand_config_variables(option)
   end
   local variables = {
     file = vim.fn.expand("%");
+    fileBasename = vim.fn.expand("%:t");
+    fileBasenameNoExtension = vim.fn.fnamemodify(vim.fn.expand("%:t"), ":r");
+    fileDirname = vim.fn.expand("%:p:h");
+    fileExtname = vim.fn.expand("%:e");
+    relativeFile = vim.fn.expand("%");
+    relativeFileDirname = vim.fn.fnamemodify(vim.fn.expand("%:h"), ":r");
     workspaceFolder = vim.fn.getcwd();
+    workspaceFolderBasename = vim.fn.fnamemodify(vim.fn.getcwd(), ":t");
   }
   local ret = option
   for key, val in pairs(variables) do
