@@ -8,14 +8,11 @@
 - Set breakpoints and step through code
 - Inspect the state of the application
 
-**Warning**: This is in an early stage. It targets Neovim HEAD and therefore
-things may break.
-
-![screenshot](images/screenshot.png)
+![demo][demo]
 
 ## Installation
 
-- Requires [Neovim HEAD/nightly][6]
+- Requires Neovim (>= 0.5)
 - nvim-dap is a plugin. Install it like any other Neovim plugin.
   - If using [vim-plug][11]: `Plug 'mfussenegger/nvim-dap'`
   - If using [packer.nvim][12]: `use 'mfussenegger/nvim-dap'`
@@ -36,7 +33,8 @@ A typical debug flow consists of:
 - Setting breakpoints via `:lua require'dap'.toggle_breakpoint()`.
 - Launching debug sessions and resuming execution via `:lua require'dap'.continue()`.
 - Stepping through code via `:lua require'dap'.step_over()` and `:lua require'dap'.step_into()`.
-- Inspecting the state via the built-in REPL: `:lua require'dap'.repl.open()`.
+- Inspecting the state via the built-in REPL: `:lua require'dap'.repl.open()`
+  or using the widget UI (`:help dap-widgets`)
 
 See [:help dap.txt](doc/dap.txt), `:help dap-mapping` and `:help dap-api`.
 
@@ -106,7 +104,6 @@ that's not listed.
 [3]: https://github.com/neovim/nvim-lsp
 [4]: https://github.com/microsoft/debugpy
 [5]: https://github.com/mfussenegger/nvim-dap/wiki/Debug-Adapter-installation
-[6]: https://github.com/neovim/neovim/releases/tag/nightly
 [7]: https://github.com/theHamsta/nvim-dap-virtual-text
 [8]: https://github.com/mfussenegger/nvim-jdtls
 [9]: https://github.com/mfussenegger/nvim-dap-python
@@ -116,3 +113,5 @@ that's not listed.
 [13]: https://microsoft.github.io/debug-adapter-protocol/implementors/adapters/
 [14]: https://github.com/Pocco81/DAPInstall.nvim
 [15]: https://github.com/rcarriga/nvim-dap-ui
+[demo]: https://user-images.githubusercontent.com/38700/124292938-669a7100-db56-11eb-93b8-77b66994fc8a.gif
+
