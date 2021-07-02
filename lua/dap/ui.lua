@@ -245,12 +245,13 @@ function M.new_view(new_buf, new_win, opts)
     win = nil,
 
     toggle = function(...)
-      if not self.close() then
+      if not self.close({ mode = 'toggle' }) then
         self.open(...)
       end
     end,
 
-    close = function()
+    close = function(close_opts)
+      close_opts = close_opts or {}
       local closed = false
       local win = self.win
       local buf = self.buf
@@ -259,25 +260,31 @@ function M.new_view(new_buf, new_win, opts)
         self.win = nil
         closed = true
       end
-      if buf then
+      if buf and (closed or close_opts.mode ~= 'toggle') then
         pcall(api.nvim_buf_delete, buf, {force=true})
         self.buf = nil
       end
       return closed
     end,
 
+    _init_buf = function()
+      if self.buf then
+        return self.buf
+      end
+      local buf = new_buf(self)
+      assert(buf, 'The `new_buf` function is supposed to return a buffer')
+      api.nvim_buf_attach(buf, false, { on_detach = function() self.buf = nil end })
+      self.buf = buf
+      return buf
+    end,
+
     open = function(...)
-      local buf = self.buf
       local win = self.win
       local before_open_result
       if opts.before_open then
         before_open_result = opts.before_open(self, ...)
       end
-      if not buf then
-        buf = new_buf(self)
-        assert(buf, 'The `new_buf` function is supposed to return a buffer')
-        api.nvim_buf_attach(buf, false, { on_detach = function() self.buf = nil end })
-      end
+      local buf = self._init_buf()
       if not win or not api.nvim_win_is_valid(win) then
         win = new_win(buf, ...)
       end

@@ -266,21 +266,17 @@ end
 
 
 function M.append(line, lnum)
-  if repl.buf then
-    if api.nvim_get_current_win() == repl.win and lnum == '$' then
-      lnum = nil
-    end
-    if api.nvim_buf_get_option(repl.buf, 'fileformat') ~= 'dos' then
-      line = line:gsub('\r\n', '\n')
-    end
-    local lines = vim.split(line, '\n')
-    api.nvim_buf_call(repl.buf, function()
-      lnum = lnum or (vim.fn.line('$') - 1)
-      vim.fn.appendbufline(repl.buf, lnum, lines)
-    end)
-    return lnum
+  local buf = repl._init_buf()
+  if api.nvim_get_current_win() == repl.win and lnum == '$' then
+    lnum = nil
   end
-  return nil
+  if api.nvim_buf_get_option(buf, 'fileformat') ~= 'dos' then
+    line = line:gsub('\r\n', '\n')
+  end
+  local lines = vim.split(line, '\n')
+  lnum = lnum or api.nvim_buf_line_count(buf) - 1
+  vim.fn.appendbufline(buf, lnum, lines)
+  return lnum
 end
 
 
