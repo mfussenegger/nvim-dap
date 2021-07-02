@@ -63,13 +63,26 @@ function Session:run_in_terminal(request)
       return
     end
   end
-  local win = api.nvim_get_current_win()
-  if terminal_buf and api.nvim_buf_is_valid(terminal_buf) then
-    api.nvim_buf_delete(terminal_buf, {force=true})
-  end
+  local cur_win = api.nvim_get_current_win()
   local cur_buf = api.nvim_get_current_buf()
-  api.nvim_command(dap().defaults[self.config.type].terminal_win_cmd)
-  terminal_buf = api.nvim_get_current_buf()
+  if terminal_buf and api.nvim_buf_is_valid(terminal_buf) then
+    local terminal_buf_win = false
+    api.nvim_buf_set_option(terminal_buf, 'modified', false)
+    for _, win in pairs(api.nvim_tabpage_list_wins(0)) do
+      if api.nvim_win_get_buf(win) == terminal_buf then
+        terminal_buf_win = true
+        api.nvim_set_current_win(win)
+      end
+    end
+    if not terminal_buf_win then
+      api.nvim_buf_delete(terminal_buf, {force=true})
+      api.nvim_command(dap().defaults[self.config.type].terminal_win_cmd)
+      terminal_buf = api.nvim_get_current_buf()
+    end
+  else
+    api.nvim_command(dap().defaults[self.config.type].terminal_win_cmd)
+    terminal_buf = api.nvim_get_current_buf()
+  end
   local ok, path = pcall(api.nvim_buf_get_option, cur_buf, 'path')
   if ok then
     api.nvim_buf_set_option(terminal_buf, 'path', path)
@@ -79,7 +92,7 @@ function Session:run_in_terminal(request)
     env = next(body.env or {}) and body.env or vim.empty_dict()
   }
   local jobid = vim.fn.termopen(body.args, opts)
-  api.nvim_set_current_win(win)
+  api.nvim_set_current_win(cur_win)
   if jobid == 0 or jobid == -1 then
     log.error('Could not spawn terminal', jobid, request)
     self:response(request, {
