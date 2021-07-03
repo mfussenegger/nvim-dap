@@ -16,15 +16,35 @@ function M.load_launchjs(path)
   end
   local contents = table.concat(lines, '\n')
   local data = vim.fn.json_decode(contents)
+
+  -- Groups filetypes of debugee configs by adapters if a config use the adapter.
+  -- { <adapter> = { <filetype> = boolean } }
+  local filetypes_of_adapters = {}
+  for filetype, configs in pairs(dap.configurations) do
+    for _, config in ipairs(configs) do
+      local filetypes = filetypes_of_adapters[config.type] or {}
+      filetypes_of_adapters[config.type] = filetypes
+      filetypes[filetype] = true
+    end
+  end
+
   assert(data.configurations, "launch.json must have a 'configurations' key")
   for _, config in ipairs(data.configurations) do
     assert(config.type, "Configuration in launch.json must have a 'type' key")
-    local configurations = dap.configurations[config.type]
-    if not configurations then
-      configurations = {}
+    local filetypes = filetypes_of_adapters[config.type]
+    if filetypes then
+      -- Add this config for filetypes containing configs with this adapter.
+      for filetype, _ in pairs(filetypes) do
+        local configurations = dap.configurations[filetype] or {}
+        dap.configurations[filetype] = configurations
+        table.insert(configurations, config)
+      end
+    else
+      -- Fallback: make an assumption that adapter's name equals to filetype
+      local configurations = dap.configurations[config.type] or {}
       dap.configurations[config.type] = configurations
+      table.insert(configurations, config)
     end
-    table.insert(configurations, config)
   end
 end
 
