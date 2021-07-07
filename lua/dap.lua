@@ -672,5 +672,10 @@ function M.session()
 end
 
 
+function M.set_session(s)
+  session = s
+end
+
+
 api.nvim_command("autocmd ExitPre * lua require('dap')._vim_exit_handler()")
 return M
