@@ -328,7 +328,7 @@ function Session:event_terminated()
   if self.handlers.after then
     self.handlers.after()
   end
-  dap()._reset_session()
+  dap().set_session(nil)
 end
 
 
@@ -791,10 +791,10 @@ function Session:initialize(config)
       if err then
         print(string.format('Error on %s: %s', config.request, err.message))
         self:close()
-        dap()._reset_session()
-        return
+        dap().set_session(nil)
+      else
+        require('dap.repl').set_session(self)
       end
-      require('dap.repl').set_session(self)
     end)
   end)
 end
