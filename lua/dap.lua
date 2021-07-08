@@ -137,7 +137,7 @@ local function expand_config_variables(option)
   if type(option) == 'function' then
     option = option()
   end
-  if type(option) == "table" and vim.tbl_islist(option) then
+  if type(option) == "table" then
     return vim.tbl_map(expand_config_variables, option)
   end
   if type(option) ~= "string" then

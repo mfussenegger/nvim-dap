@@ -27,13 +27,18 @@ describe('dap', function()
       request = 'launch',
       name = 'Launch file',
       program = program,
+      dummy_payload = {
+        cwd = '${workspaceFolder}'
+      }
     }
     local bp_lnum = 8
     local bufnr = vim.fn.bufadd(program)
     breakpoints.set({}, bufnr, bp_lnum)
     local events = {}
-    dap.listeners.after.event_initialized['dap.tests'] = function()
+    local dummy_value = nil
+    dap.listeners.after.event_initialized['dap.tests'] = function(session)
       events.initialized = true
+      dummy_value = session.config.dummy_payload.cwd
     end
     dap.listeners.after.setBreakpoints['dap.tests'] = function(_, _, resp)
       events.setBreakpoints = resp
@@ -63,6 +68,12 @@ describe('dap', function()
       },
       stopped = true,
     }, events)
+
+    -- variable must expand to concrete value
+    assert.are_not.equals(dummy_value, '${workspaceFolder}')
+
+    -- ensure `called_with` below passes
+    config.dummy_payload.cwd = dummy_value
 
     it('passed cwd to adapter process', function()
       luassert.spy(launch).was.called_with(dap.adapters.python, config, { cwd = venv_dir })
