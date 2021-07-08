@@ -508,6 +508,16 @@ function M.continue()
         action = M.restart,
       },
       {
+        label = "Disconnect (terminate = true)",
+        action = M.disconnect,
+      },
+      {
+        label = "Disconnect (terminate = false)",
+        action = function()
+          M.disconnect({ terminateDebuggee = false })
+        end,
+      },
+      {
         label = "Do nothing",
         action = function() end,
       },
