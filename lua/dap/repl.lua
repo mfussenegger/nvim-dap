@@ -274,6 +274,9 @@ function M.append(line, lnum)
     line = line:gsub('\r\n', '\n')
   end
   local lines = vim.split(line, '\n')
+  if #lines > 1 and lines[#lines] == '' then
+    table.remove(lines)
+  end
   lnum = lnum or api.nvim_buf_line_count(buf) - 1
   vim.fn.appendbufline(buf, lnum, lines)
   return lnum
