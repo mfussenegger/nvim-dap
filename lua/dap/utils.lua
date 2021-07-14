@@ -8,7 +8,7 @@ local M = {}
 function M.to_dict(values, get_key, get_value)
   local rtn = {}
   get_value = get_value or function(v) return v end
-  for _, v in pairs(values) do
+  for _, v in pairs(values or {}) do
     rtn[get_key(v)] = get_value(v)
   end
   return rtn

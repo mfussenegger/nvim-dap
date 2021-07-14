@@ -22,4 +22,9 @@ describe('utils.to_dict', function()
     }
     assert.are.same(expected, result)
   end)
+
+  it('supports nil values as argument', function()
+    local result = require('dap.utils').to_dict(nil, function(x) return x end)
+    assert.are.same(result, {})
+  end)
 end)
