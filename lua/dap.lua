@@ -672,13 +672,15 @@ function M._vim_exit_handler()
   M.repl.close()
 end
 
-function M._reset_session()
-  session = nil
-end
 
 --- Return the current session or nil
 function M.session()
   return session
+end
+
+
+function M.set_session(s)
+  session = s
 end
 
 
