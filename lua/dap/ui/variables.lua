@@ -193,6 +193,13 @@ local function popup()
   api.nvim_buf_set_keymap(
     buf,
     "n",
+    "<ESC>",
+    "<Cmd>close!<CR>",
+    {}
+  )
+  api.nvim_buf_set_keymap(
+    buf,
+    "n",
     "<CR>",
     "<Cmd>lua require('dap.ui.variables').toggle_variable_expanded()<CR>",
     {}
