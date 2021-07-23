@@ -646,7 +646,7 @@ end
 --    }
 --
 --
--- Configuration:         -- Specifies how the debug adapter should conenct/launch the debugee
+-- Configuration:         -- Specifies how the debug adapter should connect/launch the debugee
 --    request: string     -- attach or launch
 --    ...                 -- debug adapter specific options
 --

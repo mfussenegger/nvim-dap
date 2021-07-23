@@ -636,6 +636,7 @@ function Session:spawn(adapter, opts)
     write = function(line) stdin:write(line) end;
     close = function()
       if handle then
+        pcall(handle.kill, handle, 15)
         pcall(handle.close, handle)
       end
     end;
