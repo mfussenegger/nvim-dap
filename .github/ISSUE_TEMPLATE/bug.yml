@@ -1,0 +1,60 @@
+name: 🐞 Bug Report
+description: Tell about something that's not working the way you think it should
+body:
+  - type: textarea
+    id: config
+    attributes:
+      label: Debug adapter definition and debug configuration
+      description: dap.adapters.<name> and dap.configurations.<filetype>
+      placeholder: |-
+        Installed the adapter via ...
+        Configured it as described in the wiki:
+
+        dap.adapters.abc = {
+          type = 'executable';
+          command = 'abc';
+          ...
+        }
+
+        dap.configurations.xy = {
+          {
+            ...
+          }
+        }
+  - type: input
+    id: debug_adapter_version
+    attributes:
+      label: Debug adapter version
+      placeholder: 3.4.5
+    validations:
+      required: false
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to Reproduce
+      description: How can we see what you're seeing? Please be specific
+      placeholder: |-
+        1. In a project like: ...
+        2. Set a breakpoint on...
+        3. Run `continue()` and then ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected Result
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual Result
+      description: Output? Logs?(:help dap.set_log_level)
+    validations:
+      required: true
+  - type: markdown
+    attributes:
+      value: |-
+        ## Thanks 🙏
+    validations:
+      required: false
