@@ -260,7 +260,8 @@ function M.new_view(new_buf, new_win, opts)
         self.win = nil
         closed = true
       end
-      if buf and (closed or close_opts.mode ~= 'toggle') then
+      local hide = close_opts.mode == 'toggle'
+      if buf and not hide then
         pcall(api.nvim_buf_delete, buf, {force=true})
         self.buf = nil
       end
