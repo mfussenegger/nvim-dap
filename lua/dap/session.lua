@@ -769,6 +769,7 @@ end
 
 function Session:initialize(config)
   require('dap.repl').clear()
+  local adapter_responded = false
   self.config = config
   self:request('initialize', {
     clientId = 'neovim';
@@ -783,17 +784,37 @@ function Session:initialize(config)
   }, function(err0, result)
     if err0 then
       print("Could not initialize debug adapter: " .. err0.message)
+      adapter_responded = true
       return
     end
     local capabilities = self.capabilities or {}
     self.capabilities = vim.tbl_extend('force', capabilities, result or {})
     self:request(config.request, config, function(err)
+      adapter_responded = true
       if err then
         print(string.format('Error on %s: %s', config.request, err.message))
         self:close()
         dap().set_session(nil)
       end
     end)
+  end)
+  local sec_to_ms = 1000
+  local timer = vim.loop.new_timer()
+  timer:start(2 * sec_to_ms, 0, function()
+    timer:stop()
+    timer:close()
+    if not adapter_responded then
+      vim.schedule(function()
+        vim.notify(
+          string.format(
+            ("Debug adapter didn't respond. "
+              .. "Either the adapter is slow (then wait and ignore this) "
+              .. "or there is a problem with your adapter or `%s` configuration. Check the logs for errors (:help dap.set_log_level)"),
+            config.type),
+            vim.log.levels.WARN
+          )
+      end)
+    end
   end)
 end
 
