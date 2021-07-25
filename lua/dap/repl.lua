@@ -2,12 +2,15 @@ local api = vim.api
 local ui = require('dap.ui')
 local M = {}
 
-local session = nil
 local history = {
   last = nil,
   entries = {},
   idx = 1
 }
+
+local function get_session()
+  return require('dap').session()
+end
 
 local execute  -- required for forward reference
 
@@ -80,7 +83,8 @@ function M.print_stackframes(frames)
   if not repl.buf then
     return
   end
-  frames = frames or (session.threads[session.stopped_thread_id] or {}).frames or {}
+  local session = get_session()
+  frames = frames or (session and session.threads[session.stopped_thread_id] or {}).frames or {}
   local context = {}
   M.append('(press enter on line to jump to frame)')
   local start = ui.get_last_lnum(repl.buf)
@@ -89,8 +93,9 @@ function M.print_stackframes(frames)
     {
       label = 'Jump to frame',
       fn = function(layer, frame)
-        if session then
-          session:_frame_set(frame)
+        local s = get_session()
+        if s then
+          s:_frame_set(frame)
           layer.render(frames, render_frame, context, start, start + #frames)
         else
           print('Cannot navigate to frame without active session')
@@ -147,6 +152,7 @@ function execute(text)
   end
 
   local splitted_text = vim.split(text, ' ')
+  local session = get_session()
   if vim.tbl_contains(M.commands.exit, text) then
     if session then
       -- Should result in a `terminated` event which closes the session and sets it to nil
@@ -283,12 +289,11 @@ function M.append(line, lnum)
 end
 
 
-function M.set_session(s)
-  session = s
+function M.clear()
   history.last = nil
   history.entries = {}
   history.idx = 1
-  if s and repl.buf and api.nvim_buf_is_loaded(repl.buf) then
+  if repl.buf and api.nvim_buf_is_loaded(repl.buf) then
     api.nvim_buf_set_lines(repl.buf, 0, -1, true, {})
   end
 end

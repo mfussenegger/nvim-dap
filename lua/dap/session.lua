@@ -729,7 +729,6 @@ function Session:close()
   self.message_callbacks = {}
   self.message_requests = {}
   self.client.close()
-  require('dap.repl').set_session(nil)
 end
 
 
@@ -769,6 +768,7 @@ end
 
 
 function Session:initialize(config)
+  require('dap.repl').clear()
   self.config = config
   self:request('initialize', {
     clientId = 'neovim';
@@ -792,8 +792,6 @@ function Session:initialize(config)
         print(string.format('Error on %s: %s', config.request, err.message))
         self:close()
         dap().set_session(nil)
-      else
-        require('dap.repl').set_session(self)
       end
     end)
   end)
