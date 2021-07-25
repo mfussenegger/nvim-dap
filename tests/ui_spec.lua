@@ -12,14 +12,14 @@ describe('ui', function()
     it('can append items to empty buffer', function()
       local items = {
         { label = "aa", x = 1 },
-        { label = "cc", x = 3 },
+        { label = "", x = 3 },
         { label = "dd", x = 4 },
       }
       layer.render(items,render_item)
       local lines = api.nvim_buf_get_lines(buf, 0, -1, true)
       assert.are.same({
         'aa',
-        'cc',
+        '',
         'dd',
         ''
       }, lines)
@@ -36,13 +36,13 @@ describe('ui', function()
       assert.are.same({
         'aa',
         'bb',
-        'cc',
+        '',
         'dd',
         ''
       }, lines)
       assert.are.same('aa', layer.get(0).item.label)
       assert.are.same('bb', layer.get(1).item.label)
-      assert.are.same('cc', layer.get(2).item.label)
+      assert.are.same('', layer.get(2).item.label)
     end)
 
     it('can override a region', function()
@@ -56,14 +56,14 @@ describe('ui', function()
         'aa',
         'bbb',
         'bbbb',
-        'cc',
+        '',
         'dd',
         ''
       }, lines)
       assert.are.same('aa', layer.get(0).item.label)
       assert.are.same('bbb', layer.get(1).item.label)
       assert.are.same('bbbb', layer.get(2).item.label)
-      assert.are.same('cc', layer.get(3).item.label)
+      assert.are.same('', layer.get(3).item.label)
     end)
   end)
 

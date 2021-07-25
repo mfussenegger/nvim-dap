@@ -411,11 +411,8 @@ function M.layer(buf)
           end
         end
 
-        if #text == 0 then
-          return
-        end
-
-        local mark_id = api.nvim_buf_set_extmark(buf, ns, i, 0, {end_col=(#text - 1)})
+        local end_col = math.max(0, #text - 1)
+        local mark_id = api.nvim_buf_set_extmark(buf, ns, i, 0, {end_col=end_col})
         marks[mark_id] = { mark_id = mark_id, item = item, context = context }
       end
     end,
