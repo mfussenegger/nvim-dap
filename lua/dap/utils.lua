@@ -16,6 +16,9 @@ end
 
 
 function M.non_empty(object)
+  if type(object) == "table" then
+    return next(object) ~= nil
+  end
   return object and #object > 0
 end
 

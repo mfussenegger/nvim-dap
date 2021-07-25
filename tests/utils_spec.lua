@@ -28,3 +28,15 @@ describe('utils.to_dict', function()
     assert.are.same(result, {})
   end)
 end)
+
+
+describe('utils.non_empty', function()
+  it('non_empty returns true on non-empty dicts with numeric keys', function()
+    local d = {
+      [20] = 'a',
+      [30] = 'b',
+    }
+    local result = require('dap.utils').non_empty(d)
+    assert.are.same(true, result)
+  end)
+end)
