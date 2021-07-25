@@ -130,7 +130,9 @@ M.scopes = {
     local frame = session and session.current_frame or {}
     local tree = view.tree
     if not tree then
-      tree = ui.new_tree(require('dap.entity').scope.tree_spec)
+      local spec = vim.deepcopy(require('dap.entity').scope.tree_spec)
+      spec.extra_context = { view = view }
+      tree = ui.new_tree(spec)
       view.tree = tree
     end
     local layer = view.layer()

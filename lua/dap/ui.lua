@@ -80,6 +80,8 @@ function M.new_tree(opts)
     cb(opts.get_children(item))
   end
   opts.render_child = opts.render_child or opts.render_parent
+  local compute_actions = opts.compute_actions or function() return {} end
+  local extra_context = opts.extra_context or {}
 
   local self  -- forward reference
 
@@ -143,7 +145,9 @@ function M.new_tree(opts)
       local ctx = {
         actions = context.actions,
         indent = context.indent + 2,
+        compute_actions = context.compute_actions,
       }
+      ctx = vim.tbl_deep_extend('keep', ctx, extra_context)
       for _, child in pairs(children) do
         if opts.has_children(child) then
           child.__parent = { key = get_key(value), __parent = value.__parent }
@@ -180,7 +184,9 @@ function M.new_tree(opts)
     local context = {
       actions = { { label ='Expand', fn = self.toggle, }, },
       indent = indent,
+      compute_actions = compute_actions,
     }
+    context = vim.tbl_deep_extend('keep', context, extra_context)
     for _, child in pairs(opts.get_children(value)) do
       layer.render({child}, with_indent(indent, opts.render_child), context)
       if is_expanded(child) then
@@ -322,15 +328,24 @@ function M.new_view(new_buf, new_win, opts)
 end
 
 
-function M.trigger_actions()
+function M.trigger_actions(opts)
+  opts = opts or {}
   local buf = api.nvim_get_current_buf()
   local layer = M.get_layer(buf)
   if not layer then return end
   local lnum, col = unpack(api.nvim_win_get_cursor(0))
   lnum = lnum - 1
   local info = layer.get(lnum, 0, col)
-  local actions = info and info.context and info.context.actions
-  if not actions or #actions == 0 then
+  local context = info and info.context or {}
+  local actions = context and context.actions or {}
+  local compute_actions = context and context.compute_actions
+  if compute_actions then
+    vim.list_extend(actions, compute_actions(info))
+  end
+  if opts.filter then
+    actions = vim.tbl_filter(opts.filter, actions)
+  end
+  if #actions == 0 then
     utils.notify('No action possible on: ' .. api.nvim_buf_get_lines(buf, lnum, lnum + 1, true)[1], vim.log.levels.INFO)
     return
   end

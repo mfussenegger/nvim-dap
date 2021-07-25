@@ -98,6 +98,32 @@ function variable.fetch_children(var, cb)
 end
 
 
+local function set_expression(_, item, _, context)
+  local session = require('dap').session()
+  if not session then
+    utils.notify('No activate session, cannot set expression')
+    return
+  end
+  local view = context.view
+  if view then
+    view.close()
+  end
+  local value = vim.fn.input(string.format('New `%s` expression: ', item.name))
+  local params = {
+    expression = item.evaluateName,
+    value = value,
+    frameId = session.current_frame and session.current_frame.id
+  }
+  session:request('setExpression', params, function(err)
+    if err then
+      utils.notify(err.message, vim.log.levels.WARN)
+    else
+      session:_request_scopes(session.current_frame)
+    end
+  end)
+end
+
+
 variable.tree_spec = {
   get_key = variable.get_key,
   render_parent = variable.render_parent,
@@ -105,6 +131,16 @@ variable.tree_spec = {
   has_children = variable.has_children,
   get_children = variable.get_children,
   fetch_children = variable.fetch_children,
+  compute_actions = function(info)
+    local result = {}
+    local session = require('dap').session()
+    local capabilities = session.capabilities
+    local item = info.item
+    if item.evaluateName and capabilities.supportsSetExpression then
+      table.insert(result, { label = 'Set expression', fn = set_expression, })
+    end
+    return result
+  end
 }
 
 
