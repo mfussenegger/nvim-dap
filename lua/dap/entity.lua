@@ -158,8 +158,11 @@ variable.tree_spec = {
   get_children = variable.get_children,
   fetch_children = variable.fetch_children,
   compute_actions = function(info)
-    local result = {}
     local session = require('dap').session()
+    if not session then
+      return {}
+    end
+    local result = {}
     local capabilities = session.capabilities
     local item = info.item
     if item.evaluateName and capabilities.supportsSetExpression then

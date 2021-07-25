@@ -27,7 +27,7 @@ local function new_buf()
   if ok then
     api.nvim_buf_set_option(buf, 'path', path)
   end
-  api.nvim_buf_set_keymap(buf, 'n', '<CR>', "<Cmd>lua require('dap.repl').on_enter()<CR>", {})
+  api.nvim_buf_set_keymap(buf, 'n', '<CR>', "<Cmd>lua require('dap.ui').trigger_actions({ filter = 'Expand' })<CR>", {})
   api.nvim_buf_set_keymap(buf, 'i', '<up>', "<Cmd>lua require('dap.repl').on_up()<CR>", {})
   api.nvim_buf_set_keymap(buf, 'i', '<down>', "<Cmd>lua require('dap.repl').on_down()<CR>", {})
   vim.fn.prompt_setprompt(buf, 'dap> ')
@@ -242,8 +242,6 @@ M.open = repl.open
 
 --- Open the REPL if it is closed, close it if it is open.
 M.toggle = repl.toggle
-
-M.on_enter = ui.trigger_actions
 
 
 local function select_history(delta)

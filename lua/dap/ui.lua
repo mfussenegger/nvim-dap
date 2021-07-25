@@ -337,13 +337,17 @@ function M.trigger_actions(opts)
   lnum = lnum - 1
   local info = layer.get(lnum, 0, col)
   local context = info and info.context or {}
-  local actions = context and context.actions or {}
-  local compute_actions = context and context.compute_actions
-  if compute_actions then
-    vim.list_extend(actions, compute_actions(info))
+  local actions = {}
+  vim.list_extend(actions, context.actions or {})
+  if context.compute_actions then
+    vim.list_extend(actions, context.compute_actions(info))
   end
   if opts.filter then
-    actions = vim.tbl_filter(opts.filter, actions)
+    local filter = (type(opts.filter) == 'function'
+      and opts.filter
+      or function(x) return x.label == opts.filter end
+    )
+    actions = vim.tbl_filter(filter, actions)
   end
   if #actions == 0 then
     utils.notify('No action possible on: ' .. api.nvim_buf_get_lines(buf, lnum, lnum + 1, true)[1], vim.log.levels.INFO)
@@ -404,7 +408,6 @@ function M.layer(buf)
     render = function(xs, render_fn, context, start, end_)
       local modifiable = api.nvim_buf_get_option(buf, 'modifiable')
       api.nvim_buf_set_option(buf, 'modifiable', true)
-
       start = start or M.get_last_lnum(buf)
       end_ = end_ or start
       render_fn = render_fn or tostring
