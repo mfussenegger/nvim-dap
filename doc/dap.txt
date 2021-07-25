@@ -810,3 +810,15 @@ For events, the listeners are called with two arguments:
 
 1. The session
 2. The event payload
+
+==============================================================================
+UTILS API                                                          *dap-utils*
+
+Lua module: dap.utils
+
+
+pick_process()                                         *dap.utils.pick_process*
+        Show a prompt to pick a PID from a list of processes.
+
+        This uses `ps a` to retrieve the process list and won't work if `ps a`
+        is not available

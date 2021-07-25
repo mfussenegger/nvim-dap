@@ -34,16 +34,22 @@ function M.pick_if_many(items, prompt, label_fn, cb)
 end
 
 
-function M.pick_one(items, prompt, label_fn, cb)
+function M.pick_one_sync(items, prompt, label_fn)
   local choices = {prompt}
   for i, item in ipairs(items) do
     table.insert(choices, string.format('%d: %s', i, label_fn(item)))
   end
   local choice = vim.fn.inputlist(choices)
   if choice < 1 or choice > #items then
-    return cb(nil)
+    return nil
   end
-  return cb(items[choice])
+  return items[choice]
+end
+
+
+function M.pick_one(items, prompt, label_fn, cb)
+  local result = M.pick_one_sync(items, prompt, label_fn)
+  cb(result)
 end
 
 
