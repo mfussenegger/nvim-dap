@@ -294,7 +294,8 @@ function M.clear()
   history.entries = {}
   history.idx = 1
   if repl.buf and api.nvim_buf_is_loaded(repl.buf) then
-    api.nvim_buf_set_lines(repl.buf, 0, -1, true, {})
+    local layer = ui.layer(repl.buf)
+    layer.render({}, tostring, {}, 0, - 1)
   end
 end
 
