@@ -343,6 +343,12 @@ end
 
 
 function M.stop()
+  vim.notify('dap.stop() is deprecated. Call dap.close() instead')
+  M.close()
+end
+
+
+function M.close()
   if session then
     session:close()
     session = nil
@@ -496,8 +502,8 @@ function M.continue()
     )
     local choices = {
       {
-        label = "Stop session",
-        action = M.stop
+        label = "Close session (Debug adapter might keep running)",
+        action = M.close
       },
       {
         label = "Pause a thread",
@@ -509,7 +515,9 @@ function M.continue()
       },
       {
         label = "Disconnect (terminate = true)",
-        action = M.disconnect,
+        action = function()
+          M.disconnect({ terminateDebuggee = true })
+        end
       },
       {
         label = "Disconnect (terminate = false)",

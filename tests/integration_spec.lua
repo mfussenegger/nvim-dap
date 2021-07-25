@@ -8,7 +8,7 @@ describe('dap', function()
   os.execute('python -m venv "' .. venv_dir .. '"')
   os.execute(venv_dir .. '/bin/python -m pip install debugpy')
   after_each(function()
-    dap.stop()
+    dap.close()
   end)
 
   it('Basic debugging flow', function()

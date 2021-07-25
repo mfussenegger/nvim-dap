@@ -394,20 +394,27 @@ launch({adapter}, {config})                                       *dap.launch()*
                         not required in this case.
             {config}    |dap-configuration|
 
-stop()                                                              *dap.stop()*
+close()                                                            *dap.close()*
         Closes the current session.
+
+        This is NOT guaranteed to terminate the debug adapter or debugee.
         To disconnect the adapter as well, call |dap.disconnect()| before
-        calling |dap.stop()|
+        calling |dap.close()|
+
 
 disconnect(opts)                                              *dap.disconnect()*
-        Disconnects the adapter from the current session. The session is not
-        closed. To close the session, call |dap.stop()|.
- 
+
+        disconnect asks the debug adapter to disconnect from the debuggee and
+        to terminate the debug adapter.
+
+        The client session may remain open if the debug adapter does not
+        terminate. To ensure the session gets closed, also call |dap.close()|.
+
         Requires an active session.
 
         Parameters: ~
             {opts}    Table with options for the disconnect request.
-                      Defaults to `{ restart = false, terminateDebuggee = true }`
+                      Defaults to `{ restart = false, terminateDebuggee = null }`
 
 
 attach({host}, {port}, {config})                                 *dap.attach()*

@@ -810,7 +810,7 @@ end
 function Session:disconnect(opts)
   opts = vim.tbl_extend('force', {
     restart = false,
-    terminateDebuggee = true;
+    terminateDebuggee = nil;
   }, opts or {})
   self:request('disconnect', opts)
 end
