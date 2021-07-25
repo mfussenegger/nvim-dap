@@ -221,6 +221,7 @@ local function popup()
   -- width and height are increased later once variables are written to the buffer
   local opts = vim.lsp.util.make_floating_popup_options(1, 1, {})
   local win = api.nvim_open_win(buf, true, opts)
+  api.nvim_win_set_option(win, "wrap", false)
   return win, buf
 end
 
