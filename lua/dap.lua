@@ -5,10 +5,8 @@ local last_run = nil
 
 -- lazy import other modules to have a lower startup footprint
 local lazy = setmetatable({}, {
-  __index = function(tbl, key)
-    local val = require('dap.' .. key)
-    rawset(tbl, key, val)
-    return val
+  __index = function(_, key)
+    return require('dap.' .. key)
   end
 })
 
