@@ -742,13 +742,13 @@ function Session:request(command, arguments, callback)
   log.debug('request', payload)
   local current_seq = self.seq
   self.seq = self.seq + 1
+  if callback then
+    self.message_callbacks[current_seq] = callback
+    self.message_requests[current_seq] = arguments
+  end
   vim.schedule(function()
     local msg = rpc.msg_with_content_length(vim.fn.json_encode(payload))
     self.client.write(msg)
-    if callback then
-      self.message_callbacks[current_seq] = callback
-      self.message_requests[current_seq] = arguments
-    end
   end)
 end
 
