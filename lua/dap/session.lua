@@ -767,14 +767,15 @@ function Session:response(request, payload)
 end
 
 
-function Session:initialize(config)
+function Session:initialize(config, adapter)
   require('dap.repl').clear()
+  adapter = adapter or {}
   local adapter_responded = false
   self.config = config
   self:request('initialize', {
     clientId = 'neovim';
     clientname = 'neovim';
-    adapterID = 'nvim-dap';
+    adapterID = adapter.id or 'nvim-dap';
     pathFormat = 'path';
     columnsStartAt1 = true;
     linesStartAt1 = true;
