@@ -87,12 +87,20 @@ For `executable` the following options are supported:
       env?: {}          -- Set the environment variables for the command
       cwd?: string      -- Set the working directory for the command
     }
+    id?: string         -- Identifier of the adapter. This is used for the
+                           `adapterId` property of the initialize request.
+                           For most debug adapters setting this is not
+                           necessary.
 
 For `server` the following options are supported:
 
 >
     host?: string       -- host to connect to, defaults to 127.0.0.1
     port:  number       -- port to connect to
+    id?: string         -- Identifier of the adapter. This is used for the
+                           `adapterId` property of the initialize request.
+                           For most debug adapters setting this is not
+                           necessary.
 
 
 `dap.adapters.<name>` can also be set to a function which takes two arguments.
@@ -417,7 +425,7 @@ disconnect(opts)                                              *dap.disconnect()*
                       Defaults to `{ restart = false, terminateDebuggee = null }`
 
 
-attach({host}, {port}, {config})                                 *dap.attach()*
+attach({adapter}, {config})                                       *dap.attach()*
         Attach to a running debug adapter and then initialize it with the
         given |dap-configuration|
 

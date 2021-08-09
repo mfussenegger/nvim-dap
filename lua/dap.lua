@@ -172,7 +172,7 @@ local function run_adapter(adapter, configuration, opts)
     M.launch(adapter, configuration, opts)
   elseif adapter.type == 'server' then
     lazy.progress.report('Running: ' .. name)
-    M.attach(adapter.host, adapter.port, configuration, opts)
+    M.attach(adapter, configuration, opts)
   else
     print(string.format('Invalid adapter type %s, expected `executable` or `server`', adapter.type))
   end
@@ -623,20 +623,33 @@ end
 --- Attach to an existing debug-adapter running on host, port
 --  and then initialize it with config
 --
--- Configuration:         -- Specifies how the debug adapter should conenct/launch the debugee
+-- Configuration:         -- Specifies how the debug adapter should connect/launch the debugee
 --    request: string     -- attach or launch
 --    ...                 -- debug adapter specific options
 --
-function M.attach(host, port, config, opts)
+function M.attach(adapter, config, opts, bwc_dummy)
   if session then
     session:close()
+  end
+  if type(adapter) == 'string' then
+    vim.notify(
+      'dap.launch signature changed from (host, port, config) to (adapter, config), please adjust',
+      vim.log.levels.WARN
+    )
+    local host = adapter
+    local port = config
+    config = opts
+    opts = bwc_dummy
+    adapter = { type = 'server', host = host, port = port, }
   end
   if not config.request then
     print('config needs the `request` property which must be one of `attach` or `launch`')
     return
   end
+  local host = assert(adapter.host, 'Adapter used with attach must have a host property')
+  local port = assert(adapter.port, 'Adapter used with attach must have a port property')
   session = require('dap.session'):connect(host, port, opts)
-  session:initialize(config)
+  session:initialize(config, adapter)
   return session
 end
 
@@ -661,7 +674,7 @@ function M.launch(adapter, config, opts)
     session:close()
   end
   session = require('dap.session'):spawn(adapter, opts)
-  session:initialize(config)
+  session:initialize(config, adapter)
   return session
 end
 
