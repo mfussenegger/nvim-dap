@@ -584,24 +584,28 @@ local function session_defaults(opts)
 end
 
 
-function Session:connect(host, port, opts)
+function Session:connect(host, port, opts, on_connect)
   local session = session_defaults(opts or {})
   setmetatable(session, self)
   self.__index = self
 
   local client = uv.new_tcp()
   session.client = {
-    write = function(line) client:write(line) end;
+    write = function(line)
+      client:write(line)
+    end;
     close = function()
       client:shutdown()
       client:close()
     end;
   }
   client:connect(host or '127.0.0.1', tonumber(port), function(err)
-    if (err) then print(err) end
-    client:read_start(rpc.create_read_loop(function(body)
-      session:handle_body(body)
-    end))
+    if not err then
+      client:read_start(rpc.create_read_loop(function(body)
+        session:handle_body(body)
+      end))
+    end
+    on_connect(err)
   end)
   return session
 end
