@@ -772,7 +772,7 @@ end
 
 
 function Session:initialize(config, adapter)
-  require('dap.repl').clear()
+  vim.schedule(require('dap.repl').clear)
   adapter = adapter or {}
   local adapter_responded = false
   self.config = config
