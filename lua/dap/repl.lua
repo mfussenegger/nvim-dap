@@ -210,8 +210,9 @@ function execute(text)
   elseif vim.tbl_contains(M.commands.frames, text) then
     M.print_stackframes()
   elseif M.commands.custom_commands[splitted_text[1]] then
-    local command = table.remove(splitted_text, 1)
-    M.commands.custom_commands[command](text)
+    local command = splitted_text[1]
+    local args = string.sub(text, string.len(command)+2)
+    M.commands.custom_commands[command](args)
   else
     session:evaluate(text, evaluate_handler)
   end
