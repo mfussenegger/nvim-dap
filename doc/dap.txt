@@ -610,29 +610,21 @@ repl.open({winopts}, {wincmd})                                 *dap.repl.open()*
           .rc or
           .reverse-continue   Same as |dap.reverse_continue|
 
-        You can customize the commands by overriding `dap.repl.commands`:
+        You can customize the builtin command names or define your own
+        custom commands by extending `dap.repl.commands`:
         >
-          dap.repl.commands = vim.tbl_extend('force', dap.repl.commands, {
-            continue = {'.continue', '.c'},
-            next_ = {'.next', '.n'},
-            back = {'.back', '.b'},
-            reverse_continue = {'.reverse-continue', '.rc'},
-            into = {'.into'},
-            into_target = {'.into_target'},
-            out = {'.out'},
-            scopes = {'.scopes'},
-            threads = {'.threads'},
-            frames = {'.frames'},
-            exit = {'exit', '.exit'},
-            up = {'.up'},
-            down = {'.down'},
-            goto_ = {'.goto'},
-            capabilities = {'.capabilities'},
-            -- add your own commands
+          local repl = require 'dap.repl'
+          repl.commands = vim.tbl_extend('force', repl.commands, {
+            -- Add a new alias for the existing .exit command
+            exit = {'exit', '.exit', '.bye'},
+            -- Add your own commands; run `.echo hello world` to invoke
+            -- this function with the text "hello world"
             custom_commands = {
               ['.echo'] = function(text)
                 dap.repl.append(text)
-              end
+              end,
+              -- Hook up a new command to an existing dap function
+              ['.restart'] = dap.restart,
             },
           }
 
