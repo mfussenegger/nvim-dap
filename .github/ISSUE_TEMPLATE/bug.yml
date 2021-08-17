@@ -5,11 +5,14 @@ body:
     id: config
     attributes:
       label: Debug adapter definition and debug configuration
-      description: dap.adapters.<name> and dap.configurations.<filetype>
+      description: dap.adapters.<name> and dap.configurations.<filetype>.
+        Please reduce it to a minimum with which the problem can be reproduced.
+        Make sure to format code snippets (Using ```)
       placeholder: |-
         Installed the adapter via ...
         Configured it as described in the wiki:
 
+        ```lua
         dap.adapters.abc = {
           type = 'executable';
           command = 'abc';
@@ -21,6 +24,7 @@ body:
             ...
           }
         }
+        ```
   - type: input
     id: debug_adapter_version
     attributes:
