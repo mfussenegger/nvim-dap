@@ -518,28 +518,29 @@ function Session:handle_body(body)
       log.warn('No callback for ', decoded)
       return
     end
+
+    local resp_body = nil
+    local resp_err = nil
+
     if decoded.success then
-      vim.schedule(function()
-        for _, c in pairs(listeners.before[decoded.command]) do
-          c(self, nil, decoded.body, request)
-        end
-        callback(nil, decoded.body)
-        for _, c in pairs(listeners.after[decoded.command]) do
-          c(self, nil, decoded.body, request)
-        end
-      end)
+      resp_body = decoded.body
     else
-      vim.schedule(function()
-        local err = { message = decoded.message; body = decoded.body; }
-        for _, c in pairs(listeners.before[decoded.command]) do
-          c(self, err, nil, request)
-        end
-        callback(err, nil)
-        for _, c in pairs(listeners.after[decoded.command]) do
-          c(self, err, nil, request)
-        end
-      end)
+      resp_err = { message = decoded.message; body = decoded.body; }
     end
+
+    if decoded.command == nil then
+        decoded.command = ""
+    end
+
+    vim.schedule(function()
+      for _, c in pairs(listeners.before[decoded.command]) do
+        c(self, resp_err, resp_body, request)
+      end
+      callback(resp_err, resp_body)
+      for _, c in pairs(listeners.after[decoded.command]) do
+        c(self, resp_err, resp_body, request)
+      end
+    end)
   elseif decoded.event then
     local callback = self['event_' .. decoded.event]
     vim.schedule(function()
