@@ -12,6 +12,7 @@ local index_of = utils.index_of
 local Session = {}
 local ns_pos = 'dap_pos'
 local terminal_buf
+local disasm_buf = -1
 
 
 local function dap()
@@ -214,7 +215,8 @@ local function jump_to_location(bufnr, line, column)
   -- (Don't want to move to code in the REPL...)
   for _, win in pairs(api.nvim_tabpage_list_wins(0)) do
     local winbuf = api.nvim_win_get_buf(win)
-    if api.nvim_buf_get_option(winbuf, 'buftype') == '' then
+    if api.nvim_buf_get_option(winbuf, 'buftype') == '' or
+            winbuf == disasm_buf then
       local bufchanged, _ = pcall(api.nvim_win_set_buf, win, bufnr)
       if bufchanged then
         api.nvim_win_set_cursor(win, { line, column - 1 })
@@ -258,9 +260,13 @@ local function jump_to_frame(cur_session, frame, preserve_focus_hint)
     cur_session:request('source', params, function(err, response)
       assert(not err, vim.inspect(err))
 
-      local buf = api.nvim_create_buf(false, true)
-      api.nvim_buf_set_lines(buf, 0, -1, false, vim.split(response.content, '\n'))
-      jump_to_location(buf, frame.line, frame.column)
+      if disasm_buf == -1 or not vim.fn.bufexists(cur_session.disasm_buf) then
+        disasm_buf = api.nvim_create_buf(false, true)
+      end
+
+      log.error(response)
+      api.nvim_buf_set_lines(disasm_buf, 0, -1, false, vim.split(response.content, '\n'))
+      jump_to_location(disasm_buf, frame.line, frame.column)
     end)
   end
 end
