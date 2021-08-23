@@ -1,3 +1,4 @@
+local utils = require('dap.utils')
 local M = {}
 
 -- Copied from neovim rpc.lua
@@ -65,7 +66,7 @@ function M.create_read_loop(handle_body)
   parse_chunk()
   return function (err, chunk)
     if err then
-      print(err)
+      utils.notify(err, vim.log.levels.ERROR)
       return
     end
     if not chunk then

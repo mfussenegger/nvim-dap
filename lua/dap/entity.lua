@@ -1,3 +1,4 @@
+local utils = require('dap.utils')
 local M = {}
 
 
@@ -85,7 +86,7 @@ function variable.fetch_children(var, cb)
     local params = { variablesReference = var.variablesReference }
     session:request('variables', params, function(err, resp)
       if err then
-        print(err.message)
+        utils.notify(err.message, vim.log.levels.ERROR)
       else
         var.variables = sort_vars(resp.variables)
         cb(var.variables)

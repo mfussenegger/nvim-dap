@@ -1,5 +1,6 @@
 local api = vim.api
 local ui = require('dap.ui')
+local utils = require('dap.utils')
 local M = {}
 
 local history = {
@@ -98,7 +99,7 @@ function M.print_stackframes(frames)
           s:_frame_set(frame)
           layer.render(frames, render_frame, context, start, start + #frames)
         else
-          print('Cannot navigate to frame without active session')
+          utils.notify('Cannot navigate to frame without active session', vim.log.levels.INFO)
         end
       end,
     },

@@ -1,4 +1,5 @@
 local ui = require('dap.ui')
+local utils = require('dap.utils')
 local api = vim.api
 local M = {}
 
@@ -151,7 +152,7 @@ M.frames = {
               view.close()
             end
           else
-            print('Cannot navigate to frame without active session')
+            utils.notify('Cannot navigate to frame without active session', vim.log.levels.INFO)
           end
         end
       },
