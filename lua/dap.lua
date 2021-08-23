@@ -1,4 +1,5 @@
 local api = vim.api
+local utils = require('dap.utils')
 local M = {}
 local session = nil
 local last_run = nil
@@ -174,7 +175,7 @@ local function run_adapter(adapter, configuration, opts)
     lazy.progress.report('Running: ' .. name)
     M.attach(adapter, configuration, opts)
   else
-    print(string.format('Invalid adapter type %s, expected `executable` or `server`', adapter.type))
+    utils.notify(string.format('Invalid adapter type %s, expected `executable` or `server`', adapter.type), vim.log.levels.ERROR)
   end
 end
 
@@ -211,12 +212,7 @@ local function select_config_and_run()
     )
   )
   if #configurations == 0 then
-    print(string.format(
-      ('No configuration found for `%s`. '
-        .. 'You need to add configs to `dap.configurations.%s` (See `:h dap-configuration`)'),
-      filetype,
-      filetype
-    ))
+    utils.notify(string.format('No configuration found for `%s`. You need to add configs to `dap.configurations.%s` (See `:h dap-configuration`)', filetype, filetype), vim.log.levels.INFO)
     return
   end
   lazy.ui.pick_if_many(
@@ -227,7 +223,7 @@ local function select_config_and_run()
       if configuration then
         M.run(configuration)
       else
-        print('No configuration selected')
+        utils.notify('No configuration selected', vim.log.levels.INFO)
       end
     end
   )
@@ -257,7 +253,7 @@ function M.run(config, opts)
       config
     )
   else
-    print('Invalid adapter: ', vim.inspect(adapter))
+    utils.notify('Invalid adapter: ' .. vim.inspect(adapter), vim.log.levels.ERROR)
   end
 end
 
@@ -266,7 +262,7 @@ function M.run_last()
   if last_run then
     M.run(last_run.config, last_run.opts)
   else
-    print('No configuration available to re-run')
+    utils.notify('No configuration available to re-run', vim.log.levels.INFO)
   end
 end
 
@@ -289,7 +285,7 @@ function M.step_into(opts)
 
   session:request('stepInTargets', { frameId = session.current_frame.id }, function(err, response)
     if err then
-      print('Error on step_into: ' .. err.message .. " (while requesting stepInTargets)")
+      utils.notify('Error on step_into: ' .. err.message .. ' (while requesting stepInTargets)', vim.log.levels.ERROR)
       return
     end
 
@@ -299,7 +295,7 @@ function M.step_into(opts)
       function(target) return target.label end,
       function(target)
         if not target or not target.id then
-          print('No target selected. No stepping.')
+          utils.notify('No target selected. No stepping.', vim.log.levels.INFO)
         else
           opts.targetId = target.id
           session:_step('stepIn', opts)
@@ -319,7 +315,7 @@ function M.step_back(opts)
   if session.capabilities.supportsStepBack then
     session:_step('stepBack', opts)
   else
-    print("Debug Adapter does not support stepping backwards.")
+    utils.notify('Debug Adapter does not support stepping backwards.', vim.log.levels.ERROR)
   end
 end
 
@@ -328,7 +324,7 @@ function M.reverse_continue(opts)
   if session.capabilities.supportsStepBack then
     session:_step('reverseContinue', opts)
   else
-    print("Debug Adapter does not support stepping backwards.")
+    utils.notify('Debug Adapter does not support stepping backwards.', vim.log.levels.ERROR)
   end
 end
 
@@ -341,7 +337,7 @@ end
 
 
 function M.stop()
-  vim.notify('dap.stop() is deprecated. Call dap.close() instead')
+  utils.notify('dap.stop() is deprecated. Call dap.close() instead', vim.log.levels.WARN)
   M.close()
 end
 
@@ -386,13 +382,13 @@ function M.restart()
   if session.capabilities.supportsRestartRequest then
     session:request('restart', nil, function(err0, _)
       if err0 then
-        print('Error restarting debug adapter: ' .. err0.message)
+        utils.notify('Error restarting debug adapter: ' .. err0.message, vim.log.levels.ERROR)
       else
-        print('Restarted debug adapter')
+        utils.notify('Restarted debug adapter', vim.log.levels.INFO)
       end
     end)
   else
-    print('Restart not supported')
+    utils.notify('Restart not supported', vim.log.levels.ERROR)
   end
 end
 
@@ -406,7 +402,7 @@ function M.list_breakpoints(open_quickfix)
   })
   if open_quickfix then
     if #qf_list == 0 then
-      print('No breakpoints set!')
+      utils.notify('No breakpoints set!', vim.log.levels.INFO)
     else
       api.nvim_command('copen')
     end
@@ -441,18 +437,18 @@ function M.set_exception_breakpoints(filters, exceptionOptions)
   if session then
     session:set_exception_breakpoints(filters, exceptionOptions)
   else
-    print('Cannot set exception breakpoints: No active session!')
+    utils.notify('Cannot set exception breakpoints: No active session!', vim.log.levels.INFO)
   end
 end
 
 
 function M.run_to_cursor()
   if not session then
-    vim.notify('Cannot use run_to_cursor without active session')
+    utils.notify('Cannot use run_to_cursor without active session', vim.log.levels.INFO)
     return
   end
   if not session.stopped_thread_id then
-    vim.notify('run_to_cursor can only be used if stopped at a breakpoint')
+    utils.notify('run_to_cursor can only be used if stopped at a breakpoint', vim.log.levels.INFO)
     return
   end
 
@@ -544,7 +540,7 @@ function M.disconnect(opts)
     session:close()
     session = nil
   else
-    print('No active session. Doing nothing.')
+    utils.notify('No active session. Doing nothing.', vim.log.levels.INFO)
   end
 end
 
@@ -632,7 +628,7 @@ function M.attach(adapter, config, opts, bwc_dummy)
     session:close()
   end
   if type(adapter) == 'string' then
-    vim.notify(
+    utils.notify(
       'dap.launch signature changed from (host, port, config) to (adapter, config), please adjust',
       vim.log.levels.WARN
     )
@@ -643,7 +639,7 @@ function M.attach(adapter, config, opts, bwc_dummy)
     adapter = { type = 'server', host = host, port = port, }
   end
   if not config.request then
-    print('config needs the `request` property which must be one of `attach` or `launch`')
+    utils.notify('Config needs the `request` property which must be one of `attach` or `launch`', vim.log.levels.ERROR)
     return
   end
   local host = assert(adapter.host, 'Adapter used with attach must have a host property')

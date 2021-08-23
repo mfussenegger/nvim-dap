@@ -1,5 +1,5 @@
 local api = vim.api
-
+local utils = require('dap.utils')
 local M = {}
 
 
@@ -322,7 +322,7 @@ function M.trigger_actions()
   local info = layer.get(lnum, 0, col)
   local actions = info and info.context and info.context.actions
   if not actions or #actions == 0 then
-    vim.notify('No action possible on: ' .. api.nvim_buf_get_lines(buf, lnum, lnum + 1, true)[1])
+    utils.notify('No action possible on: ' .. api.nvim_buf_get_lines(buf, lnum, lnum + 1, true)[1], vim.log.level.INFO)
     return
   end
   M.pick_if_many(

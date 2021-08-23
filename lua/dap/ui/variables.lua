@@ -233,16 +233,16 @@ end
 local function is_stopped_at_frame()
   local session = require('dap').session()
   if not session then
-    print("No active session. Can't show hover window")
+    utils.notify("No active session. Can't show hover window", vim.log.levels.INFO)
     return
   end
   if not session.stopped_thread_id then
-    print("No stopped thread. Can't show hover window")
+    utils.notify("No stopped thread. Can't show hover window", vim.log.levels.INFO)
     return
   end
   local frame = session.current_frame
   if not frame then
-    print("No frame to inspect available. Can't show hover window")
+    utils.notify("No frame to inspect available. Can't show hover window", vim.log.levels.INFO)
     return
   end
   return true
@@ -284,7 +284,7 @@ function M.hover(resolve_expression_fn)
     else
       session:evaluate(expression, function(err, resp)
         if err then
-          print('Cannot evaluate "'..expression..'"!')
+          utils.notify('Cannot evaluate "'..expression..'"!', vim.log.levels.ERROR)
         else
           if resp and resp.result then
             floating_win, floating_buf = popup()

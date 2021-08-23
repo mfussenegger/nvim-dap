@@ -91,4 +91,8 @@ function M.get_visual_selection_text()
   end
 end
 
+function M.notify(msg, log_level)
+  vim.notify(msg, log_level, {title = 'DAP'})
+end
+
 return M

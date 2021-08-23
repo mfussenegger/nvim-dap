@@ -36,7 +36,7 @@ local function launch_external_terminal(terminal, args)
   handle, pid_or_err = uv.spawn(terminal.command, opts, function(code)
     handle:close()
     if code ~= 0 then
-      print('Terminal exited', code, 'running', terminal.command, table.concat(full_args, ' '))
+      utils.notify(string.format('Terminal exited %d running %s %s', code, terminal.command, table.concat(full_args, ' ')), vim.log.levels.ERROR)
     end
   end)
   return handle, pid_or_err
@@ -50,11 +50,11 @@ function Session:run_in_terminal(request)
   if body.kind == 'external' or (settings.force_external_terminal and settings.external_terminal) then
     local terminal = settings.external_terminal
     if not terminal then
-      print('Requested external terminal, but none configured. Fallback to integratedTerminal')
+      utils.notify('Requested external terminal, but none configured. Fallback to integratedTerminal', vim.log.levels.WARN)
     else
       local handle, pid = launch_external_terminal(terminal, body.args)
       if not handle then
-        print('Could not launch terminal', terminal.command)
+        utils.notify('Could not launch terminal ' .. terminal.command, vim.log.levels.ERROR)
       end
       self:response(request, {
         success = handle ~= nil;
@@ -116,7 +116,7 @@ function Session:event_initialized()
     if self.capabilities.supportsConfigurationDoneRequest then
       self:request('configurationDone', nil, function(err1, _)
         if err1 then
-          print(err1.message)
+          utils.notify(err1.message, vim.log.levels.ERROR)
         end
         self.initialized = true
       end)
@@ -142,7 +142,7 @@ function Session:_show_exception_info()
   --- threadId: number
   self:request('exceptionInfo', {threadId = self.stopped_thread_id}, function(err, response)
     if err then
-      print("Error getting exception info: "..err.message)
+      utils.notify('Error getting exception info: ' .. err.message, vim.log.levels.ERROR)
     end
 
     -- ExceptionInfoResponse
@@ -194,7 +194,7 @@ end
 local function jump_to_location(bufnr, line, column)
   local ok, failure = pcall(vim.fn.sign_place, 0, ns_pos, 'DapStopped', bufnr, { lnum = line; priority = 12 })
   if not ok then
-    print(failure)
+    utils.notify(failure, vim.log.levels.ERROR)
   end
   progress.report('Stopped at line ' .. line)
   -- vscode-go sends columns with 0
@@ -229,7 +229,7 @@ end
 local function jump_to_frame(cur_session, frame, preserve_focus_hint)
   local source = frame.source
   if not source then
-    print('Source not available, cannot jump to frame')
+    utils.notify('Source not available, cannot jump to frame', vim.log.levels.INFO)
     return
   end
   vim.fn.sign_unplace(ns_pos)
@@ -238,7 +238,7 @@ local function jump_to_frame(cur_session, frame, preserve_focus_hint)
   end
   if not source.sourceReference or source.sourceReference == 0 then
     if not source.path then
-      print('Source path not available, cannot jump to frame')
+      utils.notify('Source path not available, cannot jump to frame', vim.log.levels.INFO)
       return
     end
     local scheme = source.path:match('^([a-z]+)://.*')
@@ -275,7 +275,7 @@ function Session:event_stopped(stopped)
   self.stopped_thread_id = stopped.threadId
   self:request('threads', nil, function(err0, threads_resp)
     if err0 then
-      print('Error retrieving threads: ' .. err0.message)
+      utils.notify('Error retrieving threads: ' .. err0.message, vim.log.levels.ERROR)
       return
     end
     local threads = {}
@@ -290,7 +290,7 @@ function Session:event_stopped(stopped)
 
     self:request('stackTrace', { threadId = stopped.threadId; }, function(err1, frames_resp)
       if err1 then
-        print('Error retrieving stack traces: ' .. err1.message)
+        utils.notify('Error retrieving stack traces: ' .. err1.message, vim.log.levels.ERROR)
         return
       end
       local frames = {}
@@ -367,22 +367,22 @@ function Session:_goto(line, source, col)
     return
   end
   if not self.capabilities.supportsGotoTargetsRequest then
-    print("Debug Adapter doesn't support GotoTargetRequest")
+    utils.notify("Debug Adapter doesn't support GotoTargetRequest", vim.log.levels.INFO)
     return
   end
   self:request('gotoTargets',  {source = source or frame.source, line = line, col = col}, function(err, response)
     if err then
-      print('Error getting gotoTargets: ' .. err.message)
+      utils.notify('Error getting gotoTargets: ' .. err.message, vim.log.levels.ERROR)
       return
     end
     if not response or not response.targets then
-      print("No goto targets available. Can't execute goto")
+      utils.notify("No goto targets available. Can't execute goto", vim.log.levels.INFO)
       return
     end
     local params = {threadId = self.stopped_thread_id, targetId = response.targets[1].id }
     self:request('goto', params, function(err1, _)
       if err1 then
-        print('Error executing goto: ' .. err1.message)
+        utils.notify('Error executing goto: ' .. err1.message, vim.log.levels.ERROR)
       end
     end)
   end)
@@ -393,13 +393,13 @@ do
   local function notify_if_missing_capability(bufnr, bps, capabilities)
     for _, bp in pairs(bps) do
       if non_empty(bp.condition) and not capabilities.supportsConditionalBreakpoints then
-        print("Debug adapter doesn't support breakpoints with conditions", bufnr, bp.line)
+        utils.notify("Debug adapter doesn't support breakpoints with conditions", bufnr, bp.line, vim.log.levels.WARN)
       end
       if non_empty(bp.hitCondition) and not capabilities.supportsHitConditionalBreakpoints then
-        print("Debug adapter doesn't support breakpoints with hit conditions", bufnr, bp.line)
+        utils.notify("Debug adapter doesn't support breakpoints with hit conditions", bufnr, bp.line, vim.log.levels.WARN)
       end
       if non_empty(bp.logMessage) and not capabilities.supportsLogPoints then
-        print("Debug adapter doesn't support log points", bufnr, bp.line)
+        utils.notify("Debug adapter doesn't support log points", bufnr, bp.line, vim.log.levels.WARN)
       end
     end
   end
@@ -426,14 +426,14 @@ do
       }
       self:request('setBreakpoints', payload, function(err1, resp)
         if err1 then
-          print("Error setting breakpoints: " .. err1.message)
+          utils.notify('Error setting breakpoints: ' .. err1.message, vim.log.levels.ERROR)
         else
           for _, bp in pairs(resp.breakpoints) do
             breakpoints.set_state(bufnr, bp.line, bp)
             if not bp.verified then
               log.info('Server rejected breakpoint', bp)
               if bp.message then
-                vim.notify(bp.message)
+                utils.notify(bp.message, vim.log.levels.ERROR)
               end
             end
           end
@@ -449,7 +449,7 @@ end
 
 function Session:set_exception_breakpoints(filters, exceptionOptions, on_done)
   if not self.capabilities.exceptionBreakpointFilters then
-    print("Debug adapter doesn't support exception breakpoints")
+    utils.notify("Debug adapter doesn't support exception breakpoints", vim.log.levels.INFO)
     return
   end
 
@@ -472,7 +472,7 @@ function Session:set_exception_breakpoints(filters, exceptionOptions, on_done)
   end
 
   if exceptionOptions and not self.capabilities.supportsExceptionOptions then
-    print("Debug adapter does not support ExceptionOptions")
+    utils.notify('Debug adapter does not support ExceptionOptions', vim.log.levels.INFO)
     return
   end
 
@@ -484,7 +484,7 @@ function Session:set_exception_breakpoints(filters, exceptionOptions, on_done)
     { filters = filters, exceptionOptions = exceptionOptions },
     function(err, _)
       if err then
-        print("Error setting exception breakpoints: "..err.message)
+        utils.notify('Error setting exception breakpoints: ' .. err.message, vim.log.levels.ERROR)
       end
       if on_done then
         on_done()
@@ -664,9 +664,9 @@ local function pause_thread(session, thread_id)
 
   session:request('pause', { threadId = thread_id; }, function(err)
     if err then
-      print('Error pausing: ' .. err.message)
+      utils.notify('Error pausing: ' .. err.message, vim.log.levels.ERROR)
     else
-      print('Thread paused', thread_id)
+      utils.notify('Thread paused ' .. thread_id, vim.log.levels.INFO)
     end
   end)
 end
@@ -674,10 +674,7 @@ end
 
 function Session:_pause(thread_id)
   if self.stopped_thread_id then
-    print(
-      'Thread', self.stopped_thread_id, 'is stopped.',
-      'Cannot pause another one. Use `continue()` to resume paused thread.'
-    )
+    utils.notify('Thread ' .. self.stopped_thread_id .. ' is stopped. Cannot pause another one. Use `continue()` to resume paused thread.', vim.log.levels.INFO)
     return
   end
   if thread_id then
@@ -686,7 +683,7 @@ function Session:_pause(thread_id)
   end
   self:request('threads', nil, function(err0, response)
     if err0 then
-      print('Error requesting threads: ' .. err0.message)
+      utils.notify('Error requesting threads: ' .. err0.message, vim.log.levels.ERROR)
       return
     end
     ui().pick_if_many(
@@ -695,7 +692,7 @@ function Session:_pause(thread_id)
       function(t) return t.name end,
       function(thread)
         if not thread or not thread.id then
-          print('No thread to stop. Not pausing...')
+          utils.notify('No thread to stop. Not pausing...', vim.log.levels.INFO)
         else
           pause_thread(self, thread.id)
         end
@@ -707,7 +704,7 @@ end
 
 function Session:_step(step, params)
   if not self.stopped_thread_id then
-    print('No stopped thread. Cannot move')
+    utils.notify('No stopped thread. Cannot move', vim.log.levels.ERROR)
     return
   end
   vim.fn.sign_unplace(ns_pos)
@@ -719,7 +716,7 @@ function Session:_step(step, params)
   self.stopped_thread_id = nil
   self:request(step, params, function(err)
     if err then
-      print('Error on '.. step .. ': ' .. err.message)
+      utils.notify('Error on '.. step .. ': ' .. err.message, vim.log.levels.ERROR)
     end
     progress.report('Running')
   end)
@@ -788,7 +785,7 @@ function Session:initialize(config, adapter)
     locale = os.getenv('LANG') or 'en_US';
   }, function(err0, result)
     if err0 then
-      print("Could not initialize debug adapter: " .. err0.message)
+      utils.notify('Could not initialize debug adapter: ' .. err0.message, vim.log.levels.ERROR)
       adapter_responded = true
       return
     end
@@ -797,7 +794,7 @@ function Session:initialize(config, adapter)
     self:request(config.request, config, function(err)
       adapter_responded = true
       if err then
-        print(string.format('Error on %s: %s', config.request, err.message))
+        utils.notify(string.format('Error on %s: %s', config.request, err.message), vim.log.levels.ERROR)
         self:close()
         dap().set_session(nil)
       end
@@ -810,7 +807,7 @@ function Session:initialize(config, adapter)
     timer:close()
     if not adapter_responded then
       vim.schedule(function()
-        vim.notify(
+        utils.notify(
           string.format(
             ("Debug adapter didn't respond. "
               .. "Either the adapter is slow (then wait and ignore this) "
@@ -854,7 +851,7 @@ end
 
 function Session:_frame_delta(delta)
   if not self.stopped_thread_id then
-    print('Cannot move frame if not stopped')
+    utils.notify('Cannot move frame if not stopped', vim.log.levels.ERROR)
     return
   end
   local frames = self.threads[self.stopped_thread_id].frames
