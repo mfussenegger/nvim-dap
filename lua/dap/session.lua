@@ -560,8 +560,33 @@ function Session:handle_body(body)
         log.warn('No event handler for ', decoded)
       end
     end)
-  elseif decoded.type == 'request' and decoded.command == 'runInTerminal' then
-    self:run_in_terminal(decoded)
+  elseif decoded.type == 'request' then
+    local callback = nil
+    vim.schedule(function()
+      local request_handled = false
+
+      if decoded.command == 'runInTerminal' then
+        request_handled = true
+        self:run_in_terminal(decoded)
+      end
+
+      for _, c in pairs(listeners.before['request_' .. decoded.command]) do
+        request_handled = true
+        c(self, decoded)
+      end
+      if callback then
+        request_handled = true
+        callback(self, decoded)
+      end
+      for _, c in pairs(listeners.after['request_' .. decoded.command]) do
+        request_handled = true
+        c(self, decoded)
+      end
+
+      if not request_handled then
+        log.warn('No request handler for ', decoded)
+      end
+    end)
   else
     log.warn('Received unexpected message', decoded)
   end
