@@ -231,6 +231,9 @@ end
 
 
 function M.run(config, opts)
+  assert(
+    type(config) == 'table',
+    'dap.run() must be called with a valid configuration, got ' .. vim.inspect(config))
   opts = opts or {}
   last_run = {
     config = config,
@@ -253,7 +256,14 @@ function M.run(config, opts)
       config
     )
   else
-    utils.notify('Invalid adapter: ' .. vim.inspect(adapter), vim.log.levels.ERROR)
+    utils.notify(
+      string.format(
+        'Invalid adapter `%s` for config `%s`',
+        vim.inspect(adapter),
+        config.type
+      ),
+      vim.log.levels.ERROR
+    )
   end
 end
 
