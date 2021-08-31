@@ -63,7 +63,7 @@ local function launch_external_terminal(terminal, args)
 end
 
 
-function Session:run_in_terminal(request)
+local function run_in_terminal(self, request)
   local body = request.arguments
   log.debug('run_in_terminal', body)
   local settings = dap().defaults[self.config.type]
@@ -583,17 +583,31 @@ function Session:handle_body(body)
         log.warn('No event handler for ', decoded)
       end
     end)
-  elseif decoded.type == 'request' and decoded.command == 'runInTerminal' then
-    self:run_in_terminal(decoded)
+  elseif decoded.type == 'request' then
+    local handler = self.handlers.reverse_requests[decoded.command]
+    if handler then
+      handler(self, decoded)
+    end
+    log.warn('No handler for reverse request', decoded)
   else
     log.warn('Received unexpected message', decoded)
   end
 end
 
 
-local function session_defaults(opts)
+local default_reverse_request_handlers = {
+  runInTerminal = run_in_terminal
+}
+
+
+local function session_defaults(adapter, opts)
   local handlers = {}
   handlers.after = opts.after
+  handlers.reverse_requests = vim.tbl_extend(
+    'error',
+    default_reverse_request_handlers,
+    adapter.reverse_request_handlers or {}
+  )
   return {
     handlers = handlers;
     message_callbacks = {};
@@ -607,8 +621,8 @@ local function session_defaults(opts)
 end
 
 
-function Session:connect(host, port, opts, on_connect)
-  local session = session_defaults(opts or {})
+function Session:connect(adapter, opts, on_connect)
+  local session = session_defaults(adapter, opts or {})
   setmetatable(session, self)
   self.__index = self
 
@@ -622,7 +636,7 @@ function Session:connect(host, port, opts, on_connect)
       client:close()
     end;
   }
-  client:connect(host or '127.0.0.1', tonumber(port), function(err)
+  client:connect(adapter.host or '127.0.0.1', tonumber(adapter.port), function(err)
     if not err then
       client:read_start(rpc.create_read_loop(function(body)
         session:handle_body(body)
@@ -635,7 +649,7 @@ end
 
 
 function Session:spawn(adapter, opts)
-  local session = session_defaults(opts or {})
+  local session = session_defaults(adapter, opts or {})
   setmetatable(session, self)
   self.__index = self
 

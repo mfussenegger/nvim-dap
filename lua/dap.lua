@@ -654,9 +654,9 @@ function M.attach(adapter, config, opts, bwc_dummy)
     utils.notify('Config needs the `request` property which must be one of `attach` or `launch`', vim.log.levels.ERROR)
     return
   end
-  local host = assert(adapter.host, 'Adapter used with attach must have a host property')
-  local port = assert(adapter.port, 'Adapter used with attach must have a port property')
-  session = require('dap.session'):connect(host, port, opts, function(err)
+  assert(adapter.host, 'Adapter used with attach must have a host property')
+  assert(adapter.port, 'Adapter used with attach must have a port property')
+  session = require('dap.session'):connect(adapter, opts, function(err)
     assert(not err, vim.inspect(err))
     session:initialize(config, adapter)
   end)
