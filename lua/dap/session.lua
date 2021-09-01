@@ -624,25 +624,32 @@ function Session:spawn(adapter, opts)
     stdin:close()
     stdout:close()
     stderr:close()
-    handle:close()
+    if handle then
+      handle:close()
+      handle = nil
+    end
   end
   local options = adapter.options or {}
   local pid_or_err
-  handle, pid_or_err = uv.spawn(adapter.command, {
+  local spawn_opts = {
     args = adapter.args;
     stdio = {stdin, stdout, stderr};
     cwd = options.cwd;
     env = options.env;
     detached = true;
-  }, onexit)
-  assert(handle, 'Error running ' .. adapter.command .. ': ' .. pid_or_err)
+  }
+  handle, pid_or_err = uv.spawn(adapter.command, spawn_opts, onexit)
+  if not handle then
+    onexit()
+    error('Error running ' .. adapter.command .. ': ' .. pid_or_err)
+  end
   session.client = {
     write = function(line) stdin:write(line) end;
     close = function()
       if handle then
         pcall(handle.kill, handle, 15)
-        pcall(handle.close, handle)
       end
+      onexit()
     end;
   }
   stdout:read_start(rpc.create_read_loop(function(body)
