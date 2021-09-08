@@ -41,7 +41,7 @@ function M.status()
   if not session then
     return ''
   end
-  if not (session.config.type == vim.bo.filetype and vim.bo.buftype == '') then
+  if not (vim.bo.buftype == '') then
     return ''
   end
   local msg = M.poll_msg() or last_msg
