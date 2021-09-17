@@ -333,7 +333,12 @@ end
 
 
 function Session.event_output(_, body)
-  require('dap.repl').append(body.output, '$')
+  if body.category == 'telemetry' then
+    log.info('Telemetry', body.output)
+  else
+    local repl = require('dap.repl')
+    repl.append(body.output, '$')
+  end
 end
 
 
