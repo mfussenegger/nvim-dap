@@ -6,6 +6,7 @@ local utils = require('dap.utils')
 local breakpoints = require('dap.breakpoints')
 local progress = require('dap.progress')
 local log = require('dap.log').create_logger('dap.log')
+local repl = require('dap.repl')
 local non_empty = utils.non_empty
 local index_of = utils.index_of
 
@@ -153,7 +154,6 @@ function Session:_show_exception_info()
     if response then
       local exception_type = response.details and response.details.typeName
       local of_type = exception_type and ' of type '..exception_type or ''
-      local repl = require('dap.repl')
       repl.append('Thread stopped due to exception'..of_type..' ('..response.breakMode..')')
       if response.description then
         repl.append('Description: '..response.description)
@@ -333,7 +333,11 @@ end
 
 
 function Session.event_output(_, body)
-  require('dap.repl').append(body.output, '$')
+  if body.category == 'telemetry' then
+    log.info('Telemetry', body.output)
+  else
+    repl.append(body.output, '$')
+  end
 end
 
 
@@ -776,7 +780,7 @@ end
 
 
 function Session:initialize(config, adapter)
-  vim.schedule(require('dap.repl').clear)
+  vim.schedule(repl.clear)
   adapter = adapter or {}
   local adapter_responded = false
   self.config = config

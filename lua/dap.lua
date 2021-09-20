@@ -636,6 +636,7 @@ end
 function M.attach(adapter, config, opts, bwc_dummy)
   if session then
     session:close()
+    session = nil
   end
   if type(adapter) == 'string' then
     utils.notify(
@@ -680,6 +681,7 @@ end
 function M.launch(adapter, config, opts)
   if session then
     session:close()
+    session = nil
   end
   session = require('dap.session'):spawn(adapter, opts)
   session:initialize(config, adapter)
@@ -695,6 +697,7 @@ end
 function M._vim_exit_handler()
   if session then
     session:close()
+    session = nil
   end
   M.repl.close()
 end
