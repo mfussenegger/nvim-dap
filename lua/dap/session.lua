@@ -14,6 +14,25 @@ local Session = {}
 local ns_pos = 'dap_pos'
 local terminal_buf
 
+local json_decode = vim.fn.json_decode
+local json_encode = vim.fn.json_encode
+local send_payload
+if vim.json then
+  json_decode = vim.json.decode
+  json_encode = vim.json.encode
+  send_payload = function(client, payload)
+    local msg = rpc.msg_with_content_length(json_encode(payload))
+    client.write(msg)
+  end
+else
+  send_payload = function(client, payload)
+    vim.schedule(function()
+      local msg = rpc.msg_with_content_length(json_encode(payload))
+      client.write(msg)
+    end)
+  end
+end
+
 
 local function dap()
   return require('dap')
@@ -510,7 +529,7 @@ end
 
 
 function Session:handle_body(body)
-  local decoded = convert_nil(vim.fn.json_decode(body))
+  local decoded = convert_nil(json_decode(body))
   log.debug(decoded)
   local listeners = dap().listeners
   if decoded.request_seq then
@@ -758,10 +777,7 @@ function Session:request(command, arguments, callback)
     self.message_callbacks[current_seq] = callback
     self.message_requests[current_seq] = arguments
   end
-  vim.schedule(function()
-    local msg = rpc.msg_with_content_length(vim.fn.json_encode(payload))
-    self.client.write(msg)
-  end)
+  send_payload(self.client, payload)
 end
 
 
@@ -772,10 +788,7 @@ function Session:response(request, payload)
   payload.request_seq = request.seq;
   payload.command = request.command;
   log.debug('response', payload)
-  vim.schedule(function()
-    local msg = rpc.msg_with_content_length(vim.fn.json_encode(payload))
-    self.client.write(msg)
-  end)
+  send_payload(self.client, payload)
 end
 
 
