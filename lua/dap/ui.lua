@@ -48,6 +48,12 @@ end
 
 
 function M.pick_one(items, prompt, label_fn, cb)
+  if vim.ui then
+    return vim.ui.select(items, {
+      prompt = prompt,
+      format_item = label_fn,
+    }, cb)
+  end
   local result = M.pick_one_sync(items, prompt, label_fn)
   cb(result)
 end
