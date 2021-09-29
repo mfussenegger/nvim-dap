@@ -826,7 +826,7 @@ function Session:initialize(config, adapter)
   end)
   local sec_to_ms = 1000
   local timer = vim.loop.new_timer()
-  timer:start(2 * sec_to_ms, 0, function()
+  timer:start(4 * sec_to_ms, 0, function()
     timer:stop()
     timer:close()
     if not adapter_responded then
