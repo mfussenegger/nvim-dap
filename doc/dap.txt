@@ -228,9 +228,10 @@ call it once.
 SIGNS CONFIGURATION
 
 
-nvim-dap uses four signs:
+nvim-dap uses five signs:
 
 - `DapBreakpoint` which defaults to `B` for breakpoints
+- `DapBreakpointCondition` which defaults to `C` for conditional breakpoints
 - `DapLogPoint` which defaults to `L` and is for log-points
 - `DapStopped` which defaults to `→` and is used to indicate the position where
   the debugee is stopped.

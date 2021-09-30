@@ -68,10 +68,17 @@ function M.toggle(opts, bufnr, lnum)
   if M.remove(bufnr, lnum) and not opts.replace then
     return
   end
+  local sign_name = 'DapBreakpoint'
+  if (non_empty(opts.condition)) then
+    sign_name = 'DapBreakpointCondition'
+  end
+  if (non_empty(opts.log_message)) then
+    sign_name = 'DapLogPoint'
+  end
   local sign_id = vim.fn.sign_place(
     0,
     ns,
-    non_empty(opts.log_message) and 'DapLogPoint' or 'DapBreakpoint',
+    sign_name,
     bufnr,
     { lnum = lnum; priority = 11; }
   )
