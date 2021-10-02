@@ -830,3 +830,5 @@ pick_process()                                         *dap.utils.pick_process*
 
         This uses `ps a` to retrieve the process list and won't work if `ps a`
         is not available
+
+vim:ft=help
