@@ -661,7 +661,11 @@ function Session:spawn(adapter, opts)
   local stdout = uv.new_pipe(false)
   local stderr = uv.new_pipe(false)
   local handle
+  local closed = false
   local function onexit()
+    if closed then
+      return
+    end
     stdin:close()
     stdout:close()
     stderr:close()
@@ -669,6 +673,7 @@ function Session:spawn(adapter, opts)
       handle:close()
       handle = nil
     end
+    closed = true
   end
   local options = adapter.options or {}
   local pid_or_err
