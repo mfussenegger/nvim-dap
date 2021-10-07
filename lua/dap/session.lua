@@ -14,17 +14,32 @@ local Session = {}
 local ns_pos = 'dap_pos'
 local terminal_buf
 
-local json_decode = vim.fn.json_decode
+local NIL = vim.NIL
+local function convert_nil(v)
+  if v == NIL then
+    return nil
+  elseif type(v) == 'table' then
+    return vim.tbl_map(convert_nil, v)
+  else
+    return v
+  end
+end
+local json_decode
 local json_encode = vim.fn.json_encode
 local send_payload
 if vim.json then
-  json_decode = vim.json.decode
+  json_decode = function(payload)
+    return vim.json.decode(payload, { luanil = { object = true }})
+  end
   json_encode = vim.json.encode
   send_payload = function(client, payload)
     local msg = rpc.msg_with_content_length(json_encode(payload))
     client.write(msg)
   end
 else
+  json_decode = function(payload)
+    return convert_nil(vim.fn.json_decode(payload))
+  end
   send_payload = function(client, payload)
     vim.schedule(function()
       local msg = rpc.msg_with_content_length(json_encode(payload))
@@ -516,20 +531,8 @@ function Session:set_exception_breakpoints(filters, exceptionOptions, on_done)
 end
 
 
-local NIL = vim.NIL
-local function convert_nil(v)
-  if v == NIL then
-    return nil
-  elseif type(v) == 'table' then
-    return vim.tbl_map(convert_nil, v)
-  else
-    return v
-  end
-end
-
-
 function Session:handle_body(body)
-  local decoded = convert_nil(json_decode(body))
+  local decoded = json_decode(body)
   log.debug(decoded)
   local listeners = dap().listeners
   if decoded.request_seq then
