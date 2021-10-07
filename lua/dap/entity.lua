@@ -82,7 +82,7 @@ function variable.fetch_children(var, cb)
   local session = require('dap').session()
   if var.variables then
     cb(variable.get_children(var))
-  elseif session then
+  elseif session and var.variablesReference then
     local params = { variablesReference = var.variablesReference }
     session:request('variables', params, function(err, resp)
       if err then
@@ -92,6 +92,8 @@ function variable.fetch_children(var, cb)
         cb(var.variables)
       end
     end)
+  else
+    cb({})
   end
 end
 
