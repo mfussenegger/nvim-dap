@@ -133,9 +133,17 @@ M.scopes = {
       view.tree = tree
     end
     local layer = view.layer()
-    for _, scope in pairs(frame.scopes or {}) do
-      tree.render(layer, scope)
+    local scopes = frame.scopes or {}
+    local render
+    render = function(idx, scope)
+      if not scope then
+        return
+      end
+      tree.render(layer, scope, function()
+        render(next(scopes, idx))
+      end)
     end
+    render(next(scopes))
   end,
 }
 

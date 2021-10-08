@@ -220,7 +220,7 @@ function M.new_tree(opts)
       end
     end,
 
-    render = function(layer, value)
+    render = function(layer, value, on_done)
       layer.render({value}, opts.render_parent)
       if not opts.has_children(value) then
         return
@@ -230,6 +230,9 @@ function M.new_tree(opts)
       end
       eager_fetch_expanded_children(value, function()
         render_all_expanded(layer, value)
+        if on_done then
+          on_done()
+        end
       end)
     end,
   }
