@@ -440,6 +440,9 @@ function M.toggle_breakpoint(condition, hit_condition, log_message, replace_old)
   end
 end
 
+function M.clear_all_breakpoints()
+  lazy.breakpoints.clear();
+end
 
 -- setExceptionBreakpoints (https://microsoft.github.io/debug-adapter-protocol/specification#Requests_SetExceptionBreakpoints)
 --- filters: string[]
