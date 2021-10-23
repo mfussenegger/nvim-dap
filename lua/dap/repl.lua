@@ -109,6 +109,53 @@ function M.print_stackframes(frames)
 end
 
 
+function M.print_threads(threads)
+  if not repl.buf then
+    return
+  end
+  local session = get_session()
+  threads = threads or (session and session.threads or {})
+  local thread_list = {}
+  for _, thread in pairs(threads) do
+    table.insert(thread_list, thread)
+  end
+  table.sort(thread_list, function(a, b) return a.id < b.id end)
+
+  local context = {}
+  local render_threads = require('dap.entity').threads.render_item
+  if session.all_threads_stopped then
+    M.append('(press enter on line to jump to a thread)')
+    local start = ui.get_last_lnum(repl.buf)
+    context.actions = {
+      {
+        label = 'Jump to thread',
+        fn = function(layer, thread)
+          local s = get_session()
+          if s then
+            local frames = s.threads[thread.id].frames
+            local frame = utils.find(frames, function(f) return f.source and f.source.path end)
+            if not frame and #frames > 0 then
+              frame = frames[1]
+            end
+            if frame then
+              s.stopped_thread_id = thread.id
+              layer.render(thread_list, render_threads, context, start, start + vim.tbl_count(threads))
+              s:_frame_set(frame)
+            else
+              utils.notify('Could not find a stack frame of thread "' .. thread.name .. '"', vim.log.levels.INFO)
+            end
+          else
+            utils.notify('Cannot change thread without active session', vim.log.levels.INFO)
+          end
+        end,
+      },
+    }
+  end
+  local layer = ui.layer(repl.buf)
+  layer.render(thread_list, render_threads, context)
+end
+
+
 local function print_commands()
   M.append('Commands:')
   for _, commands in pairs(M.commands) do
@@ -201,13 +248,7 @@ function execute(text)
   elseif vim.tbl_contains(M.commands.scopes, text) then
     print_scopes(session.current_frame)
   elseif vim.tbl_contains(M.commands.threads, text) then
-    for _, thread in pairs(session.threads) do
-      if session.stopped_thread_id == thread.id then
-        M.append('→ ' .. thread.name)
-      else
-        M.append('  ' .. thread.name)
-      end
-    end
+    M.print_threads(session.threads)
   elseif vim.tbl_contains(M.commands.frames, text) then
     M.print_stackframes()
   elseif M.commands.custom_commands[splitted_text[1]] then

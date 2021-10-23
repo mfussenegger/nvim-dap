@@ -134,5 +134,20 @@ function frames.render_item(frame)
 end
 
 
+local threads = {}
+M.threads = threads
+
+function threads.render_item(thread)
+  local session = require('dap').session()
+  local info = thread.frames and thread.frames[1] and thread.frames[1].name
+  local display =  thread.name .. (info and (' (' .. info .. ')') or '')
+
+  if session and thread.id == session.stopped_thread_id then
+    return '→ ' .. display
+  else
+    return '  ' .. display
+  end
+end
+
 
 return M

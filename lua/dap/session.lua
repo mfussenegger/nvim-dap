@@ -316,6 +316,17 @@ function Session:event_stopped(stopped)
     self.threads = threads
     for _, thread in pairs(threads_resp.threads) do
       threads[thread.id] = thread
+      if stopped.allThreadsStopped and thread.id ~= stopped.threadId then
+        self.all_threads_stopped = true
+        self:request('stackTrace', { threadId = thread.id; }, function(err1, frames_response)
+          if err1 then
+            utils.notify('Error retrieving stack traces of thread "' .. thread.name .. '": '
+                          .. err1.message, vim.log.levels.ERROR)
+            return
+          end
+          threads[thread.id].frames = frames_response.stackFrames
+        end)
+      end
     end
 
     if stopped.reason == 'exception' then
@@ -327,25 +338,18 @@ function Session:event_stopped(stopped)
         utils.notify('Error retrieving stack traces: ' .. err1.message, vim.log.levels.ERROR)
         return
       end
-      local frames = {}
-      local current_frame = nil
-      self.current_frame = nil
+      local frames = frames_resp.stackFrames
       threads[stopped.threadId].frames = frames
-      for _, frame in pairs(frames_resp.stackFrames) do
-        if not current_frame and frame.source and frame.source.path then
-          current_frame = frame
-          self.current_frame = frame
-        end
-        table.insert(frames, frame)
-      end
+      local current_frame = utils.find(frames, function(f) return f.source and f.source.path end)
+
       if not current_frame then
         if #frames > 0 then
           current_frame = frames[1]
-          self.current_frame = current_frame
         else
           return
         end
       end
+      self.current_frame = current_frame
       local preserve_focus
       if stopped.reason ~= 'pause' then
         preserve_focus = stopped.preserveFocusHint
@@ -417,7 +421,7 @@ function Session:_goto(line, source, col)
       utils.notify("No goto targets available. Can't execute goto", vim.log.levels.INFO)
       return
     end
-    local params = {threadId = self.stopped_thread_id, targetId = response.targets[1].id }
+    local params = { threadId = self.stopped_thread_id, targetId = response.targets[1].id }
     self:request('goto', params, function(err1, _)
       if err1 then
         utils.notify('Error executing goto: ' .. err1.message, vim.log.levels.ERROR)
@@ -620,6 +624,7 @@ local function session_defaults(adapter, opts)
     seq = 0;
     stopped_thread_id = nil;
     current_frame = nil;
+    all_threads_stopped = false;
     threads = {};
   }
 end
@@ -767,6 +772,7 @@ function Session:_step(step, params)
     params.granularity = dap().defaults[self.config.type].stepping_granularity
   end
   self.stopped_thread_id = nil
+  self.all_threads_stopped = false
   self:request(step, params, function(err)
     if err then
       utils.notify('Error on '.. step .. ': ' .. err.message, vim.log.levels.ERROR)

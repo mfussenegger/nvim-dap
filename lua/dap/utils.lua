@@ -32,6 +32,15 @@ function M.index_of(items, predicate)
 end
 
 
+function M.find(items, predicate)
+  for _, item in pairs(items or {}) do
+    if predicate(item) then
+      return item
+    end
+  end
+end
+
+
 --- Show a prompt to select a process pid
 function M.pick_process()
   local output = vim.fn.system({'ps', 'a'})
