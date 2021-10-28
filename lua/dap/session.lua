@@ -661,22 +661,26 @@ function Session:spawn(adapter, opts)
   local stdout = uv.new_pipe(false)
   local stderr = uv.new_pipe(false)
   local handle
+  local pid_or_err
   local closed = false
   local function onexit()
     if closed then
       return
     end
-    stdin:close()
-    stdout:close()
-    stderr:close()
-    if handle then
-      handle:close()
-      handle = nil
-    end
     closed = true
+    stdin:shutdown(function()
+      stdout:close()
+      stderr:close()
+      log.info('Closed all handles')
+      if handle and not handle:is_closing() then
+        handle:close(function()
+          log.info('Process closed', pid_or_err, handle:is_active())
+          handle = nil
+        end)
+      end
+    end)
   end
   local options = adapter.options or {}
-  local pid_or_err
   local spawn_opts = {
     args = adapter.args;
     stdio = {stdin, stdout, stderr};
@@ -691,12 +695,7 @@ function Session:spawn(adapter, opts)
   end
   session.client = {
     write = function(line) stdin:write(line) end;
-    close = function()
-      if handle then
-        pcall(handle.kill, handle, 15)
-      end
-      onexit()
-    end;
+    close = onexit,
   }
   stdout:read_start(rpc.create_read_loop(function(body)
     session:handle_body(body)
