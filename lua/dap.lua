@@ -353,6 +353,22 @@ function M.stop()
 end
 
 
+function M.terminate()
+  if session then
+    if session.capabilities.supportsTerminateRequest then
+      session:request('terminate', {}, function(err)
+        assert(not err, vim.inspect(err))
+        vim.notify('Session terminated')
+      end)
+    else
+      M.disconnect({ terminateDebuggee = true })
+    end
+  else
+    vim.notify('No active session')
+  end
+end
+
+
 function M.close()
   if session then
     session:close()
@@ -507,8 +523,8 @@ function M.continue()
     )
     local choices = {
       {
-        label = "Close session (Debug adapter might keep running)",
-        action = M.close
+        label = "Terminate session",
+        action = M.terminate
       },
       {
         label = "Pause a thread",
