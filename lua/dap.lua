@@ -356,6 +356,7 @@ end
 function M.terminate()
   if session then
     if session.capabilities.supportsTerminateRequest then
+      session.capabilities.supportsTerminateRequest = false
       session:request('terminate', {}, function(err)
         assert(not err, vim.inspect(err))
         vim.notify('Session terminated')
