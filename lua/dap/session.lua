@@ -876,12 +876,12 @@ function Session:evaluate(expression, fn)
 end
 
 
-function Session:disconnect(opts)
+function Session:disconnect(opts, cb)
   opts = vim.tbl_extend('force', {
     restart = false,
     terminateDebuggee = nil;
   }, opts or {})
-  self:request('disconnect', opts)
+  self:request('disconnect', opts, cb)
 end
 
 

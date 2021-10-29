@@ -353,7 +353,7 @@ function M.stop()
 end
 
 
-function M.terminate(terminate_opts, disconnect_opts)
+function M.terminate(terminate_opts, disconnect_opts, cb)
   if session then
     if session.capabilities.supportsTerminateRequest then
       session.capabilities.supportsTerminateRequest = false
@@ -361,13 +361,19 @@ function M.terminate(terminate_opts, disconnect_opts)
       session:request('terminate', opts, function(err)
         assert(not err, vim.inspect(err))
         vim.notify('Session terminated')
+        if cb then
+          cb()
+        end
       end)
     else
       local opts = disconnect_opts or { terminateDebuggee = true }
-      M.disconnect(opts)
+      M.disconnect(opts, cb)
     end
   else
     vim.notify('No active session')
+    if cb then
+      cb()
+    end
   end
 end
 
@@ -564,13 +570,16 @@ end
 
 
 --- Disconnects an active session
-function M.disconnect(opts)
+function M.disconnect(opts, cb)
   if session then
-    session:disconnect(opts)
+    session:disconnect(opts, cb)
     session:close()
     session = nil
   else
     utils.notify('No active session. Doing nothing.', vim.log.levels.INFO)
+    if cb then
+      cb()
+    end
   end
 end
 

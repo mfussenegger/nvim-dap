@@ -403,7 +403,8 @@ launch({adapter}, {config})                                       *dap.launch()*
                         not required in this case.
             {config}    |dap-configuration|
 
-terminate(opts)                                                *dap.terminate()*
+
+terminate(terminate_opts, disconnect_opts, cb),                                           *dap.terminate()*
         Terminates the debug session.
 
         If the debug adapter doesn't support the `terminateRequest`
@@ -418,15 +419,11 @@ terminate(opts)                                                *dap.terminate()*
             {disconnect_opts}     Opts for |dap.disconnect|
                                   Defaults to `{ terminateDebuggee = true }`
 
-close()                                                            *dap.close()*
-        Closes the current session.
+            {cb}                  Callback that is invoked once the session
+                                  terminated or immediately if no session is
+                                  active.
 
-        This is NOT guaranteed to terminate the debug adapter or debugee.
-        To disconnect the adapter as well, call |dap.disconnect()| before
-        calling |dap.close()|
-
-
-disconnect(opts)                                              *dap.disconnect()*
+disconnect(opts, cb)                                              *dap.disconnect()*
 
         disconnect asks the debug adapter to disconnect from the debuggee and
         to terminate the debug adapter.
@@ -439,6 +436,17 @@ disconnect(opts)                                              *dap.disconnect()*
         Parameters: ~
             {opts}    Table with options for the disconnect request.
                       Defaults to `{ restart = false, terminateDebuggee = null }`
+
+            {cb}      Callback that is invoked once the session
+                      disconnected or immediately if no session is active.
+
+
+close()                                                            *dap.close()*
+        Closes the current session.
+
+        This does NOT terminate the debug adapter or debugee.
+        You usually want to use either |dap.terminate()| or |dap.disconnect()|
+        instead.
 
 
 attach({adapter}, {config})                                       *dap.attach()*
