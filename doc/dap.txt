@@ -403,12 +403,20 @@ launch({adapter}, {config})                                       *dap.launch()*
                         not required in this case.
             {config}    |dap-configuration|
 
-terminate()                                                    *dap.terminate()*
+terminate(opts)                                                *dap.terminate()*
         Terminates the debug session.
 
         If the debug adapter doesn't support the `terminateRequest`
         capability, this will instead call |dap.disconnect()| with
         `terminateDebugee = true`.
+
+        Parameters: ~
+            {terminate_opts}      Options for the `terminate` request.
+                                  Defaults to empty.
+                                  Not used if |dap.disconnect| is used.
+
+            {disconnect_opts}     Opts for |dap.disconnect|
+                                  Defaults to `{ terminateDebuggee = true }`
 
 close()                                                            *dap.close()*
         Closes the current session.
