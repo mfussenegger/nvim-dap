@@ -81,6 +81,25 @@ that's not listed.
 - [vimspector][2]
 
 
+## Contributing
+
+Contributions are welcome:
+
+- Give concrete feedback about usability.
+- Triage issues. Many of the problems people encounter are debug
+  adapter specific.
+- Improve upstream debug adapter documentation to make them more editor
+  agnostic.
+- Improve the Wiki. But please refrain from turning it into comprehensive debug
+  adapter documentation that should go upstream.
+- Write extensions.
+
+Before making direct code contributions, please create a discussion or issue to
+clarify whether the change is in scope of the nvim-dap core.
+
+Please keep pull requests focused and don't change multiple things at the same
+time.
+
 ## Features
 
 - [x] launch debug adapter
