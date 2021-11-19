@@ -250,6 +250,7 @@ end
 
 
 function M.scopes()
+  vim.notify('dap.ui.variables.scopes is deprecated, please use the widget API (:h dap-widgets)', vim.log.levels.WARN)
   if not is_stopped_at_frame() then return end
 
   local session = require('dap').session()
@@ -260,6 +261,7 @@ end
 
 
 function M.hover(resolve_expression_fn)
+  vim.notify('dap.ui.variables.hover is deprecated, please use the widget API (:h dap-widgets)', vim.log.levels.WARN)
   if not is_stopped_at_frame() then return end
 
   local session = require('dap').session()
