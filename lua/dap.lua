@@ -144,12 +144,12 @@ local function expand_config_variables(option)
     return option
   end
   local variables = {
-    file = vim.fn.expand("%");
+    file = vim.fn.expand("%:p");
     fileBasename = vim.fn.expand("%:t");
     fileBasenameNoExtension = vim.fn.fnamemodify(vim.fn.expand("%:t"), ":r");
     fileDirname = vim.fn.expand("%:p:h");
     fileExtname = vim.fn.expand("%:e");
-    relativeFile = vim.fn.expand("%");
+    relativeFile = vim.fn.expand("%:.");
     relativeFileDirname = vim.fn.fnamemodify(vim.fn.expand("%:h"), ":r");
     workspaceFolder = vim.fn.getcwd();
     workspaceFolderBasename = vim.fn.fnamemodify(vim.fn.getcwd(), ":t");
