@@ -30,6 +30,7 @@ local function new_buf()
   api.nvim_buf_set_keymap(buf, 'n', '<CR>', "<Cmd>lua require('dap.repl').on_enter()<CR>", {})
   api.nvim_buf_set_keymap(buf, 'i', '<up>', "<Cmd>lua require('dap.repl').on_up()<CR>", {})
   api.nvim_buf_set_keymap(buf, 'i', '<down>', "<Cmd>lua require('dap.repl').on_down()<CR>", {})
+  api.nvim_buf_set_keymap(buf, 'i', '<backspace>', "<esc>:lua require('dap.repl').prompt_backspace()<CR>", {})
   vim.fn.prompt_setprompt(buf, 'dap> ')
   vim.fn.prompt_setcallback(buf, execute)
   return buf
@@ -270,6 +271,30 @@ end
 
 function M.on_down()
   select_history(1)
+end
+
+function M.prompt_backspace() --Expects to have entered normal mode before entering function, will return to insert mode
+  local currentLineNumber = vim.fn["line"](".")
+  local currentColumnNumber = vim.fn["col"](".")
+  local currentLineLength = vim.fn["col"]("$")
+  local currentLine = vim.api.nvim_buf_get_lines(0, currentLineNumber-1, currentLineNumber, false)[1]
+  local _, endPrompt = string.find(currentLine, "> ")
+
+  if endPrompt == nil then
+    endPrompt = 0
+  end
+
+  if currentColumnNumber ~= endPrompt then --Not beginning of the prompt
+    if currentColumnNumber == currentLineLength - 1 then --Not beginning of prompt and is the end of the line
+      vim.cmd([[normal x]])
+      vim.cmd([[startinsert!]])
+    else --Not beginning of prompt and is not the end of the line
+      vim.cmd([[normal x]])
+      vim.cmd([[startinsert]])
+    end
+  else --Beginning of prompt
+    vim.cmd([[startinsert]])
+  end
 end
 
 
