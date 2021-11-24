@@ -276,12 +276,12 @@ end
 function M.prompt_backspace()
   -- Allows backspacing through previously set text when in a prompt.
   --
-  -- Note 1: nvim_buf_[get|set]_lines is 0 indexed vs vim [line|col](".") being 1 indexed
-  -- Note 2: insert mode cursor is after (+1) the column as opposed to in normal mode it would be on (+0) the column
-  -- Note 3: awkwardly nvim_win_set_cursor is 1 indexed for line and 0 indexed for column
+  -- Note 1: Insert mode cursor is after (+1) the column as opposed to in normal mode it would be on (+0) the column.
+  -- Note 2: nvim_win_[get|set]_cursor is (1, 0) indexed for (line, column) while nvim_buf_[get|set]_[lines|text] is 0 indexed for both.
 
-  local currentLineNumber = vim.fn["line"](".") 
-  local currentColumnNumber = vim.fn["col"](".")
+  local currentCursor = vim.api.nvim_win_get_cursor(0)
+  local currentLineNumber = currentCursor[1]
+  local currentColumnNumber = currentCursor[2]
   local currentLine = vim.api.nvim_buf_get_lines(0, currentLineNumber-1, currentLineNumber, false)[1]
   local _, endPromptPrefix = string.find(currentLine, "> ")
 
@@ -289,9 +289,9 @@ function M.prompt_backspace()
     endPromptPrefix = 0
   end
 
-  if (currentColumnNumber-1) ~= endPromptPrefix then
-    vim.api.nvim_buf_set_text(0, currentLineNumber-1, currentColumnNumber-2, currentLineNumber-1, currentColumnNumber-1, {""})
-    vim.api.nvim_win_set_cursor(0, {currentLineNumber, currentColumnNumber-2})
+  if (currentColumnNumber) ~= endPromptPrefix then
+    vim.api.nvim_buf_set_text(0, currentLineNumber-1, currentColumnNumber-1, currentLineNumber-1, currentColumnNumber, {""})
+    vim.api.nvim_win_set_cursor(0, {currentLineNumber, currentColumnNumber-1})
   end
 end
 
