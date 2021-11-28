@@ -283,13 +283,9 @@ function M.prompt_backspace()
   local currentLineNumber = currentCursor[1]
   local currentColumnNumber = currentCursor[2]
   local currentLine = vim.api.nvim_buf_get_lines(0, currentLineNumber-1, currentLineNumber, false)[1]
-  local _, endPromptPrefix = string.find(currentLine, "> ")
+  local promptLength = string.len(vim.fn['prompt_getprompt']('%'));
 
-  if endPromptPrefix == nil then
-    endPromptPrefix = 0
-  end
-
-  if (currentColumnNumber) ~= endPromptPrefix then
+  if (currentColumnNumber) ~= promptLength then
     vim.api.nvim_buf_set_text(0, currentLineNumber-1, currentColumnNumber-1, currentLineNumber-1, currentColumnNumber, {""})
     vim.api.nvim_win_set_cursor(0, {currentLineNumber, currentColumnNumber-1})
   end
