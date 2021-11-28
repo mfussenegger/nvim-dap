@@ -282,7 +282,6 @@ function M.prompt_backspace()
   local currentCursor = vim.api.nvim_win_get_cursor(0)
   local currentLineNumber = currentCursor[1]
   local currentColumnNumber = currentCursor[2]
-  local currentLine = vim.api.nvim_buf_get_lines(0, currentLineNumber-1, currentLineNumber, false)[1]
   local promptLength = string.len(vim.fn['prompt_getprompt']('%'));
 
   if (currentColumnNumber) ~= promptLength then
