@@ -279,14 +279,14 @@ function M.prompt_backspace()
   -- Note 1: Insert mode cursor is after (+1) the column as opposed to in normal mode it would be on (+0) the column.
   -- Note 2: nvim_win_[get|set]_cursor is (1, 0) indexed for (line, column) while nvim_buf_[get|set]_[lines|text] is 0 indexed for both.
 
-  local currentCursor = vim.api.nvim_win_get_cursor(0)
-  local currentLineNumber = currentCursor[1]
-  local currentColumnNumber = currentCursor[2]
-  local promptLength = string.len(vim.fn['prompt_getprompt']('%'));
+  local current_cursor = vim.api.nvim_win_get_cursor(0)
+  local current_line_number = current_cursor[1]
+  local current_column_number = current_cursor[2]
+  local prompt_length = string.len(vim.fn['prompt_getprompt']('%'));
 
-  if (currentColumnNumber) ~= promptLength then
-    vim.api.nvim_buf_set_text(0, currentLineNumber-1, currentColumnNumber-1, currentLineNumber-1, currentColumnNumber, {""})
-    vim.api.nvim_win_set_cursor(0, {currentLineNumber, currentColumnNumber-1})
+  if (current_column_number) ~= prompt_length then
+    vim.api.nvim_buf_set_text(0, current_line_number-1, current_column_number-1, current_line_number-1, current_column_number, {""})
+    vim.api.nvim_win_set_cursor(0, {current_line_number, current_column_number-1})
   end
 end
 
