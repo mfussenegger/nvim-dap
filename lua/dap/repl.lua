@@ -282,7 +282,7 @@ function M.prompt_backspace()
   local current_cursor = vim.api.nvim_win_get_cursor(0)
   local current_line_number = current_cursor[1]
   local current_column_number = current_cursor[2]
-  local prompt_length = string.len(vim.fn['prompt_getprompt']('%'));
+  local prompt_length = vim.str_utfindex(vim.fn['prompt_getprompt']('%'));
 
   if (current_column_number) ~= prompt_length then
     vim.api.nvim_buf_set_text(0, current_line_number-1, current_column_number-1, current_line_number-1, current_column_number, {""})
