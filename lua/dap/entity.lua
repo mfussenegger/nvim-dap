@@ -98,10 +98,39 @@ function variable.fetch_children(var, cb)
 end
 
 
+local function get_parent(var, variables)
+  for _, v in pairs(variables) do
+    local children = variable.get_children(v)
+    if children then
+      if vim.tbl_contains(children, var) then
+        return v
+      end
+      local parent = get_parent(var, children)
+      if parent then
+        return parent
+      end
+    end
+  end
+  return nil
+end
+
+
 local function set_variable(_, item, _, context)
   local session = require('dap').session()
   if not session then
     utils.notify('No active session, cannot set variable')
+    return
+  end
+  if not session.current_frame then
+    utils.notify('Session has no active frame, cannot set variable')
+    return
+  end
+  local parent = get_parent(item, session.current_frame.scopes)
+  if not parent then
+    utils.notify(string.format(
+      "Cannot set variable on %s, couldn't find its parent container",
+      item.name
+    ))
     return
   end
   local view = context.view
@@ -110,7 +139,7 @@ local function set_variable(_, item, _, context)
   end
   local value = vim.fn.input(string.format('New `%s` value: ', item.name))
   local params = {
-    variablesReference = item.variablesReference,
+    variablesReference = parent.variablesReference,
     name = item.name,
     value = value,
   }
