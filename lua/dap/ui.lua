@@ -387,6 +387,9 @@ function M.layer(buf)
     -- start is 0-indexed
     -- end_ is 0-indexed exclusive
     render = function(xs, render_fn, context, start, end_)
+      local modifiable = api.nvim_buf_get_option(buf, 'modifiable')
+      api.nvim_buf_set_option(buf, 'modifiable', true)
+
       start = start or M.get_last_lnum(buf)
       end_ = end_ or start
       render_fn = render_fn or tostring
@@ -424,6 +427,7 @@ function M.layer(buf)
         local mark_id = api.nvim_buf_set_extmark(buf, ns, i, 0, {end_col=end_col})
         marks[mark_id] = { mark_id = mark_id, item = item, context = context }
       end
+      api.nvim_buf_set_option(buf, 'modifiable', modifiable)
     end,
 
     --- Get the information associated with a line
