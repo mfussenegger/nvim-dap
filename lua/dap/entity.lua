@@ -150,6 +150,70 @@ local function set_expression(_, item, _, context)
 end
 
 
+local function get_parent(var, variables)
+  for _, v in pairs(variables) do
+    local children = variable.get_children(v)
+    if children then
+      if vim.tbl_contains(children, var) then
+        return v
+      end
+      local parent = get_parent(var, children)
+      if parent then
+        return parent
+      end
+    end
+  end
+  return nil
+end
+
+
+local function set_data_breakpoint(_, item, _, context)
+  local session = require('dap').session()
+  if not session then
+    utils.notify('No active session, cannot set data breakpoint')
+    return
+  end
+  if not session.current_frame then
+    utils.notify('Session has no active frame, cannot set data breakpoint')
+    return
+  end
+  local parent = get_parent(item, session.current_frame.scopes)
+  if not parent then
+    utils.notify(string.format(
+      "Cannot set data breakpoint on %s, couldn't find its parent container",
+      item.name
+    ))
+    return
+  end
+  local params = {
+    variablesReference = parent.variablesReference,
+    name = item.name,
+  }
+  local view = context.view
+  local close_view = view and vim.bo.bufhidden == 'wipe'
+  session:request('dataBreakpointInfo', params, function(err, resp)
+    if err then
+      utils.notify(err.message, vim.log.levels.WARN)
+      return
+    end
+    if not resp or not resp.dataId then
+      utils.notify('Cannot set data breakpoint for ' .. item.name, vim.log.levels.WARN)
+      return
+    end
+    require('dap.data_breakpoints').add(resp)
+    session:set_data_breakpoints(function(err0)
+      if err0 then
+        utils.notify(err0.message, vim.log.levels.WARN)
+        return
+      end
+      if close_view then
+        view.close()
+      end
+    end)
+  end)
+end
+
+
 variable.tree_spec = {
   get_key = variable.get_key,
   render_parent = variable.render_parent,
@@ -169,6 +233,9 @@ variable.tree_spec = {
       table.insert(result, { label = 'Set expression', fn = set_expression, })
     elseif capabilities.supportsSetVariable then
       table.insert(result, { label = 'Set variable', fn = set_variable, })
+    end
+    if capabilities.supportsDataBreakpoints then
+      table.insert(result, { label = 'Set data breakpoint', fn = set_data_breakpoint, })
     end
     return result
   end

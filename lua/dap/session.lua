@@ -427,6 +427,14 @@ function Session:_goto(line, source, col)
 end
 
 
+function Session:set_data_breakpoints(on_done)
+  local params = {
+    breakpoints = breakpoints.get_data_breakpoints()
+  }
+  self:request('setDataBreakpoints', params, on_done)
+end
+
+
 do
   local function notify_if_missing_capability(bufnr, bps, capabilities)
     for _, bp in pairs(bps) do

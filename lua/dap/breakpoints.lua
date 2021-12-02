@@ -1,6 +1,7 @@
 local api = vim.api
 local non_empty = require('dap.utils').non_empty
 
+local data_breakpoints = {}
 local bp_by_sign = {}
 local ns = 'dap_breakpoints'
 local M = {}
@@ -128,6 +129,11 @@ end
 function M.clear()
   vim.fn.sign_unplace(ns)
   bp_by_sign = {}
+  data_breakpoints = {}
+end
+
+
+function M.set_data_bp(bp)
 end
 
 
