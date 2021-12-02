@@ -150,7 +150,7 @@ local function expand_config_variables(option)
     fileDirname = vim.fn.expand("%:p:h");
     fileExtname = vim.fn.expand("%:e");
     relativeFile = vim.fn.expand("%:.");
-    relativeFileDirname = vim.fn.fnamemodify(vim.fn.expand("%:h"), ":r");
+    relativeFileDirname = vim.fn.fnamemodify(vim.fn.expand("%:.:h"), ":r");
     workspaceFolder = vim.fn.getcwd();
     workspaceFolderBasename = vim.fn.fnamemodify(vim.fn.getcwd(), ":t");
   }
