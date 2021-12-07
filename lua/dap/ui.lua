@@ -353,6 +353,11 @@ function M.trigger_actions(opts)
     utils.notify('No action possible on: ' .. api.nvim_buf_get_lines(buf, lnum, lnum + 1, true)[1], vim.log.levels.INFO)
     return
   end
+  if opts.mode == 'first' then
+    local action = actions[1]
+    action.fn(layer, info.item, lnum, info.context)
+    return
+  end
   M.pick_if_many(
     actions,
     'Actions> ',

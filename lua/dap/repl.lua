@@ -27,7 +27,7 @@ local function new_buf()
   if ok then
     api.nvim_buf_set_option(buf, 'path', path)
   end
-  api.nvim_buf_set_keymap(buf, 'n', '<CR>', "<Cmd>lua require('dap.ui').trigger_actions({ filter = 'Expand' })<CR>", {})
+  api.nvim_buf_set_keymap(buf, 'n', '<CR>', "<Cmd>lua require('dap.ui').trigger_actions({ mode = 'first' })<CR>", {})
   api.nvim_buf_set_keymap(buf, 'i', '<up>', "<Cmd>lua require('dap.repl').on_up()<CR>", {})
   api.nvim_buf_set_keymap(buf, 'i', '<down>', "<Cmd>lua require('dap.repl').on_down()<CR>", {})
   vim.fn.prompt_setprompt(buf, 'dap> ')
