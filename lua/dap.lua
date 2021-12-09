@@ -138,7 +138,11 @@ local function expand_config_variables(option)
     option = option()
   end
   if type(option) == "table" then
-    return vim.tbl_map(expand_config_variables, option)
+    local result = {}
+    for k, v in pairs(option) do
+      result[expand_config_variables(k)] = expand_config_variables(v)
+    end
+    return result
   end
   if type(option) ~= "string" then
     return option

@@ -28,17 +28,20 @@ describe('dap', function()
       name = 'Launch file',
       program = program,
       dummy_payload = {
-        cwd = '${workspaceFolder}'
+        cwd = '${workspaceFolder}',
+        ['key_with_${workspaceFolder}'] = 'value',
+        numbers = {1, 2, 3, 4},
+        strings = {'a', 'b', 'c'},
       }
     }
     local bp_lnum = 8
     local bufnr = vim.fn.bufadd(program)
     breakpoints.set({}, bufnr, bp_lnum)
     local events = {}
-    local dummy_value = nil
+    local dummy_payload = nil
     dap.listeners.after.event_initialized['dap.tests'] = function(session)
       events.initialized = true
-      dummy_value = session.config.dummy_payload.cwd
+      dummy_payload = session.config.dummy_payload
     end
     dap.listeners.after.setBreakpoints['dap.tests'] = function(_, _, resp)
       events.setBreakpoints = resp
@@ -70,10 +73,13 @@ describe('dap', function()
     }, events)
 
     -- variable must expand to concrete value
-    assert.are_not.equals(dummy_value, '${workspaceFolder}')
+    assert.are_not.equals(dummy_payload.cwd, '${workspaceFolder}')
+    assert.are.same(dummy_payload.numbers, {1, 2, 3, 4})
+    assert.are.same(dummy_payload.strings, {'a', 'b', 'c'})
+    assert.are.equals(dummy_payload['key_with_' .. vim.fn.getcwd()], 'value')
 
     -- ensure `called_with` below passes
-    config.dummy_payload.cwd = dummy_value
+    config.dummy_payload = dummy_payload
 
     it('passed cwd to adapter process', function()
       luassert.spy(launch).was.called_with(dap.adapters.python, config, { cwd = venv_dir })
