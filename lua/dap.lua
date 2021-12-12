@@ -138,11 +138,12 @@ local function expand_config_variables(option)
     option = option()
   end
   if type(option) == "table" then
+    local mt = getmetatable(option)
     local result = {}
     for k, v in pairs(option) do
       result[expand_config_variables(k)] = expand_config_variables(v)
     end
-    return result
+    return setmetatable(result, mt)
   end
   if type(option) ~= "string" then
     return option
