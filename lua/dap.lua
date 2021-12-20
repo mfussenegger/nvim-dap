@@ -730,8 +730,8 @@ end
 
 function M._vim_exit_handler()
   if session then
-    session:close()
-    session = nil
+    M.terminate()
+    vim.wait(500, function() return session == nil end)
   end
   M.repl.close()
 end
