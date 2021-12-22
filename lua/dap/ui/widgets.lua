@@ -155,6 +155,7 @@ M.scopes = {
 
 
 M.frames = {
+  refresh_listener = 'scopes',
   new_buf = new_buf,
   render = function(view)
     local session = require('dap').session()
