@@ -640,13 +640,22 @@ function Session:connect(adapter, opts, on_connect)
       client:close()
     end;
   }
-  client:connect(adapter.host or '127.0.0.1', tonumber(adapter.port), function(err)
-    if not err then
-      client:read_start(rpc.create_read_loop(function(body)
-        session:handle_body(body)
-      end))
+  local host = adapter.host or '127.0.0.1'
+  uv.getaddrinfo(host, nil, { protocol = 'tcp' }, function(err, addresses)
+    if err or #addresses == 0 then
+      err = err or ('Could not resolve ' .. host)
+      on_connect(err)
+      return
     end
-    on_connect(err)
+    local address = addresses[1]
+    client:connect(address.addr, tonumber(adapter.port), function(conn_err)
+      if not conn_err then
+        client:read_start(rpc.create_read_loop(function(body)
+          session:handle_body(body)
+        end))
+      end
+      on_connect(conn_err)
+    end)
   end)
   return session
 end
