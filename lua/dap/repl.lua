@@ -22,7 +22,7 @@ local function new_buf()
   api.nvim_buf_set_name(buf, '[dap-repl]')
   api.nvim_buf_set_option(buf, 'buftype', 'prompt')
   api.nvim_buf_set_option(buf, 'filetype', 'dap-repl')
-  api.nvim_buf_set_option(buf, 'omnifunc', "v:lua.require'dap'.omnifunc")
+  api.nvim_buf_set_option(buf, 'omnifunc', "v:lua.require'dap.repl'.omnifunc")
   local ok, path = pcall(api.nvim_buf_get_option, prev_buf, 'path')
   if ok then
     api.nvim_buf_set_option(buf, 'path', path)
@@ -296,6 +296,63 @@ function M.clear()
   if repl.buf and api.nvim_buf_is_loaded(repl.buf) then
     local layer = ui.layer(repl.buf)
     layer.render({}, tostring, {}, 0, - 1)
+  end
+end
+
+do
+  local function completions_to_items(completions, prefix)
+    local candidates = vim.tbl_filter(
+      function(item) return vim.startswith(item.text or item.label, prefix) end,
+      completions
+    )
+    if #candidates == 0 then
+      return {}
+    end
+
+    table.sort(candidates, function(a, b) return (a.sortText or a.label) < (b.sortText or b.label) end)
+    local items = {}
+    for _, candidate in pairs(candidates) do
+      table.insert(items, {
+        word = candidate.text or candidate.label;
+        abbr = candidate.label;
+        dup = 0;
+        icase = 1;
+      })
+    end
+    return items
+  end
+
+  function M.omnifunc(findstart, _)
+    local session = get_session()
+    local supportsCompletionsRequest = ((session or {}).capabilities or {}).supportsCompletionsRequest;
+    if not supportsCompletionsRequest then
+      if findstart == 1 then
+        return -1
+      else
+        return {}
+      end
+    end
+    local col = api.nvim_win_get_cursor(0)[2]
+    local line = api.nvim_get_current_line()
+    local offset = vim.startswith(line, 'dap> ') and 5 or 0
+    local line_to_cursor = line:sub(offset + 1, col)
+    local text_match = vim.fn.match(line_to_cursor, '\\k*$')
+    local prefix = line_to_cursor:sub(text_match + 1)
+    session:request('completions', {
+      frameId = (session.current_frame or {}).id;
+      text = line_to_cursor;
+      column = col + 1 - offset;
+    }, function(err, response)
+      if err then
+        require('dap.utils').notify('completions request failed: ' .. err.message, vim.log.levels.WARN)
+        return
+      end
+      local items = completions_to_items(response.targets, prefix)
+      vim.fn.complete(offset + text_match + 1, items)
+    end)
+
+    -- cancel but stay in completion mode for completion via `completions` callback
+    return -2
   end
 end
 

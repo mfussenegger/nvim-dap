@@ -1,6 +1,5 @@
 local M = {}
 local api = vim.api
-local dap = require('dap')
 local timer = nil
 
 
@@ -15,7 +14,7 @@ end
 
 local function trigger_completion()
   destroy_timer()
-  dap.omnifunc(1, "")
+  require('dap.repl').omnifunc(1, "")
 end
 
 
@@ -26,7 +25,7 @@ function M._InsertCharPre()
   if tonumber(vim.fn.pumvisible()) == 1 then
     return
   end
-  local session = dap.session()
+  local session = require('dap').session()
   if not session then
     return
   end
