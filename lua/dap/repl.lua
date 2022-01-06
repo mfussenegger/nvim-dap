@@ -322,8 +322,28 @@ do
     return items
   end
 
-  function M.omnifunc(findstart, _)
+  function M.omnifunc(findstart, base)
     local session = get_session()
+    local col = api.nvim_win_get_cursor(0)[2]
+    local line = api.nvim_get_current_line()
+    local offset = vim.startswith(line, 'dap> ') and 5 or 0
+    local line_to_cursor = line:sub(offset + 1, col)
+    local text_match = vim.fn.match(line_to_cursor, '\\k*$')
+    local prefix = line_to_cursor:sub(text_match + 1)
+    if vim.startswith(line_to_cursor, '.') or base ~= '' then
+      if findstart == 1 then
+        return offset
+      end
+      local completions = {}
+      for _, values in pairs(M.commands) do
+        for _, val in pairs(values) do
+          if vim.startswith(val, base) then
+            table.insert(completions, val)
+          end
+        end
+      end
+      return completions
+    end
     local supportsCompletionsRequest = ((session or {}).capabilities or {}).supportsCompletionsRequest;
     if not supportsCompletionsRequest then
       if findstart == 1 then
@@ -332,12 +352,6 @@ do
         return {}
       end
     end
-    local col = api.nvim_win_get_cursor(0)[2]
-    local line = api.nvim_get_current_line()
-    local offset = vim.startswith(line, 'dap> ') and 5 or 0
-    local line_to_cursor = line:sub(offset + 1, col)
-    local text_match = vim.fn.match(line_to_cursor, '\\k*$')
-    local prefix = line_to_cursor:sub(text_match + 1)
     session:request('completions', {
       frameId = (session.current_frame or {}).id;
       text = line_to_cursor;
