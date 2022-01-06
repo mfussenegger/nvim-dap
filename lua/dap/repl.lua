@@ -300,15 +300,7 @@ function M.clear()
 end
 
 do
-  local function completions_to_items(completions, prefix)
-    local candidates = vim.tbl_filter(
-      function(item) return vim.startswith(item.text or item.label, prefix) end,
-      completions
-    )
-    if #candidates == 0 then
-      return {}
-    end
-
+  local function completions_to_items(candidates)
     table.sort(candidates, function(a, b) return (a.sortText or a.label) < (b.sortText or b.label) end)
     local items = {}
     for _, candidate in pairs(candidates) do
@@ -329,7 +321,6 @@ do
     local offset = vim.startswith(line, 'dap> ') and 5 or 0
     local line_to_cursor = line:sub(offset + 1, col)
     local text_match = vim.fn.match(line_to_cursor, '\\k*$')
-    local prefix = line_to_cursor:sub(text_match + 1)
     if vim.startswith(line_to_cursor, '.') or base ~= '' then
       if findstart == 1 then
         return offset
@@ -361,7 +352,7 @@ do
         require('dap.utils').notify('completions request failed: ' .. err.message, vim.log.levels.WARN)
         return
       end
-      local items = completions_to_items(response.targets, prefix)
+      local items = completions_to_items(response.targets)
       vim.fn.complete(offset + text_match + 1, items)
     end)
 
