@@ -15,7 +15,11 @@ function M.load_launchjs(path)
     end
   end
   local contents = table.concat(lines, '\n')
-  local data = vim.fn.json_decode(contents)
+  local json_decode = vim.fn.json_decode
+  if vim.json then
+    json_decode = vim.json.decode
+  end
+  local data = json_decode(contents)
 
   -- Groups filetypes of debugee configs by adapters if a config use the adapter.
   -- { <adapter> = { <filetype> = boolean } }
