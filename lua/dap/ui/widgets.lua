@@ -190,7 +190,7 @@ M.expression = {
   end,
   render = function(view, expr)
     local session = require('dap').session()
-    local frame = session and session.current_frame
+    local frame = session and session.current_frame or {}
     local expression = expr or view.__expression
     local variable
     local scopes = frame.scopes or {}
