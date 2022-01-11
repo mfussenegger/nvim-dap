@@ -437,8 +437,8 @@ function M.layer(buf)
             .. vim.inspect(xs)
           ))
         end
-        text = text:gsub('\n', '\\n')
-        api.nvim_buf_set_lines(buf, i, i + 1, true, {text})
+        text = vim.split(text, '\n', {trimempty = true})
+        api.nvim_buf_set_lines(buf, i, i + 1, true, text)
         if hl_regions then
           for _, hl_region in pairs(hl_regions) do
             api.nvim_buf_add_highlight(
@@ -446,8 +446,11 @@ function M.layer(buf)
           end
         end
 
-        local end_col = math.max(0, #text - 1)
-        local mark_id = api.nvim_buf_set_extmark(buf, ns, i, 0, {end_col=end_col})
+        local end_col = math.max(0, #text[#text] - 1)
+        local mark_id = api.nvim_buf_set_extmark(buf, ns, i, 0, {
+          end_row = i + #text - 1,
+          end_col = end_col
+        })
         marks[mark_id] = { mark_id = mark_id, item = item, context = context }
       end
       api.nvim_buf_set_option(buf, 'modifiable', modifiable)
