@@ -641,7 +641,7 @@ function Session:connect(adapter, opts, on_connect)
     end;
   }
   local host = adapter.host or '127.0.0.1'
-  uv.getaddrinfo(host, nil, { protocol = 'tcp' }, function(err, addresses)
+  local on_addresses = function(err, addresses)
     if err or #addresses == 0 then
       err = err or ('Could not resolve ' .. host)
       on_connect(err)
@@ -656,7 +656,12 @@ function Session:connect(adapter, opts, on_connect)
       end
       on_connect(conn_err)
     end)
-  end)
+  end
+  if vim.loop.version() >= 76288 then
+    uv.getaddrinfo(host, nil, { protocol = 'tcp' }, on_addresses)
+  else
+    on_addresses(nil, { { addr = host }, })
+  end
   return session
 end
 
