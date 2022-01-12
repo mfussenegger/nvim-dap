@@ -360,8 +360,9 @@ end
 
 function M.terminate(terminate_opts, disconnect_opts, cb)
   if session then
-    if session.capabilities.supportsTerminateRequest then
-      session.capabilities.supportsTerminateRequest = false
+    local capabilities = session.capabilities or {}
+    if capabilities.supportsTerminateRequest then
+      capabilities.supportsTerminateRequest = false
       local opts = terminate_opts or vim.empty_dict()
       session:request('terminate', opts, function(err)
         assert(not err, vim.inspect(err))
