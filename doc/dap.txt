@@ -482,6 +482,10 @@ list_breakpoints()                                     *dap.list_breakpoints()*
 
         Lists all breakpoints and log points in quickfix window.
 
+clear_breakpoints()                                   *dap.clear_breakpoints()*
+
+    Removes all breakpoints
+
 set_exception_breakpoints({filters}, {exceptionOptions})
                                               *dap.set_exception_breakpoints()*
 

@@ -75,9 +75,7 @@ function M.create_read_loop(handle_body)
     while true do
       local headers, body = parse_chunk(chunk)
       if headers then
-        vim.schedule(function()
-          handle_body(body)
-        end)
+        handle_body(body)
         chunk = ''
       else
         break

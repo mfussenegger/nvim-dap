@@ -472,6 +472,19 @@ function M.toggle_breakpoint(condition, hit_condition, log_message, replace_old)
 end
 
 
+function M.clear_breakpoints()
+  if session then
+    local bps = lazy.breakpoints.get()
+    lazy.breakpoints.clear()
+    for bufnr, _ in pairs(bps) do
+      session:set_breakpoints(bufnr)
+    end
+  else
+    lazy.breakpoints.clear()
+  end
+end
+
+
 -- setExceptionBreakpoints (https://microsoft.github.io/debug-adapter-protocol/specification#Requests_SetExceptionBreakpoints)
 --- filters: string[]
 --- exceptionOptions: exceptionOptions?: ExceptionOptions[] (https://microsoft.github.io/debug-adapter-protocol/specification#Types_ExceptionOptions)

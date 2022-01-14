@@ -650,9 +650,9 @@ function Session:connect(adapter, opts, on_connect)
     local address = addresses[1]
     client:connect(address.addr, tonumber(adapter.port), function(conn_err)
       if not conn_err then
-        client:read_start(rpc.create_read_loop(function(body)
+        client:read_start(rpc.create_read_loop(vim.schedule_wrap(function(body)
           session:handle_body(body)
-        end))
+        end)))
       end
       on_connect(conn_err)
     end)
@@ -717,9 +717,9 @@ function Session:spawn(adapter, opts)
     write = function(line) stdin:write(line) end;
     close = onexit,
   }
-  stdout:read_start(rpc.create_read_loop(function(body)
+  stdout:read_start(rpc.create_read_loop(vim.schedule_wrap(function(body)
     session:handle_body(body)
-  end))
+  end)))
   stderr:read_start(function(err, chunk)
     assert(not err, err)
     if chunk then
