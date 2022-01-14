@@ -73,28 +73,34 @@ function M.spawn()
     spy.events = {}
   end
   server:bind(host, 0)
+  local client = {
+    seq = 0,
+    handlers = {},
+    spy = spy,
+  }
+  setmetatable(client, {__index = Client})
   server:listen(128, function(err)
     assert(not err, err)
-    local client_sock = uv.new_tcp()
-    local client = {
-      socket = client_sock,
-      seq = 0,
-      handlers = {},
-      spy = spy,
-    }
-    setmetatable(client, {__index = Client})
-    server:accept(client_sock)
-    client_sock:read_start(rpc.create_read_loop(vim.schedule_wrap(function(body)
+    local socket = uv.new_tcp()
+    client.socket = socket
+    server:accept(socket)
+    socket:read_start(rpc.create_read_loop(vim.schedule_wrap(function(body)
       client:handle_input(body)
     end)))
   end)
   return {
+    client = client,
     adapter = {
       type = 'server',
       host = host;
       port = server:getsockname().port
     },
     spy = spy,
+    stop = function()
+      if client.socket then
+        client.socket:close()
+      end
+    end,
   }
 end
 

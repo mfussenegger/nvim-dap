@@ -305,8 +305,18 @@ function Session:event_stopped(stopped)
     self:request('continue', { threadId = stopped.threadId })
     return
   end
-  progress.report('Thread stopped: ' .. stopped.threadId)
-  self.stopped_thread_id = stopped.threadId
+  if stopped.threadId then
+    progress.report('Thread stopped: ' .. stopped.threadId)
+    self.stopped_thread_id = stopped.threadId
+  elseif stopped.allThreadsStopped then
+    progress.report('All threads stopped')
+    utils.notify(
+      'All threads stopped. ' .. stopped.reason and 'Reason: ' .. stopped.reason or '',
+      vim.log.levels.INFO
+    )
+  else
+    utils.notify('Stopped event received, but no threadId or allThreadsStopped', vim.log.levels.WARN)
+  end
   self:request('threads', nil, function(err0, threads_resp)
     if err0 then
       utils.notify('Error retrieving threads: ' .. err0.message, vim.log.levels.ERROR)
@@ -322,6 +332,9 @@ function Session:event_stopped(stopped)
       self:_show_exception_info()
     end
 
+    if not stopped.threadId then
+      return
+    end
     self:request('stackTrace', { threadId = stopped.threadId; }, function(err1, frames_resp)
       if err1 then
         utils.notify('Error retrieving stack traces: ' .. err1.message, vim.log.levels.ERROR)

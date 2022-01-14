@@ -3,20 +3,29 @@ local api = vim.api
 
 
 describe('dap with fake server', function()
-  it('clear breakpoints clears all active breakpoints', function()
-    local server = require('tests.server').spawn()
-    dap.adapters.dummy = server.adapter
-    local config = {
-      type = 'dummy',
-      request = 'launch',
-      name = 'Launch file',
-    }
-    dap.run(config)
+  local server
+  local config = {
+    type = 'dummy',
+    request = 'launch',
+    name = 'Launch file',
+  }
+  local function run_and_wait_until_initialized(conf)
+    dap.run(conf)
     vim.wait(1000, function()
       local session = dap.session()
       return (session and session.initialized == true)
     end, 100)
-    local session = dap.session()
+    return dap.session()
+  end
+  before_each(function()
+    server = require('tests.server').spawn()
+    dap.adapters.dummy = server.adapter
+  end)
+  after_each(function()
+    server.stop()
+  end)
+  it('clear breakpoints clears all active breakpoints', function()
+    local session = run_and_wait_until_initialized(config)
     assert.are_not.same(session, nil)
     assert.are.same(true, session.initialized)
 
@@ -50,5 +59,13 @@ describe('dap with fake server', function()
     assert.are.same(2, vim.tbl_count(server.spy.requests))
     local setBreakpoints = server.spy.requests[1]
     assert.are.same({}, setBreakpoints.arguments.breakpoints)
+  end)
+
+  it('can handle stopped event for all threads', function()
+    local session = run_and_wait_until_initialized(config)
+    session:event_stopped({
+      allThreadsStopped = true,
+      reason = 'unknown',
+    })
   end)
 end)
