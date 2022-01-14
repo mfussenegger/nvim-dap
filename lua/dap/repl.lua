@@ -124,8 +124,14 @@ local function evaluate_handler(err, resp)
     M.append(err.message)
     return
   end
-  local tree = ui.new_tree(require('dap.entity').variable.tree_spec)
-  tree.render(ui.layer(repl.buf), resp)
+  local layer = ui.layer(repl.buf)
+  local attributes = (resp.presentationHint or {}).attributes or {}
+  if resp.variablesReference > 0 or vim.tbl_contains(attributes, 'rawString') then
+    local tree = ui.new_tree(require('dap.entity').variable.tree_spec)
+    tree.render(layer, resp)
+  else
+    layer.render(vim.split(resp.result, '\n', { trimempty = true }))
+  end
 end
 
 
