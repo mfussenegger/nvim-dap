@@ -657,8 +657,14 @@ function Session:connect(adapter, opts, on_connect)
       on_connect(conn_err)
     end)
   end
+  -- getaddrinfo fails for some users with `bad argument #3 to 'getaddrinfo' (Invalid protocol hint)`
+  -- It should generally work with luv 1.42.0 but some still get errors
   if vim.loop.version() >= 76288 then
-    uv.getaddrinfo(host, nil, { protocol = 'tcp' }, on_addresses)
+    local ok, err = pcall(uv.getaddrinfo, host, nil, { protocol = 'tcp' }, on_addresses)
+    if not ok then
+      log.warn(err)
+      on_addresses(nil, { { addr = host }, })
+    end
   else
     on_addresses(nil, { { addr = host }, })
   end
