@@ -21,6 +21,7 @@ end
 
 function M.new_cursor_anchored_float_win(buf)
   api.nvim_buf_set_option(buf, 'bufhidden', 'wipe')
+  api.nvim_buf_set_option(buf, 'filetype', 'dap-float')
   local opts = vim.lsp.util.make_floating_popup_options(50, 30, {border = 'single'})
   local win = api.nvim_open_win(buf, true, opts)
   return win
@@ -29,6 +30,7 @@ end
 
 function M.new_centered_float_win(buf)
   api.nvim_buf_set_option(buf, 'bufhidden', 'wipe')
+  api.nvim_buf_set_option(buf, 'filetype', 'dap-float')
   local columns = api.nvim_get_option('columns')
   local lines = api.nvim_get_option('lines')
   local width = math.floor(columns * 0.9)
