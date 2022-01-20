@@ -51,6 +51,7 @@ M.defaults = setmetatable(
       -- type SteppingGranularity = 'statement' | 'line' | 'instruction'
       stepping_granularity = 'statement';
       terminal_win_cmd = 'belowright new';
+      focus_terminal = false;
     },
   },
   {
