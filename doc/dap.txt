@@ -318,7 +318,6 @@ Some debug adapters support launching the debugee in a terminal, but don't
 provide an option to choose between integrated terminal or external terminal.
 `nvim-dap` provides an option to force the external terminal.
 
-
 >
 
   lua << EOF
@@ -328,10 +327,8 @@ provide an option to choose between integrated terminal or external terminal.
 
 <
 
-
 If you're using the integrated terminal, you can configure the command
 that is used to create a split window:
-
 
 >
 
@@ -339,10 +336,23 @@ that is used to create a split window:
   local dap = require('dap')
   dap.defaults.fallback.terminal_win_cmd = '50vsplit new'
   EOF
+
 <
 
 The `terminal_win_cmd` defaults to `belowright new`.
 
+Be default `dap` opens the integrated terminal but keeps focus on the current
+buffer. If you rather have focus to be shifted to the terminal when it opens
+you can configure:
+
+>
+
+  lua << EOF
+  local dap = require('dap')
+  dap.defaults.fallback.focus_terminal = true
+  EOF
+
+<
 
 `fallback` can be replaced with the |dap-adapter| type to have type
 specific terminal configurations.

@@ -128,7 +128,9 @@ local function run_in_terminal(self, request)
     cwd = (body.cwd and body.cwd ~= '') and body.cwd or nil
   }
   local jobid = vim.fn.termopen(body.args, opts)
-  api.nvim_set_current_win(cur_win)
+  if not dap().defaults[self.config.type].focus_terminal then
+      api.nvim_set_current_win(cur_win)
+  end
   if jobid == 0 or jobid == -1 then
     log.error('Could not spawn terminal', jobid, request)
     self:response(request, {
