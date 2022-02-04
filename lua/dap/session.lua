@@ -253,7 +253,8 @@ local function jump_to_location(bufnr, line, column)
   -- (Don't want to move to code in the REPL...)
   for _, win in pairs(api.nvim_tabpage_list_wins(0)) do
     local winbuf = api.nvim_win_get_buf(win)
-    if api.nvim_buf_get_option(winbuf, 'buftype') == '' then
+    local buftype = api.nvim_buf_get_option(winbuf, 'buftype')
+    if vim.tbl_contains({'', 'nofile'}, buftype) then
       local bufchanged, _ = pcall(api.nvim_win_set_buf, win, bufnr)
       if bufchanged then
         api.nvim_win_set_cursor(win, { line, column - 1 })
@@ -262,6 +263,7 @@ local function jump_to_location(bufnr, line, column)
       end
     end
   end
+  utils.notify('Stopped at line ' .. line .. ' but could not jump to location', vim.log.levels.WARN)
 end
 
 
