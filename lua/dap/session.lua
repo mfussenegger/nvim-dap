@@ -9,6 +9,9 @@ local log = require('dap.log').create_logger('dap.log')
 local repl = require('dap.repl')
 local non_empty = utils.non_empty
 local index_of = utils.index_of
+local mime_to_filetype = {
+  ['text/javascript'] = 'javascript'
+}
 
 local Session = {}
 local ns_pos = 'dap_pos'
@@ -295,6 +298,10 @@ local function jump_to_frame(cur_session, frame, preserve_focus_hint)
       assert(not err, vim.inspect(err))
 
       local buf = api.nvim_create_buf(false, true)
+      local ft = mime_to_filetype[response.mimeType]
+      if ft then
+        api.nvim_buf_set_option(buf, 'filetype', ft)
+      end
       api.nvim_buf_set_lines(buf, 0, -1, false, vim.split(response.content, '\n'))
       jump_to_location(buf, frame.line, frame.column)
     end)
