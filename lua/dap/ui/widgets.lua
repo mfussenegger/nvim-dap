@@ -24,6 +24,7 @@ function M.new_cursor_anchored_float_win(buf)
   api.nvim_buf_set_option(buf, 'filetype', 'dap-float')
   local opts = vim.lsp.util.make_floating_popup_options(50, 30, {border = 'single'})
   local win = api.nvim_open_win(buf, true, opts)
+  api.nvim_win_set_option(win, 'scrolloff', 0)
   return win
 end
 
@@ -95,7 +96,8 @@ local function resize_window(win, buf)
   local columns = api.nvim_get_option('columns')
   local max_win_width = math.floor(columns * 0.9)
   width = math.min(width, max_win_width)
-  height = math.min(height, api.nvim_get_option('lines'))
+  local max_win_height = api.nvim_get_option('lines')
+  height = math.min(height, max_win_height)
   api.nvim_win_set_width(win, width)
   api.nvim_win_set_height(win, height)
 end
@@ -312,6 +314,7 @@ function M.hover(expr, winopts)
     .new_win(M.with_resize(with_winopts(M.new_cursor_anchored_float_win, winopts)))
     .build()
   view.open(value)
+  api.nvim_win_set_cursor(view.win, {1, 0})
   return view
 end
 
