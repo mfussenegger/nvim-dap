@@ -19,7 +19,9 @@ function Client:send_response(request, body)
     body = body,
   }
   table.insert(self.spy.responses, payload)
-  self.socket:write(rpc.msg_with_content_length(json_encode(payload)))
+  if self.socket then
+    self.socket:write(rpc.msg_with_content_length(json_encode(payload)))
+  end
 end
 
 
@@ -98,7 +100,10 @@ function M.spawn()
     spy = spy,
     stop = function()
       if client.socket then
-        client.socket:close()
+        client.socket:shutdown(function()
+          client.socket:close()
+          client.socket = nil
+        end)
       end
     end,
   }
