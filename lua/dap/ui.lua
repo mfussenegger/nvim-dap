@@ -188,7 +188,7 @@ function M.new_tree(opts)
     }
     context = vim.tbl_deep_extend('keep', context, extra_context)
     for _, child in pairs(opts.get_children(value)) do
-      layer.render({child}, with_indent(indent, opts.render_child), context)
+      layer.render({child}, with_indent(indent, opts.render_child), context, api.nvim_buf_line_count(layer.buf))
       if is_expanded(child) then
         render_all_expanded(layer, child, indent + 2)
       end
@@ -395,6 +395,7 @@ function M.layer(buf)
   end
 
   layer = {
+    buf = buf,
     __marks = marks,
     --- Render the items and associate each item to the rendered line
     -- The item and context can then be retrieved using `.get(lnum)`
@@ -408,8 +409,21 @@ function M.layer(buf)
     render = function(xs, render_fn, context, start, end_)
       local modifiable = api.nvim_buf_get_option(buf, 'modifiable')
       api.nvim_buf_set_option(buf, 'modifiable', true)
-      start = start or (api.nvim_buf_line_count(buf) - 1)
-      end_ = end_ or start
+      if not start and not end_ then
+        start = api.nvim_buf_line_count(buf) - 1
+        -- Avoid inserting a new line at the end of the buffer
+        -- The case of no lines and one empty line are ambiguous;
+        -- set_lines(buf, 0, 0) would "preserve" the "empty buffer line" while set_lines(buf, 0, -1) replaces it
+        -- Need to use regular end_ = start in other cases to support injecting lines in all other cases
+        if start == 0 and (api.nvim_buf_get_lines(buf, 0, -1, true))[1] == "" then
+          end_ = -1
+        else
+          end_ = start
+        end
+      else
+        start = start or (api.nvim_buf_line_count(buf) - 1)
+        end_ = end_ or start
+      end
       render_fn = render_fn or tostring
       if end_ > start then
         remove_marks(api.nvim_buf_get_extmarks(buf, ns, {start, 0}, {end_ - 1, -1}, {}))
