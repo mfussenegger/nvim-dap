@@ -371,11 +371,6 @@ function M.trigger_actions(opts)
 end
 
 
-function M.get_last_lnum(bufnr)
-  return api.nvim_buf_call(bufnr, function() return vim.fn.line('$') - 1 end)
-end
-
-
 local layers = {}
 
 function M.get_layer(buf)
@@ -413,7 +408,7 @@ function M.layer(buf)
     render = function(xs, render_fn, context, start, end_)
       local modifiable = api.nvim_buf_get_option(buf, 'modifiable')
       api.nvim_buf_set_option(buf, 'modifiable', true)
-      start = start or M.get_last_lnum(buf)
+      start = start or (api.nvim_buf_line_count(buf) - 1)
       end_ = end_ or start
       render_fn = render_fn or tostring
       if end_ > start then
