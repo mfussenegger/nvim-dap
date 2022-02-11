@@ -92,7 +92,7 @@ function M.get_visual_selection_text()
 end
 
 function M.notify(msg, log_level)
-  vim.notify(msg, log_level, {title = 'DAP'})
+  vim.schedule(function () vim.notify(msg, log_level, {title = 'DAP'}) end)
 end
 
 return M

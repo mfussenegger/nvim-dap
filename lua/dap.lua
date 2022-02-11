@@ -367,7 +367,7 @@ function M.terminate(terminate_opts, disconnect_opts, cb)
       local opts = terminate_opts or vim.empty_dict()
       session:request('terminate', opts, function(err)
         assert(not err, vim.inspect(err))
-        vim.notify('Session terminated')
+        vim.schedule(function () vim.notify('Session terminated') end)
         if cb then
           cb()
         end
@@ -377,7 +377,7 @@ function M.terminate(terminate_opts, disconnect_opts, cb)
       M.disconnect(opts, cb)
     end
   else
-    vim.notify('No active session')
+    vim.schedule(function () vim.notify('No active session') end)
     if cb then
       cb()
     end
@@ -605,7 +605,7 @@ end
 
 
 function M.omnifunc(findstart, base)
-  vim.notify("dap.omnifunc is deprecated. Use require('dap.repl').omnifunc instead.", vim.log.levels.WARN)
+  vim.schedule(function () vim.notify("dap.omnifunc is deprecated. Use require('dap.repl').omnifunc instead.", vim.log.levels.WARN) end)
   return lazy.repl.omnifunc(findstart, base)
 end
 
