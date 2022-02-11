@@ -88,7 +88,7 @@ function M.print_stackframes(frames)
   frames = frames or (session and session.threads[session.stopped_thread_id] or {}).frames or {}
   local context = {}
   M.append('(press enter on line to jump to frame)')
-  local start = ui.get_last_lnum(repl.buf)
+  local start = api.nvim_buf_line_count(repl.buf) - 1
   local render_frame = require('dap.entity').frames.render_item
   context.actions = {
     {
