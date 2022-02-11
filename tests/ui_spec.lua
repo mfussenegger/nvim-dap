@@ -15,13 +15,12 @@ describe('ui', function()
         { label = "", x = 3 },
         { label = "dd", x = 4 },
       }
-      layer.render(items,render_item)
+      layer.render(items, render_item)
       local lines = api.nvim_buf_get_lines(buf, 0, -1, true)
       assert.are.same({
         'aa',
         '',
         'dd',
-        ''
       }, lines)
 
       assert.are.same(3, vim.tbl_count(layer.__marks))
@@ -38,7 +37,6 @@ describe('ui', function()
         'bb',
         '',
         'dd',
-        ''
       }, lines)
       assert.are.same('aa', layer.get(0).item.label)
       assert.are.same('bb', layer.get(1).item.label)
@@ -58,7 +56,6 @@ describe('ui', function()
         'bbbb',
         '',
         'dd',
-        ''
       }, lines)
       assert.are.same('aa', layer.get(0).item.label)
       assert.are.same('bbb', layer.get(1).item.label)
@@ -93,7 +90,6 @@ describe('ui', function()
       'root',
       '  a',
       '  b',
-      '',
     }, lines)
 
     it('can expand an element with children', function()
@@ -106,7 +102,6 @@ describe('ui', function()
         '  a',
         '  b',
         '    c',
-        '',
       }, lines)
 
       lnum = 3
@@ -119,7 +114,6 @@ describe('ui', function()
         '  b',
         '    c',
         '      d',
-        '',
       }, lines)
     end)
 
@@ -135,7 +129,6 @@ describe('ui', function()
         '  b',
         '    c',
         '      d',
-        '',
       }, lines)
     end)
 
@@ -148,7 +141,6 @@ describe('ui', function()
         'root',
         '  a',
         '  b',
-        '',
       }, lines)
     end)
 
@@ -162,7 +154,6 @@ describe('ui', function()
         '  a',
         '  b',
         '    c',
-        '',
       }, lines)
       layer.render({}, tostring, nil, 0, -1)
       local subtree = ui.new_tree(opts)
@@ -171,7 +162,6 @@ describe('ui', function()
       assert.are.same({
         'b',
         '  c',
-        '',
       }, lines)
     end)
   end)
