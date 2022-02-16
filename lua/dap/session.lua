@@ -254,7 +254,7 @@ local function jump_to_location(bufnr, line, column)
   for _, win in pairs(api.nvim_tabpage_list_wins(0)) do
     local winbuf = api.nvim_win_get_buf(win)
     local buftype = api.nvim_buf_get_option(winbuf, 'buftype')
-    if vim.tbl_contains({'', 'nofile'}, buftype) then
+    if buftype == '' or vim.b[winbuf].dap_source_buf == true then
       local bufchanged, _ = pcall(api.nvim_win_set_buf, win, bufnr)
       if bufchanged then
         api.nvim_win_set_cursor(win, { line, column - 1 })
@@ -300,6 +300,7 @@ local function jump_to_frame(cur_session, frame, preserve_focus_hint)
       assert(not err, vim.inspect(err))
 
       local buf = api.nvim_create_buf(false, true)
+      vim.b[buf].dap_source_buf = true
       local ft = mime_to_filetype[response.mimeType]
       if ft then
         api.nvim_buf_set_option(buf, 'filetype', ft)
