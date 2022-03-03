@@ -484,6 +484,7 @@ do
           path = path;
           name = vim.fn.fnamemodify(path, ':t')
         };
+        sourceModified = false;
         breakpoints = buf_bps;
         lines = vim.tbl_map(function(x) return x.line end, buf_bps);
       }
