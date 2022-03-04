@@ -169,12 +169,6 @@ end
 
 
 local function run_adapter(adapter, configuration, opts)
-  if session then
-    M.terminate({}, {}, vim.schedule_wrap(function()
-      run_adapter(adapter, configuration, opts)
-    end))
-    return
-  end
   local name = configuration.name or '[no name]'
   local options = adapter.options or {}
   opts = vim.tbl_extend('keep', opts, {
@@ -247,6 +241,12 @@ function M.run(config, opts)
   assert(
     type(config) == 'table',
     'dap.run() must be called with a valid configuration, got ' .. vim.inspect(config))
+  if session then
+    M.terminate({}, {}, vim.schedule_wrap(function()
+      M.run(config, opts)
+    end))
+    return
+  end
   opts = opts or {}
   last_run = {
     config = config,
