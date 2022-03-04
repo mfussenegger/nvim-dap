@@ -652,6 +652,7 @@ end
 
 
 function Session:connect(adapter, opts, on_connect)
+  log.debug('Connecting to debug adapter', adapter)
   local session = session_defaults(adapter, opts or {})
   setmetatable(session, self)
   self.__index = self
@@ -710,6 +711,7 @@ end
 
 
 function Session:spawn(adapter, opts)
+  log.debug('Spawning debug adapter', adapter)
   local session = session_defaults(adapter, opts or {})
   setmetatable(session, self)
   self.__index = self
