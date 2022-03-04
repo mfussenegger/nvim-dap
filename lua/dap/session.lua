@@ -7,6 +7,7 @@ local breakpoints = require('dap.breakpoints')
 local progress = require('dap.progress')
 local log = require('dap.log').create_logger('dap.log')
 local repl = require('dap.repl')
+local sec_to_ms = 1000
 local non_empty = utils.non_empty
 local index_of = utils.index_of
 local mime_to_filetype = {
@@ -841,6 +842,38 @@ function Session:close()
 end
 
 
+function Session:request_with_timeout(command, arguments, timeout_ms, callback)
+  local cb_triggered = false
+  local timed_out = false
+  local function cb(err, response)
+    if timed_out then
+      return
+    end
+    cb_triggered = true
+    if callback then
+      callback(err, response)
+    end
+  end
+  self:request(command, arguments, cb)
+  local timer = uv.new_timer()
+  timer:start(timeout_ms, 0, function()
+    timer:stop()
+    timer:close()
+    timed_out = true
+    if not cb_triggered then
+      local err = { message = 'Request `' .. command .. '` timed out after ' .. timeout_ms .. 'ms' }
+      if callback then
+        callback(err, nil)
+      else
+        vim.schedule(function()
+          utils.notify(err.message, vim.log.levels.INFO)
+        end)
+      end
+    end
+  end)
+end
+
+
 function Session:request(command, arguments, callback)
   local payload = {
     seq = self.seq;
@@ -902,7 +935,6 @@ function Session:initialize(config, adapter)
       end
     end)
   end)
-  local sec_to_ms = 1000
   local sec_to_wait = 4
   if adapter.options and adapter.options.initialize_timeout_sec then
     sec_to_wait = adapter.options.initialize_timeout_sec
@@ -941,7 +973,7 @@ function Session:disconnect(opts, cb)
     restart = false,
     terminateDebuggee = nil;
   }, opts or {})
-  self:request('disconnect', opts, cb)
+  self:request_with_timeout('disconnect', opts, 3 * sec_to_ms, cb)
 end
 
 
