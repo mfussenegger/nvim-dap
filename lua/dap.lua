@@ -169,6 +169,12 @@ end
 
 
 local function run_adapter(adapter, configuration, opts)
+  if session then
+    M.terminate({}, {}, vim.schedule_wrap(function()
+      run_adapter(adapter, configuration, opts)
+    end))
+    return
+  end
   local name = configuration.name or '[no name]'
   local options = adapter.options or {}
   opts = vim.tbl_extend('keep', opts, {
@@ -618,10 +624,6 @@ end
 --    ...                 -- debug adapter specific options
 --
 function M.attach(adapter, config, opts, bwc_dummy)
-  if session then
-    session:close()
-    session = nil
-  end
   if type(adapter) == 'string' then
     utils.notify(
       'dap.launch signature changed from (host, port, config) to (adapter, config), please adjust',
@@ -663,10 +665,6 @@ end
 --    ...                 -- debug adapter specific options
 --
 function M.launch(adapter, config, opts)
-  if session then
-    session:close()
-    session = nil
-  end
   session = require('dap.session'):spawn(adapter, opts)
   session:initialize(config, adapter)
   return session
