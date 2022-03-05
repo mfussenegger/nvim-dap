@@ -242,7 +242,7 @@ function M.run(config, opts)
     type(config) == 'table',
     'dap.run() must be called with a valid configuration, got ' .. vim.inspect(config))
   if session then
-    M.terminate({}, {}, vim.schedule_wrap(function()
+    M.terminate(nil, nil, vim.schedule_wrap(function()
       M.run(config, opts)
     end))
     return
@@ -599,8 +599,6 @@ end
 function M.disconnect(opts, cb)
   if session then
     session:disconnect(opts, cb)
-    session:close()
-    session = nil
   else
     utils.notify('No active session. Doing nothing.', vim.log.levels.INFO)
     if cb then
