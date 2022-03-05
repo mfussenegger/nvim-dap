@@ -454,16 +454,16 @@ end
 
 
 do
-  local function notify_if_missing_capability(bufnr, bps, capabilities)
+  local function notify_if_missing_capability(bps, capabilities)
     for _, bp in pairs(bps) do
       if non_empty(bp.condition) and not capabilities.supportsConditionalBreakpoints then
-        utils.notify("Debug adapter doesn't support breakpoints with conditions", bufnr, bp.line, vim.log.levels.WARN)
+        utils.notify("Debug adapter doesn't support breakpoints with conditions", vim.log.levels.WARN)
       end
       if non_empty(bp.hitCondition) and not capabilities.supportsHitConditionalBreakpoints then
-        utils.notify("Debug adapter doesn't support breakpoints with hit conditions", bufnr, bp.line, vim.log.levels.WARN)
+        utils.notify("Debug adapter doesn't support breakpoints with hit conditions", vim.log.levels.WARN)
       end
       if non_empty(bp.logMessage) and not capabilities.supportsLogPoints then
-        utils.notify("Debug adapter doesn't support log points", bufnr, bp.line, vim.log.levels.WARN)
+        utils.notify("Debug adapter doesn't support log points", vim.log.levels.WARN)
       end
     end
   end
@@ -478,7 +478,7 @@ do
       return
     end
     for bufnr, buf_bps in pairs(bps) do
-      notify_if_missing_capability(bufnr, buf_bps, self.capabilities)
+      notify_if_missing_capability(buf_bps, self.capabilities)
       local path = api.nvim_buf_get_name(bufnr)
       local payload = {
         source = {
