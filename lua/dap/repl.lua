@@ -289,8 +289,12 @@ function M.append(line, lnum)
   if #lines > 1 and lines[#lines] == '' then
     table.remove(lines)
   end
-  lnum = lnum or api.nvim_buf_line_count(buf) - 1
-  vim.fn.appendbufline(buf, lnum, lines)
+  if lnum == '$' or not lnum then
+    lnum = api.nvim_buf_line_count(buf) - 1
+    api.nvim_buf_set_lines(buf, -1, -1, true, lines)
+  else
+    api.nvim_buf_set_lines(buf, lnum, lnum, true, lines)
+  end
   return lnum
 end
 
