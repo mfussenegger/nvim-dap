@@ -1,22 +1,22 @@
 local dap = require('dap')
 local api = vim.api
 
+local config = {
+  type = 'dummy',
+  request = 'launch',
+  name = 'Launch file',
+}
+local function run_and_wait_until_initialized(conf)
+  dap.run(conf)
+  vim.wait(1000, function()
+    local session = dap.session()
+    return (session and session.initialized == true)
+  end, 100)
+  return dap.session()
+end
 
 describe('dap with fake server', function()
   local server
-  local config = {
-    type = 'dummy',
-    request = 'launch',
-    name = 'Launch file',
-  }
-  local function run_and_wait_until_initialized(conf)
-    dap.run(conf)
-    vim.wait(1000, function()
-      local session = dap.session()
-      return (session and session.initialized == true)
-    end, 100)
-    return dap.session()
-  end
   before_each(function()
     server = require('tests.server').spawn()
     dap.adapters.dummy = server.adapter
@@ -24,6 +24,7 @@ describe('dap with fake server', function()
   after_each(function()
     server.stop()
     dap.close()
+    require('dap.breakpoints').clear()
   end)
   it('clear breakpoints clears all active breakpoints', function()
     local session = run_and_wait_until_initialized(config)
@@ -70,7 +71,7 @@ describe('dap with fake server', function()
     })
   end)
 
-  it('resets session if connection disconnects without terminat event', function()
+  it('resets session if connection disconnects without terminate event', function()
     local session = run_and_wait_until_initialized(config)
     assert.are_not.same(nil, dap.session())
     assert.are.same(session, dap.session())
@@ -78,5 +79,30 @@ describe('dap with fake server', function()
     vim.wait(1000, function() return dap.session() == nil end, 100)
     assert.are.same(nil, server.client.socket)
     assert.are.same(nil, dap.session())
+  end)
+end)
+
+describe('session disconnect', function()
+  local server
+  before_each(function()
+    server = require('tests.server').spawn()
+    dap.adapters.dummy = server.adapter
+  end)
+  after_each(function()
+    dap.close()
+    require('dap.breakpoints').clear()
+  end)
+
+  it('Can call close on session after session has already closed', function()
+    local session = run_and_wait_until_initialized(config)
+    assert.are.not_same(nil, session)
+    local cb_called = false
+    dap.disconnect(nil, function()
+      cb_called = true
+    end)
+    vim.wait(1000, function() return cb_called end, 100)
+    assert.are.same(true, cb_called)
+    assert.are.same(nil, dap.session())
+    session:close()
   end)
 end)

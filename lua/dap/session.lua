@@ -658,12 +658,17 @@ function Session:connect(adapter, opts, on_connect)
   setmetatable(session, self)
   self.__index = self
 
+  local closed = false
   local client = uv.new_tcp()
   session.client = {
     write = function(line)
       client:write(line)
     end;
     close = function()
+      if closed then
+        return
+      end
+      closed = true
       client:shutdown()
       client:close()
     end;
@@ -682,8 +687,11 @@ function Session:connect(adapter, opts, on_connect)
           session:handle_body(body)
         end)
         client:read_start(rpc.create_read_loop(handle_body, function()
-          client:shutdown()
-          client:close()
+          if not closed then
+            closed = true
+            client:shutdown()
+            client:close()
+          end
           local s = dap().session()
           if s == session then
             vim.schedule(function()
