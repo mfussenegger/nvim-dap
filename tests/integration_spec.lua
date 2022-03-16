@@ -105,4 +105,26 @@ describe('session disconnect', function()
     assert.are.same(nil, dap.session())
     session:close()
   end)
+
+  it('Closes session on disconnect response', function()
+    run_and_wait_until_initialized(config)
+    vim.wait(1000, function() return #server.spy.requests == 2 end, 100)
+    server.spy.clear()
+
+    local client = server.client
+    -- override to not send terminate event as well
+    client.disconnect = function(self, request)
+      self:send_response(request, {})
+    end
+
+    local cb_called = false
+    dap.disconnect(nil, function()
+      cb_called = true
+    end)
+    vim.wait(1000, function() return cb_called end, 100)
+    assert.are.same({}, server.spy.events)
+    assert.are.same(1, #server.spy.responses)
+    assert.are.same('disconnect', server.spy.responses[1].command)
+    assert.are.same(nil, dap.session())
+  end)
 end)

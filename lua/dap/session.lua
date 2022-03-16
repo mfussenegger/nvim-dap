@@ -385,9 +385,6 @@ end
 
 function Session:event_terminated()
   self:close()
-  if self.handlers.after then
-    self.handlers.after()
-  end
   dap().set_session(nil)
 end
 
@@ -849,6 +846,10 @@ function Session:close()
   self.threads = {}
   self.message_callbacks = {}
   self.message_requests = {}
+  if self.handlers.after then
+    self.handlers.after()
+    self.handlers.after = nil
+  end
   self.client.close()
 end
 
@@ -984,7 +985,14 @@ function Session:disconnect(opts, cb)
     restart = false,
     terminateDebuggee = nil;
   }, opts or {})
-  self:request_with_timeout('disconnect', opts, 3 * sec_to_ms, cb)
+  self:request_with_timeout('disconnect', opts, 3 * sec_to_ms, function(err, resp)
+    dap().set_session(nil)
+    self:close()
+    log.info('Session closed due to disconnect')
+    if cb then
+      cb(err, resp)
+    end
+  end)
 end
 
 
