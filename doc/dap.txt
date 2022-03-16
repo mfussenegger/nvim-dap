@@ -210,20 +210,57 @@ Things to note:
 ==============================================================================
 DEBUGEE CONFIGURATION via launch.json                *dap-launch.json*
 
-nvim-dap supports a small subset of the `launch.json` file that is used to
+nvim-dap supports a subset of the `launch.json` file that is used to
 configure debug adapters in Visual Studio Code.
 
-To load the configurations, add the following in `init.vim`:
+To load a `launch.json file`, use the `load_launchjs` function from the
+`dap.ext.vscode` module.
+
+Opposed to Visual Studio Code, nvim-dap only supports regular JSON. Trailing
+comma's on the last item of a list are an error.
+
+
+load_launchjs({path}, {type_to_filetypes})        *dap.ext.vscode.load_launchjs*
+
+  Parses a JSON file at {path} and adds the entries to `dap.configurations`.
+  This extends `dap.configurations` each time it is called.
+
+  Parameters:
+      {path}    Path to the `launch.json` file. Defaults to
+                `.vscode/launch.json` relative to the working directory.
+
+      {type_to_filetypes}  A table mapping the `type` values of the
+                           configuration entries in the JSON file to one or
+                           more filetypes.
+                           Defaults to use the `type` value verbatim as
+                           filetype.
+
+An example given a `launch.json` file like this:
 
 >
-
-  lua require('dap.ext.vscode').load_launchjs()
+  {
+      "version": "0.2.0",
+      "configurations": [
+          {
+              "type": "java",
+              "request": "launch"
+          },
+          {
+              "type": "cppdbg",
+              "request": "launch"
+          }
+      ]
+  }
 
 <
 
-This extends `dap.configurations` each time it is called, so make sure to only
-call it once.
-
+Given the above configuration, calling `load_launchjs` adds the first entry to
+`dap.configurations.java` and the second entry to `dap.configurations.cppdbg`.
+If you wanted to add the second entry to the `c` or `cpp` configurations you
+could call the function like this instead:
+>
+  require('dap.ext.vscode').load_launchjs(nil, { cppdbg = {'c', 'cpp'} })
+<
 ==============================================================================
 SIGNS CONFIGURATION
 
