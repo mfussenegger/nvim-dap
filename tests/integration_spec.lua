@@ -91,6 +91,7 @@ describe('session disconnect', function()
   after_each(function()
     dap.close()
     require('dap.breakpoints').clear()
+    server.stop()
   end)
 
   it('Can call close on session after session has already closed', function()
@@ -126,5 +127,30 @@ describe('session disconnect', function()
     assert.are.same(1, #server.spy.responses)
     assert.are.same('disconnect', server.spy.responses[1].command)
     assert.are.same(nil, dap.session())
+  end)
+
+  it('Closes session if server closes connection', function()
+    run_and_wait_until_initialized(config)
+    assert.are_not.same(nil, dap.session())
+    server.stop()
+    vim.wait(1000, function() return dap.session() == nil end, 100)
+    assert.are.same(nil, dap.session())
+  end)
+
+  it('Closes session if initialization fails', function()
+    local launch_called = false
+    server.client.launch = function(self, request)
+      launch_called = true
+      self:send_err_response(request, 'Dummy error')
+    end
+    local msg = nil
+    require('dap.utils').notify = function(m)
+      msg = m
+    end
+    dap.run(config)
+    vim.wait(1000, function() return launch_called end, 100)
+    vim.wait(1000, function() return dap.session() == nil end, 100)
+    assert.are.same(nil, dap.session())
+    assert.are.same('Error on launch: Dummy error', msg)
   end)
 end)
