@@ -8,6 +8,26 @@ local M = {}
 local Client = {}
 
 
+function Client:send_err_response(request, message, error)
+  self.seq = request.seq + 1
+  local payload = {
+    seq = self.seq,
+    type = 'response',
+    command = request.command,
+    success = false,
+    request_seq = request.seq,
+    message = message,
+    body = {
+      error = error,
+    },
+  }
+  table.insert(self.spy.responses, payload)
+  if self.socket then
+    self.socket:write(rpc.msg_with_content_length(json_encode(payload)))
+  end
+
+end
+
 function Client:send_response(request, body)
   self.seq = request.seq + 1
   local payload = {
