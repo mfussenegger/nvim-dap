@@ -121,7 +121,10 @@ function M.spawn()
     adapter = {
       type = 'server',
       host = host;
-      port = server:getsockname().port
+      port = server:getsockname().port,
+      options = {
+        disconnect_timeout_sec = 0.1
+      },
     },
     spy = spy,
     stop = function()
