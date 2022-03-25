@@ -842,7 +842,12 @@ end
 
 
 function Session:close()
-  vim.fn.sign_unplace(ns_pos)
+  -- can't always be called safely, returns the below with
+  -- jbyuki/one-small-step-for-vimkind
+  -- E5560: vimL function must not be called in a lua loop callback
+  vim.schedule(function()
+    vim.fn.sign_unplace(ns_pos)
+  end)
   self.threads = {}
   self.message_callbacks = {}
   self.message_requests = {}
