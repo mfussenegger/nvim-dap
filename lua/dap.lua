@@ -641,7 +641,7 @@ function M.attach(adapter, config, opts, bwc_dummy)
   assert(adapter.port, 'Adapter used with attach must have a port property')
   session = require('dap.session'):connect(adapter, opts, function(err)
     assert(not err, vim.inspect(err))
-    session:initialize(config, adapter)
+    session:initialize(config)
   end)
   return session
 end
@@ -664,7 +664,7 @@ end
 --
 function M.launch(adapter, config, opts)
   session = require('dap.session'):spawn(adapter, opts)
-  session:initialize(config, adapter)
+  session:initialize(config)
   return session
 end
 

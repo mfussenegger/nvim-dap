@@ -6,11 +6,12 @@ local config = {
   request = 'launch',
   name = 'Launch file',
 }
-local function run_and_wait_until_initialized(conf)
+local function run_and_wait_until_initialized(conf, server)
   dap.run(conf)
   vim.wait(1000, function()
     local session = dap.session()
-    return (session and session.initialized == true)
+    -- wait for initialize and launch requests
+    return (session and session.initialized and #server.spy.requests == 2)
   end, 100)
   return dap.session()
 end
@@ -27,12 +28,10 @@ describe('dap with fake server', function()
     require('dap.breakpoints').clear()
   end)
   it('clear breakpoints clears all active breakpoints', function()
-    local session = run_and_wait_until_initialized(config)
+    local session = run_and_wait_until_initialized(config, server)
     assert.are_not.same(session, nil)
     assert.are.same(true, session.initialized)
 
-    -- initialize and launch requests
-    vim.wait(1000, function() return #server.spy.requests == 2 end, 100)
     server.spy.clear()
 
     local buf1 = api.nvim_create_buf(false, true)
@@ -64,7 +63,7 @@ describe('dap with fake server', function()
   end)
 
   it('can handle stopped event for all threads', function()
-    local session = run_and_wait_until_initialized(config)
+    local session = run_and_wait_until_initialized(config, server)
     session:event_stopped({
       allThreadsStopped = true,
       reason = 'unknown',
@@ -72,7 +71,7 @@ describe('dap with fake server', function()
   end)
 
   it('resets session if connection disconnects without terminate event', function()
-    local session = run_and_wait_until_initialized(config)
+    local session = run_and_wait_until_initialized(config, server)
     assert.are_not.same(nil, dap.session())
     assert.are.same(session, dap.session())
     server.stop()
@@ -95,7 +94,7 @@ describe('session disconnect', function()
   end)
 
   it('Can call close on session after session has already closed', function()
-    local session = run_and_wait_until_initialized(config)
+    local session = run_and_wait_until_initialized(config, server)
     assert.are.not_same(nil, session)
     local cb_called = false
     dap.disconnect(nil, function()
@@ -108,8 +107,7 @@ describe('session disconnect', function()
   end)
 
   it('Closes session on disconnect response', function()
-    run_and_wait_until_initialized(config)
-    vim.wait(1000, function() return #server.spy.requests == 2 end, 100)
+    run_and_wait_until_initialized(config, server)
     server.spy.clear()
 
     local client = server.client
@@ -130,7 +128,7 @@ describe('session disconnect', function()
   end)
 
   it('Closes session if server closes connection', function()
-    run_and_wait_until_initialized(config)
+    run_and_wait_until_initialized(config, server)
     assert.are_not.same(nil, dap.session())
     server.stop()
     vim.wait(1000, function() return dap.session() == nil end, 100)
@@ -152,5 +150,19 @@ describe('session disconnect', function()
     vim.wait(1000, function() return dap.session() == nil end, 100)
     assert.are.same(nil, dap.session())
     assert.are.same('Error on launch: Dummy error', msg)
+  end)
+
+  it('Repeated disconnect after stopped server is safe and resets session', function()
+    run_and_wait_until_initialized(config, server)
+    server.stop()
+    local cb_called = false
+    for _ = 1, 10 do
+      dap.disconnect()
+    end
+    dap.disconnect(nil, function()
+      cb_called = true
+    end)
+    vim.wait(1000, function() return cb_called end, 100)
+    assert.are.same(nil, dap.session())
   end)
 end)

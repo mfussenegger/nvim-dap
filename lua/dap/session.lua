@@ -645,6 +645,7 @@ local function session_defaults(adapter, opts)
     stopped_thread_id = nil;
     current_frame = nil;
     threads = {};
+    adapter = adapter;
   }
 end
 
@@ -875,7 +876,9 @@ function Session:request_with_timeout(command, arguments, timeout_ms, callback)
     if not cb_triggered then
       local err = { message = 'Request `' .. command .. '` timed out after ' .. timeout_ms .. 'ms' }
       if callback then
-        callback(err, nil)
+        vim.schedule(function()
+          callback(err, nil)
+        end)
       else
         vim.schedule(function()
           utils.notify(err.message, vim.log.levels.INFO)
@@ -915,15 +918,14 @@ function Session:response(request, payload)
 end
 
 
-function Session:initialize(config, adapter)
+function Session:initialize(config)
   vim.schedule(repl.clear)
-  adapter = adapter or {}
   local adapter_responded = false
   self.config = config
   self:request('initialize', {
     clientId = 'neovim';
     clientname = 'neovim';
-    adapterID = adapter.id or 'nvim-dap';
+    adapterID = self.adapter.id or 'nvim-dap';
     pathFormat = 'path';
     columnsStartAt1 = true;
     linesStartAt1 = true;
@@ -947,10 +949,8 @@ function Session:initialize(config, adapter)
       end
     end)
   end)
-  local sec_to_wait = 4
-  if adapter.options and adapter.options.initialize_timeout_sec then
-    sec_to_wait = adapter.options.initialize_timeout_sec
-  end
+  local adapter = self.adapter
+  local sec_to_wait = (adapter.options or {}).initialize_timeout_sec or 4
   local timer = vim.loop.new_timer()
   timer:start(sec_to_wait * sec_to_ms, 0, function()
     timer:stop()
@@ -985,7 +985,8 @@ function Session:disconnect(opts, cb)
     restart = false,
     terminateDebuggee = nil;
   }, opts or {})
-  self:request_with_timeout('disconnect', opts, 3 * sec_to_ms, function(err, resp)
+  local disconnect_timeout_sec = (self.adapter.options or {}).disconnect_timeout_sec or 3
+  self:request_with_timeout('disconnect', opts, disconnect_timeout_sec * sec_to_ms, function(err, resp)
     dap().set_session(nil)
     self:close()
     log.info('Session closed due to disconnect')
