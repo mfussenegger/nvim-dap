@@ -130,6 +130,7 @@ M.scopes = {
         dap.listeners.after['event_exited'][view] = nil
       end
     })
+    api.nvim_buf_set_name(buf, 'dap-scopes')
     return buf
   end,
   render = function(view)
@@ -160,7 +161,11 @@ M.scopes = {
 
 M.frames = {
   refresh_listener = 'scopes',
-  new_buf = new_buf,
+  new_buf = function()
+    local buf = new_buf()
+    api.nvim_buf_set_name(buf, 'dap-frames')
+    return buf
+  end,
   render = function(view)
     local session = require('dap').session()
     local frames = (session and session.threads[session.stopped_thread_id] or {}).frames or {}
@@ -313,7 +318,8 @@ function M.hover(expr, winopts)
   local view = M.builder(M.expression)
     .new_win(M.with_resize(with_winopts(M.new_cursor_anchored_float_win, winopts)))
     .build()
-  view.open(value)
+  local buf = view.open(value)
+  api.nvim_buf_set_name(buf, 'dap-hover: ' .. value)
   api.nvim_win_set_cursor(view.win, {1, 0})
   return view
 end
