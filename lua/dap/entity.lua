@@ -250,9 +250,9 @@ function threads_spec.render_child(thread_or_frame)
     return thread_or_frame.name
   end
   if thread_or_frame.stopped then
-    return '◀ ' .. thread_or_frame.name
+    return '⏸️ ' .. thread_or_frame.name
   else
-    return '〓' .. thread_or_frame.name
+    return '▶️ ' .. thread_or_frame.name
   end
 end
 
