@@ -223,9 +223,9 @@ M.frames = frames
 function frames.render_item(frame)
   local session = require('dap').session()
   if session and frame.id == session.current_frame.id then
-    return '→ ' .. frame.name
+    return '→ ' .. frame.name .. ':' .. frame.line
   else
-    return '  ' .. frame.name
+    return '  ' .. frame.name .. ':' .. frame.line
   end
 end
 
@@ -247,7 +247,7 @@ end
 function threads_spec.render_child(thread_or_frame)
   if thread_or_frame.line then
     -- it's a frame
-    return thread_or_frame.name
+    return frames.render_item(thread_or_frame)
   end
   if thread_or_frame.stopped then
     return '⏸️ ' .. thread_or_frame.name
