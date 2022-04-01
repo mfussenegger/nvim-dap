@@ -230,5 +230,63 @@ function frames.render_item(frame)
 end
 
 
+local threads = {
+  tree_spec = {},
+}
+local threads_spec = threads.tree_spec
+M.threads = threads
+
+function threads_spec.get_key(thread)
+  return thread.id
+end
+
+function threads_spec.render_parent(thread)
+  return thread.name
+end
+
+function threads_spec.render_child(thread_or_frame)
+  if thread_or_frame.line then
+    -- it's a frame
+    return thread_or_frame.name
+  end
+  if thread_or_frame.stopped then
+    return '◀ ' .. thread_or_frame.name
+  else
+    return '〓' .. thread_or_frame.name
+  end
+end
+
+function threads_spec.has_children()
+  return true
+end
+
+function threads_spec.get_children(thread)
+  if thread.threads then
+    return thread.threads or {}
+  end
+  return thread.frames or {}
+end
+
+function threads_spec.fetch_children(thread, cb)
+  local session = require('dap').session()
+  if thread.threads then
+    cb(thread.threads)
+  elseif thread.frames then
+    cb(thread.frames)
+  elseif session then
+    local params = { threadId = thread.id }
+    session:request('stackTrace', params, function(err, resp)
+      if err then
+        utils.notify(err.message, vim.log.levels.WARN)
+      else
+        thread.frames = resp.stackFrames
+        cb(threads_spec.get_children(thread))
+      end
+    end)
+  else
+    cb({})
+  end
+end
+
 
 return M

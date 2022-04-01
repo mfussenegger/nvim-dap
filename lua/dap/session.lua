@@ -377,6 +377,7 @@ function Session:event_stopped(stopped)
     if not stopped.threadId then
       return
     end
+    threads[stopped.threadId].stopped = true
     self:request('stackTrace', { threadId = stopped.threadId; }, function(err1, frames_resp)
       if err1 then
         utils.notify('Error retrieving stack traces: ' .. err1.message, vim.log.levels.ERROR)
@@ -860,6 +861,10 @@ function Session:_step(step, params)
   if not params.granularity then
     params.granularity = dap().defaults[self.config.type].stepping_granularity
   end
+  local thread = self.threads[self.stopped_thread_id]
+  if thread then
+    thread.stopped = false
+  end
   self.stopped_thread_id = nil
   self:request(step, params, function(err)
     if err then
@@ -1065,11 +1070,31 @@ end
 function Session.event_process()
 end
 
-function Session.event_thread()
+function Session:event_thread(event)
+  if event.reason == 'exited' then
+    self.threads[event.threadId] = nil
+  else
+    self.threads[event.threadId] = {
+      id = event.threadId,
+      name = 'Unknown'
+    }
+  end
 end
 
-function Session.event_continued()
+
+function Session:event_continued(event)
+  if event.allThreadsContinued then
+    for _, t in pairs(self.threads) do
+      t.stopped = false
+    end
+  else
+    local thread = self.threads[event.threadId]
+    if thread and thread.stopped then
+      thread.stopped = false
+    end
+  end
 end
+
 
 function Session.event_breakpoint()
 end

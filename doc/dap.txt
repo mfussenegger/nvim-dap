@@ -821,6 +821,7 @@ Available widgets entities:
 - scopes
 - frames
 - expression
+- threads
 
 
 Available widget builder functions:
