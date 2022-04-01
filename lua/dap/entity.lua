@@ -267,25 +267,88 @@ function threads_spec.get_children(thread)
   return thread.frames or {}
 end
 
+
 function threads_spec.fetch_children(thread, cb)
   local session = require('dap').session()
-  if thread.threads then
+  if thread.line then
+    -- this is a frame, not a thread
+    cb({})
+  elseif thread.threads then
     cb(thread.threads)
   elseif thread.frames then
     cb(thread.frames)
   elseif session then
+    local is_stopped = thread.stopped
     local params = { threadId = thread.id }
-    session:request('stackTrace', params, function(err, resp)
+    local on_frames = function(err, resp)
       if err then
         utils.notify(err.message, vim.log.levels.WARN)
       else
         thread.frames = resp.stackFrames
-        cb(threads_spec.get_children(thread))
+        if is_stopped then
+          cb(threads_spec.get_children(thread))
+        else
+          thread.stopped = false
+          session:request('continue', params, function(err0)
+            if err0 then
+              utils.notify(err.message, vim.log.levels.WARN)
+            end
+            cb(threads_spec.get_children(thread))
+          end)
+        end
       end
-    end)
+    end
+    local get_frames = function()
+      session:request('stackTrace', params, on_frames)
+    end
+    if is_stopped then
+      get_frames()
+    else
+      session:_pause(thread.id, get_frames)
+    end
   else
     cb({})
   end
+end
+
+
+
+function threads_spec.compute_actions(info)
+  local session = require('dap').session()
+  if not session then
+    return {}
+  end
+  local context = info.context
+  local thread = info.item
+  local result = {}
+  if thread.stopped then
+    table.insert(result, {
+      label = 'Resume thread',
+      fn = function()
+        if session.stopped_thread_id == thread.id then
+          session:_step('continue')
+        else
+          thread.stopped = false
+          session:request('continue', { threadId = thread.id }, function(err)
+            if err then
+              utils.notify(err.message, vim.log.levels.WARN)
+            end
+            context.view.refresh()
+          end)
+        end
+      end
+    })
+  else
+    table.insert(result, {
+      label = 'Stop thread',
+      fn = function()
+        session:_pause(thread.id, function()
+          context.view.refresh()
+        end)
+      end
+    })
+  end
+  return result
 end
 
 
