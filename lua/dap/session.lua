@@ -302,7 +302,8 @@ local function jump_to_frame(cur_session, frame, preserve_focus_hint)
 
       local buf = api.nvim_create_buf(false, true)
       vim.b[buf].dap_source_buf = true
-      local ft = mime_to_filetype[response.mimeType]
+      local adapter_options = cur_session.adapter.options or {}
+      local ft = mime_to_filetype[response.mimeType] or adapter_options.source_filetype
       if ft then
         api.nvim_buf_set_option(buf, 'filetype', ft)
       end
