@@ -103,6 +103,20 @@ For `server` the following options are supported:
                            necessary.
 
 
+Both types support the following additional options:
+
+>
+    options?: {
+      initialize_timeout_sec: number  -- How many seconds the client waits for a
+                                      -- response on a initialize request before
+                                      -- emitting a warning. Defaults to 4
+
+      disconnect_timeout_sec: number  -- How many seconds the client waits for
+                                      -- a disconnect response from the debug
+                                      -- adapter before emitting a warning and
+                                      -- closing the connection. Defaults to 3
+
+
 `dap.adapters.<name>` can also be set to a function which takes two arguments.
 This first argument is a callback which must be called with the adapter table.
 The second argument is the |dap-configuration| which the user wants to use.
