@@ -48,6 +48,10 @@ describe('dap with debugpy', function()
       events.setBreakpoints = resp
     end
     dap.listeners.after.event_stopped['dap.tests'] = function()
+      vim.wait(1000, function()
+        local session = dap.session()
+        return session.stopped_thread_id ~= nil
+      end)
       dap.continue()
       events.stopped = true
     end
