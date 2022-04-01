@@ -52,6 +52,7 @@ M.defaults = setmetatable(
       stepping_granularity = 'statement';
       terminal_win_cmd = 'belowright new';
       focus_terminal = false;
+      auto_continue_if_many_stopped = true;
     },
   },
   {

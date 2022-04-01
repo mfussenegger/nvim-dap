@@ -61,6 +61,22 @@ local function ui()
   return require('dap.ui')
 end
 
+local function defaults(session)
+  return dap().defaults[session.config.type]
+end
+
+local function signal_err(err, cb)
+  if err then
+    if cb then
+      cb(err)
+    else
+      error(vim.inspect(err))
+    end
+    return true
+  end
+  return false
+end
+
 
 local function launch_external_terminal(terminal, args)
   local handle
@@ -176,46 +192,30 @@ function Session:event_initialized()
 end
 
 
-function Session:_show_exception_info()
+function Session:_show_exception_info(thread_id)
   if not self.capabilities.supportsExceptionInfoRequest then return end
 
-  -- exceptionInfo (https://microsoft.github.io/debug-adapter-protocol/specification#Requests_ExceptionInfo)
-  --- threadId: number
-  self:request('exceptionInfo', {threadId = self.stopped_thread_id}, function(err, response)
+  self:request('exceptionInfo', {threadId = thread_id}, function(err, response)
     if err then
       utils.notify('Error getting exception info: ' .. err.message, vim.log.levels.ERROR)
     end
+    if not response then return end
 
-    -- ExceptionInfoResponse
-    --- exceptionId: string
-    --- description?: string
-    --- breakMode: ExceptionBreakMode (https://microsoft.github.io/debug-adapter-protocol/specification#Types_ExceptionBreakMode)
-    --- details?: ExceptionDetails (https://microsoft.github.io/debug-adapter-protocol/specification#Types_ExceptionDetails)
-    if response then
-      local exception_type = response.details and response.details.typeName
-      local of_type = exception_type and ' of type '..exception_type or ''
-      repl.append('Thread stopped due to exception'..of_type..' ('..response.breakMode..')')
-      if response.description then
-        repl.append('Description: '..response.description)
-      end
-      -- ExceptionDetails (https://microsoft.github.io/debug-adapter-protocol/specification#Types_ExceptionDetails)
-      --- message?: string
-      --- typeName?: string
-      --- fullTypeName?: string
-      --- evaluateName?: string
-      --- stackTrace?: string
-      --- innerException?: ExceptionDetails[]
-      if response.details then
-        if response.details.stackTrace then
-          repl.append("Stack trace:")
-          repl.append(response.details.stackTrace)
-        end
-        if response.details.innerException then
-          repl.append("Inner Exceptions:")
-          for _, e in pairs(response.details.innerException) do
-            repl.append(vim.inspect(e))
-          end
-        end
+    local exception_type = response.details and response.details.typeName
+    local of_type = exception_type and ' of type '..exception_type or ''
+    repl.append('Thread stopped due to exception'..of_type..' ('..response.breakMode..')')
+    if response.description then
+      repl.append('Description: '..response.description)
+    end
+    local details = response.details or {}
+    if details.stackTrace then
+      repl.append("Stack trace:")
+      repl.append(details.stackTrace)
+    end
+    if details.innerException then
+      repl.append("Inner Exceptions:")
+      for _, e in pairs(details.innerException) do
+        repl.append(vim.inspect(e))
       end
     end
   end)
@@ -313,14 +313,7 @@ function Session:source(source, cb)
     sourceReference = source.sourceReference
   }
   self:request('source', params, function(err, response)
-    if err then
-      if cb then
-        cb(err)
-      else
-        error(vim.inspect(err))
-      end
-      return
-    end
+    if signal_err(err, cb) then return end
 
     local buf = api.nvim_create_buf(false, true)
     api.nvim_buf_set_var(buf, 'dap_source_buf', true)
@@ -341,74 +334,106 @@ function Session:source(source, cb)
 end
 
 
+function Session:update_threads(cb)
+  self:request('threads', nil, function(err, response)
+    if signal_err(err, cb) then return end
+    local threads = {}
+    for _, thread in pairs(response.threads) do
+      threads[thread.id] = thread
+    end
+    self.threads = threads
+    self.dirty.threads = false
+    if cb then
+      cb(nil, threads)
+    end
+  end)
+end
+
+
+local function get_top_frame(frames)
+  local top_frame = nil
+  for _, frame in pairs(frames) do
+    if not top_frame and frame.source and frame.source.path then
+      top_frame = frame
+    end
+  end
+  return top_frame and top_frame or next(frames)
+end
+
+
 function Session:event_stopped(stopped)
-  if self.stopped_thread_id then
-    log.debug('Thread stopped, but another thread is already stopped, telling thread to continue')
-    self:request('continue', { threadId = stopped.threadId })
+  if self.dirty.threads or (stopped.threadId and self.threads[stopped.threadId] == nil) then
+    self:update_threads(function(err)
+      if err then
+        utils.notify('Error retrieving threads: ' .. err.message, vim.log.levels.ERROR)
+        return
+      end
+      self:event_stopped(stopped)
+    end)
     return
   end
+
+  local should_jump = stopped.reason ~= 'pause'
+  if self.stopped_thread_id then
+    local thread = self.threads[self.stopped_thread_id]
+    if defaults(self).auto_continue_if_many_stopped then
+      log.debug(
+        'Received stopped event, but ' .. thread.name .. ' is already stopped. ' ..
+        'Resuming newly stopped thread. ' ..
+        'To disable this set the `auto_continue_if_many_stopped` option to false.')
+      self:request('continue', { threadId = stopped.threadId })
+    else
+      -- Allow thread to stop, but don't jump to it because stepping
+      -- interleaved between threads is confusing
+      should_jump = false
+    end
+  end
+  if should_jump then
+    self.stopped_thread_id = stopped.threadId
+  end
+
   if stopped.threadId then
     progress.report('Thread stopped: ' .. stopped.threadId)
-    self.stopped_thread_id = stopped.threadId
+    self.threads[stopped.threadId].stopped = true
   elseif stopped.allThreadsStopped then
     progress.report('All threads stopped')
     utils.notify(
       'All threads stopped. ' .. stopped.reason and 'Reason: ' .. stopped.reason or '',
       vim.log.levels.INFO
     )
+    for _, thread in pairs(self.threads) do
+      thread.stopped = true
+    end
   else
     utils.notify('Stopped event received, but no threadId or allThreadsStopped', vim.log.levels.WARN)
   end
-  self:request('threads', nil, function(err0, threads_resp)
-    if err0 then
-      utils.notify('Error retrieving threads: ' .. err0.message, vim.log.levels.ERROR)
+
+  if stopped.reason == 'exception' then
+    self:_show_exception_info(stopped.threadId)
+  end
+  if not stopped.threadId then
+    return
+  end
+
+  local thread = self.threads[stopped.threadId]
+  assert(thread, 'Thread not found: ' .. stopped.threadId)
+  self:request('stackTrace', { threadId = stopped.threadId; }, function(err, response)
+    if err then
+      utils.notify('Error retrieving stack traces: ' .. err.message, vim.log.levels.ERROR)
       return
     end
-    local threads = {}
-    self.threads = threads
-    for _, thread in pairs(threads_resp.threads) do
-      threads[thread.id] = thread
-    end
-
-    if stopped.reason == 'exception' then
-      self:_show_exception_info()
-    end
-
-    if not stopped.threadId then
+    local frames = response.stackFrames
+    thread.frames = frames
+    local current_frame = get_top_frame(frames)
+    self.current_frame = current_frame
+    if not current_frame then
+      utils.notify('Debug adapter stopped at unavailable location', vim.log.levels.WARN)
       return
     end
-    threads[stopped.threadId].stopped = true
-    self:request('stackTrace', { threadId = stopped.threadId; }, function(err1, frames_resp)
-      if err1 then
-        utils.notify('Error retrieving stack traces: ' .. err1.message, vim.log.levels.ERROR)
-        return
-      end
-      local frames = {}
-      local current_frame = nil
-      self.current_frame = nil
-      threads[stopped.threadId].frames = frames
-      for _, frame in pairs(frames_resp.stackFrames) do
-        if not current_frame and frame.source and frame.source.path then
-          current_frame = frame
-          self.current_frame = frame
-        end
-        table.insert(frames, frame)
-      end
-      if not current_frame then
-        if #frames > 0 then
-          current_frame = frames[1]
-          self.current_frame = current_frame
-        else
-          return
-        end
-      end
-      local preserve_focus
-      if stopped.reason ~= 'pause' then
-        preserve_focus = stopped.preserveFocusHint
-      end
-      jump_to_frame(self, current_frame, preserve_focus)
+    if should_jump then
+      jump_to_frame(self, current_frame, stopped.preserveFocusHint)
       self:_request_scopes(current_frame)
-    end)
+    end
   end)
 end
 
@@ -676,6 +701,7 @@ local function session_defaults(adapter, opts)
     current_frame = nil;
     threads = {};
     adapter = adapter;
+    dirty = {};
   }
 end
 
@@ -1070,10 +1096,12 @@ end
 function Session.event_process()
 end
 
+
 function Session:event_thread(event)
   if event.reason == 'exited' then
     self.threads[event.threadId] = nil
   else
+    self.dirty.threads = true
     self.threads[event.threadId] = {
       id = event.threadId,
       name = 'Unknown'
