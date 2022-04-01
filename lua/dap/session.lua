@@ -351,13 +351,12 @@ end
 
 
 local function get_top_frame(frames)
-  local top_frame = nil
   for _, frame in pairs(frames) do
-    if not top_frame and frame.source and frame.source.path then
-      top_frame = frame
+    if frame.source and frame.source.path then
+      return frame
     end
   end
-  return top_frame and top_frame or next(frames)
+  return next(frames)
 end
 
 
