@@ -293,25 +293,53 @@ local function jump_to_frame(cur_session, frame, preserve_focus_hint)
     vim.fn.bufload(bufnr)
     jump_to_location(bufnr, frame.line, frame.column)
   else
-    local params = {
-      source = source,
-      sourceReference = source.sourceReference
-    }
-    cur_session:request('source', params, function(err, response)
+    cur_session:source(source, function(err, buf)
       assert(not err, vim.inspect(err))
-
-      local buf = api.nvim_create_buf(false, true)
-      vim.b[buf].dap_source_buf = true
-      local adapter_options = cur_session.adapter.options or {}
-      local ft = mime_to_filetype[response.mimeType] or adapter_options.source_filetype
-      if ft then
-        api.nvim_buf_set_option(buf, 'filetype', ft)
-      end
-      api.nvim_buf_set_lines(buf, 0, -1, false, vim.split(response.content, '\n'))
       jump_to_location(buf, frame.line, frame.column)
     end)
   end
 end
+
+
+--- Request a source
+-- @param source Source (https://microsoft.github.io/debug-adapter-protocol/specification#Types_Source)
+-- @param cb (function(err, buf)) - the buffer will have the contents of the source
+function Session:source(source, cb)
+  assert(source, 'source is required')
+  assert(source.sourceReference, 'sourceReference is required')
+  assert(source.sourceReference ~= 0, 'sourceReference must not be 0')
+  local params = {
+    source = source,
+    sourceReference = source.sourceReference
+  }
+  self:request('source', params, function(err, response)
+    if err then
+      if cb then
+        cb(err)
+      else
+        error(vim.inspect(err))
+      end
+      return
+    end
+
+    local buf = api.nvim_create_buf(false, true)
+    api.nvim_buf_set_var(buf, 'dap_source_buf', true)
+    local adapter_options = self.adapter.options or {}
+    local ft = mime_to_filetype[response.mimeType] or adapter_options.source_filetype
+    if ft then
+      api.nvim_buf_set_option(buf, 'filetype', ft)
+    end
+    api.nvim_buf_set_lines(buf, 0, -1, false, vim.split(response.content, '\n'))
+    if not ft and source.path and vim.filetype then
+      pcall(api.nvim_buf_set_name, buf, source.path)
+      pcall(vim.filetype.match, source.path, buf)
+    end
+    if cb then
+      cb(nil, buf)
+    end
+  end)
+end
+
 
 function Session:event_stopped(stopped)
   if self.stopped_thread_id then

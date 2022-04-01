@@ -166,3 +166,76 @@ describe('session disconnect', function()
     assert.are.same(nil, dap.session())
   end)
 end)
+
+describe('request source', function()
+  local server
+  before_each(function()
+    server = require('tests.server').spawn()
+    dap.adapters.dummy = server.adapter
+  end)
+  after_each(function()
+    dap.close()
+    server.stop()
+  end)
+  it('sets filetype based on mimetype if available', function()
+    server.client.source = function(self, request)
+      self:send_response(request, {
+        content = '',
+        mimeType = 'text/javascript',
+      })
+    end
+
+    local session = run_and_wait_until_initialized(config, server)
+    local source = {
+      sourceReference = 1
+    }
+    local bufnr = nil
+    session:source(source, function(_, buf)
+      bufnr = buf
+    end)
+    vim.wait(1000, function() return bufnr ~= nil end, 100)
+    assert.are.same('javascript', vim.bo[bufnr].filetype)
+  end)
+
+  it('sets filetype based on adapter option if available', function()
+    server.client.source = function(self, request)
+      self:send_response(request, {
+        content = '',
+      })
+    end
+    dap.adapters.dummy.options = {
+      source_filetype = 'lua'
+    }
+    local session = run_and_wait_until_initialized(config, server)
+    local source = {
+      sourceReference = 1
+    }
+    local bufnr = nil
+    session:source(source, function(_, buf)
+      bufnr = buf
+    end)
+    vim.wait(1000, function() return bufnr ~= nil end, 100)
+    assert.are.same('lua', vim.bo[bufnr].filetype)
+  end)
+
+  if vim.filetype then
+    it('derives filetype from source.path if available', function()
+      server.client.source = function(self, request)
+        self:send_response(request, {
+          content = '',
+        })
+      end
+      local session = run_and_wait_until_initialized(config, server)
+      local source = {
+        sourceReference = 1,
+        path = 'foo/bar/baz.lua',
+      }
+      local bufnr = nil
+      session:source(source, function(_, buf)
+        bufnr = buf
+      end)
+      vim.wait(1000, function() return bufnr ~= nil end, 100)
+      assert.are.same('lua', vim.bo[bufnr].filetype)
+    end)
+  end
+end)
