@@ -230,11 +230,12 @@ function frames.render_item(frame)
 end
 
 
-local threads = {
-  tree_spec = {},
+M.threads = {
+  tree_spec = {
+    implicit_expand_action = false,
+  },
 }
-local threads_spec = threads.tree_spec
-M.threads = threads
+local threads_spec = M.threads.tree_spec
 
 function threads_spec.get_key(thread)
   return thread.id
@@ -256,8 +257,9 @@ function threads_spec.render_child(thread_or_frame)
   end
 end
 
-function threads_spec.has_children()
-  return true
+function threads_spec.has_children(thread_or_frame)
+  -- Threads have frames
+  return thread_or_frame.line == nil
 end
 
 function threads_spec.get_children(thread)
@@ -275,8 +277,6 @@ function threads_spec.fetch_children(thread, cb)
     cb({})
   elseif thread.threads then
     cb(thread.threads)
-  elseif thread.frames then
-    cb(thread.frames)
   elseif session then
     local is_stopped = thread.stopped
     local params = { threadId = thread.id }
@@ -312,7 +312,6 @@ function threads_spec.fetch_children(thread, cb)
 end
 
 
-
 function threads_spec.compute_actions(info)
   local session = require('dap').session()
   if not session then
@@ -321,32 +320,46 @@ function threads_spec.compute_actions(info)
   local context = info.context
   local thread = info.item
   local result = {}
-  if thread.stopped then
+  if thread.line then
+    -- this is a frame, not a thread
     table.insert(result, {
-      label = 'Resume thread',
-      fn = function()
-        if session.stopped_thread_id == thread.id then
-          session:_step('continue')
-        else
-          thread.stopped = false
-          session:request('continue', { threadId = thread.id }, function(err)
-            if err then
-              utils.notify(err.message, vim.log.levels.WARN)
-            end
-            context.view.refresh()
-          end)
+      label = 'Jump to frame',
+      fn = function(_, frame)
+        session:_frame_set(frame)
+        if vim.bo.bufhidden == 'wipe' then
+          context.view.close()
         end
       end
     })
   else
-    table.insert(result, {
-      label = 'Stop thread',
-      fn = function()
-        session:_pause(thread.id, function()
-          context.view.refresh()
-        end)
-      end
-    })
+    table.insert(result, { label = 'Expand', fn = context.view.tree.toggle })
+    if thread.stopped then
+      table.insert(result, {
+        label = 'Resume thread',
+        fn = function()
+          if session.stopped_thread_id == thread.id then
+            session:_step('continue')
+          else
+            thread.stopped = false
+            session:request('continue', { threadId = thread.id }, function(err)
+              if err then
+                utils.notify(err.message, vim.log.levels.WARN)
+              end
+              context.view.refresh()
+            end)
+          end
+        end
+      })
+    else
+      table.insert(result, {
+        label = 'Stop thread',
+        fn = function()
+          session:_pause(thread.id, function()
+            context.view.refresh()
+          end)
+        end
+      })
+    end
   end
   return result
 end

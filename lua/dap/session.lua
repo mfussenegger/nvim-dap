@@ -424,12 +424,12 @@ function Session:event_stopped(stopped)
     local frames = response.stackFrames
     thread.frames = frames
     local current_frame = get_top_frame(frames)
-    self.current_frame = current_frame
     if not current_frame then
       utils.notify('Debug adapter stopped at unavailable location', vim.log.levels.WARN)
       return
     end
     if should_jump then
+      self.current_frame = current_frame
       jump_to_frame(self, current_frame, stopped.preserveFocusHint)
       self:_request_scopes(current_frame)
     end

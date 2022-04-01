@@ -95,4 +95,10 @@ function M.notify(msg, log_level)
   vim.notify(msg, log_level, {title = 'DAP'})
 end
 
+
+function M.if_nil(x, default)
+  return x == nil and default or x
+end
+
+
 return M

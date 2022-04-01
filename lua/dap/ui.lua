@@ -1,5 +1,6 @@
 local api = vim.api
 local utils = require('dap.utils')
+local if_nil = utils.if_nil
 local M = {}
 
 
@@ -82,6 +83,7 @@ function M.new_tree(opts)
   opts.render_child = opts.render_child or opts.render_parent
   local compute_actions = opts.compute_actions or function() return {} end
   local extra_context = opts.extra_context or {}
+  local implicit_expand_action = if_nil(opts.implicit_expand_action, true)
 
   local self  -- forward reference
 
@@ -182,7 +184,7 @@ function M.new_tree(opts)
   local function render_all_expanded(layer, value, indent)
     indent = indent or 2
     local context = {
-      actions = { { label ='Expand', fn = self.toggle, }, },
+      actions = implicit_expand_action and { { label ='Expand', fn = self.toggle, }, } or {},
       indent = indent,
       compute_actions = compute_actions,
     }
