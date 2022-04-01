@@ -174,6 +174,13 @@ M.threads = {
       return
     end
 
+    if session.dirty.threads then
+      session:update_threads(function()
+        M.threads.render(view)
+      end)
+      return
+    end
+
     local tree = view.tree
     if not tree then
       local spec = vim.deepcopy(require('dap.entity').threads.tree_spec)

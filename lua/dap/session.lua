@@ -374,7 +374,7 @@ function Session:event_stopped(stopped)
   end
 
   local should_jump = stopped.reason ~= 'pause'
-  if self.stopped_thread_id then
+  if self.stopped_thread_id and should_jump then
     local thread = self.threads[self.stopped_thread_id]
     if defaults(self).auto_continue_if_many_stopped then
       log.debug(
@@ -832,7 +832,7 @@ function Session:spawn(adapter, opts)
 end
 
 
-local function pause_thread(session, thread_id)
+local function pause_thread(session, thread_id, cb)
   assert(session, 'Cannot pause thread without active session')
   assert(thread_id, 'thread_id is required to pause thread')
 
@@ -841,38 +841,45 @@ local function pause_thread(session, thread_id)
       utils.notify('Error pausing: ' .. err.message, vim.log.levels.ERROR)
     else
       utils.notify('Thread paused ' .. thread_id, vim.log.levels.INFO)
+      local thread = session.threads[thread_id]
+      if thread then
+        thread.stopped = true
+      end
+    end
+    if cb then
+      cb(err)
     end
   end)
 end
 
 
-function Session:_pause(thread_id)
-  if self.stopped_thread_id then
-    utils.notify('Thread ' .. self.stopped_thread_id .. ' is stopped. Cannot pause another one. Use `continue()` to resume paused thread.', vim.log.levels.INFO)
-    return
-  end
+function Session:_pause(thread_id, cb)
   if thread_id then
-    pause_thread(self, thread_id)
+    pause_thread(self, thread_id, cb)
     return
   end
-  self:request('threads', nil, function(err0, response)
-    if err0 then
-      utils.notify('Error requesting threads: ' .. err0.message, vim.log.levels.ERROR)
-      return
-    end
-    ui().pick_if_many(
-      response.threads,
-      "Which thread?: ",
-      function(t) return t.name end,
-      function(thread)
-        if not thread or not thread.id then
-          utils.notify('No thread to stop. Not pausing...', vim.log.levels.INFO)
-        else
-          pause_thread(self, thread.id)
-        end
+  if self.dirty.threads then
+    self:update_threads(function(err)
+      if err then
+        utils.notify('Error requesting threads: ' .. err.message, vim.log.levels.ERROR)
+        return
       end
-    )
-  end)
+      self:_pause(nil, cb)
+    end)
+    return
+  end
+  ui().pick_if_many(
+    vim.tbl_values(self.threads),
+    "Which thread?: ",
+    function(t) return t.name end,
+    function(thread)
+      if not thread or not thread.id then
+        utils.notify('No thread to stop. Not pausing...', vim.log.levels.INFO)
+      else
+        pause_thread(self, thread.id, cb)
+      end
+    end
+  )
 end
 
 
