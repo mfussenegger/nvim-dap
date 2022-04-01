@@ -159,6 +159,39 @@ M.scopes = {
 }
 
 
+M.threads = {
+  refresh_listener = 'event_thread',
+  new_buf = function()
+    local buf = new_buf()
+    api.nvim_buf_set_name(buf, 'dap-threads')
+    return buf
+  end,
+  render = function(view)
+    local layer = view.layer()
+    local session = require('dap').session()
+    if not session then
+      layer.render({'No active session'})
+      return
+    end
+
+    local tree = view.tree
+    if not tree then
+      local spec = vim.deepcopy(require('dap.entity').threads.tree_spec)
+      spec.extra_context = { view = view }
+      tree = ui.new_tree(spec)
+      view.tree = tree
+    end
+
+    local root = {
+      id = 0,
+      name = 'Threads',
+      threads = vim.tbl_values(session.threads)
+    }
+    tree.render(layer, root)
+  end,
+}
+
+
 M.frames = {
   refresh_listener = 'scopes',
   new_buf = function()

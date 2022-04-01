@@ -229,6 +229,9 @@ function M.new_tree(opts)
     render = function(layer, value, on_done)
       layer.render({value}, opts.render_parent)
       if not opts.has_children(value) then
+        if on_done() then
+          on_done()
+        end
         return
       end
       if not is_expanded(value) then
