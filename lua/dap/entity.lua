@@ -345,9 +345,7 @@ function threads_spec.compute_actions(info)
               if err then
                 utils.notify(err.message, vim.log.levels.WARN)
               end
-              if context.view then
-                context.view.refresh()
-              end
+              context.refresh()
             end)
           end
         end
@@ -356,11 +354,7 @@ function threads_spec.compute_actions(info)
       table.insert(result, {
         label = 'Stop thread',
         fn = function()
-          session:_pause(thread.id, function()
-            if context.view then
-              context.view.refresh()
-            end
-          end)
+          session:_pause(thread.id, context.refresh)
         end
       })
     end

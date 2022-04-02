@@ -186,7 +186,10 @@ M.threads = {
     local tree = view.tree
     if not tree then
       local spec = vim.deepcopy(require('dap.entity').threads.tree_spec)
-      spec.extra_context = { view = view }
+      spec.extra_context = {
+        view = view,
+        refresh = view.refresh,
+      }
       tree = ui.new_tree(spec)
       view.tree = tree
     end
