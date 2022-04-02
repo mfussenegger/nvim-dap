@@ -27,7 +27,13 @@ function M._InsertCharPre()
   end
   local char = api.nvim_get_vvar('char')
   local session = require('dap').session()
-  local triggers = ((session or {}).capabilities or {}).completionTriggerCharacters or {'.'}
+  local trigger_characters = ((session or {}).capabilities or {}).completionTriggerCharacters
+  local triggers
+  if trigger_characters and next(trigger_characters) then
+    triggers = trigger_characters
+  else
+    triggers = {'.'}
+  end
   if vim.tbl_contains(triggers, char) then
     timer = vim.loop.new_timer()
     timer:start(50, 0, vim.schedule_wrap(trigger_completion))
