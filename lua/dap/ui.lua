@@ -148,6 +148,7 @@ function M.new_tree(opts)
         actions = context.actions,
         indent = context.indent + 2,
         compute_actions = context.compute_actions,
+        tree = self,
       }
       ctx = vim.tbl_deep_extend('keep', ctx, extra_context)
       for _, child in pairs(children) do
@@ -187,6 +188,7 @@ function M.new_tree(opts)
       actions = implicit_expand_action and { { label ='Expand', fn = self.toggle, }, } or {},
       indent = indent,
       compute_actions = compute_actions,
+      tree = self,
     }
     context = vim.tbl_deep_extend('keep', context, extra_context)
     for _, child in pairs(opts.get_children(value)) do

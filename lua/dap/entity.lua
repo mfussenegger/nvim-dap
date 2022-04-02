@@ -326,13 +326,13 @@ function threads_spec.compute_actions(info)
       label = 'Jump to frame',
       fn = function(_, frame)
         session:_frame_set(frame)
-        if vim.bo.bufhidden == 'wipe' then
+        if vim.bo.bufhidden == 'wipe' and context.view then
           context.view.close()
         end
       end
     })
   else
-    table.insert(result, { label = 'Expand', fn = context.view.tree.toggle })
+    table.insert(result, { label = 'Expand', fn = context.tree.toggle })
     if thread.stopped then
       table.insert(result, {
         label = 'Resume thread',
@@ -345,7 +345,9 @@ function threads_spec.compute_actions(info)
               if err then
                 utils.notify(err.message, vim.log.levels.WARN)
               end
-              context.view.refresh()
+              if context.view then
+                context.view.refresh()
+              end
             end)
           end
         end
@@ -355,7 +357,9 @@ function threads_spec.compute_actions(info)
         label = 'Stop thread',
         fn = function()
           session:_pause(thread.id, function()
-            context.view.refresh()
+            if context.view then
+              context.view.refresh()
+            end
           end)
         end
       })
