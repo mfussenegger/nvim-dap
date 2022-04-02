@@ -150,7 +150,16 @@ local function print_threads(threads)
   if not threads then
     return
   end
-  local tree = ui.new_tree(require('dap.entity').threads.tree_spec)
+  local spec = vim.deepcopy(require('dap.entity').threads.tree_spec)
+  spec.extra_context = {
+    refresh = function()
+      local session = get_session()
+      if session then
+        print_threads(vim.tbl_values(session.threads))
+      end
+    end
+  }
+  local tree = ui.new_tree(spec)
   local layer = ui.layer(repl.buf)
   local root = {
     id = 0,
