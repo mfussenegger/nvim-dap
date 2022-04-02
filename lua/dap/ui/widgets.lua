@@ -14,6 +14,8 @@ local function new_buf()
   api.nvim_buf_set_keymap(
     buf, "n", "a", "<Cmd>lua require('dap.ui').trigger_actions()<CR>", {})
   api.nvim_buf_set_keymap(
+    buf, "n", "o", "<Cmd>lua require('dap.ui').trigger_actions()<CR>", {})
+  api.nvim_buf_set_keymap(
     buf, "n", "<2-LeftMouse>", "<Cmd>lua require('dap.ui').trigger_actions()<CR>", {})
   return buf
 end
