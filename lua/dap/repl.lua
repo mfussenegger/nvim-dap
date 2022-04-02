@@ -145,6 +145,21 @@ local function print_scopes(frame)
 end
 
 
+local function print_threads(threads)
+  if not threads then
+    return
+  end
+  local tree = ui.new_tree(require('dap.entity').threads.tree_spec)
+  local layer = ui.layer(repl.buf)
+  local root = {
+    id = 0,
+    name = 'Threads',
+    threads = vim.tbl_values(threads)
+  }
+  tree.render(layer, root)
+end
+
+
 function execute(text)
   if text == '' then
     if history.last then
@@ -207,13 +222,7 @@ function execute(text)
   elseif vim.tbl_contains(M.commands.scopes, text) then
     print_scopes(session.current_frame)
   elseif vim.tbl_contains(M.commands.threads, text) then
-    for _, thread in pairs(session.threads) do
-      if session.stopped_thread_id == thread.id then
-        M.append('→ ' .. thread.name)
-      else
-        M.append('  ' .. thread.name)
-      end
-    end
+    print_threads(vim.tbl_values(session.threads))
   elseif vim.tbl_contains(M.commands.frames, text) then
     M.print_stackframes()
   elseif M.commands.custom_commands[splitted_text[1]] then
