@@ -472,7 +472,8 @@ function M.toggle_breakpoint(condition, hit_condition, log_message, replace_old)
   })
   if session and session.initialized then
     local bufnr = api.nvim_get_current_buf()
-    session:set_breakpoints(bufnr)
+    local bps = lazy.breakpoints.get(bufnr)
+    session:set_breakpoints(bps)
   end
   if vim.fn.getqflist({context = DAP_QUICKFIX_CONTEXT}).context == DAP_QUICKFIX_CONTEXT then
     M.list_breakpoints(false)
@@ -483,10 +484,11 @@ end
 function M.clear_breakpoints()
   if session then
     local bps = lazy.breakpoints.get()
-    lazy.breakpoints.clear()
     for bufnr, _ in pairs(bps) do
-      session:set_breakpoints(bufnr)
+      bps[bufnr] = {}
     end
+    lazy.breakpoints.clear()
+    session:set_breakpoints(bps)
   else
     lazy.breakpoints.clear()
   end
@@ -521,6 +523,17 @@ function M.run_to_cursor()
   local lnum = api.nvim_win_get_cursor(0)[1]
   lazy.breakpoints.set({}, bufnr, lnum)
 
+  local temp_bps = lazy.breakpoints.get(bufnr)
+  for temp_bufnr, _ in pairs(bps) do
+    if temp_bufnr ~= bufnr then
+      temp_bps[temp_bufnr] = {}
+    end
+  end
+
+  if bps[bufnr] == nil then
+    bps[bufnr] = {}
+  end
+
   local function restore_breakpoints()
     M.listeners.before.event_stopped['dap.run_to_cursor'] = nil
     M.listeners.before.event_terminated['dap.run_to_cursor'] = nil
@@ -536,12 +549,12 @@ function M.run_to_cursor()
         lazy.breakpoints.set(opts, buf, line)
       end
     end
-    session:set_breakpoints()
+    session:set_breakpoints(bps, nil)
   end
 
   M.listeners.before.event_stopped['dap.run_to_cursor'] = restore_breakpoints
   M.listeners.before.event_terminated['dap.run_to_cursor'] = restore_breakpoints
-  session:set_breakpoints(nil, function()
+  session:set_breakpoints(temp_bps, function()
     session:_step('continue')
   end)
 end

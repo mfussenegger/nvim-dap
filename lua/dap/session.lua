@@ -182,7 +182,8 @@ function Session:event_initialized()
     end
   end
 
-  self:set_breakpoints(nil, function()
+  local bps = breakpoints.get()
+  self:set_breakpoints(bps, function()
     if self.capabilities.exceptionBreakpointFilters then
       self:set_exception_breakpoints(dap().defaults[self.config.type].exception_breakpoints, nil, on_done)
     else
@@ -519,8 +520,7 @@ do
     end
   end
 
-  function Session:set_breakpoints(bufexpr, on_done)
-    local bps = breakpoints.get(bufexpr)
+  function Session:set_breakpoints(bps, on_done)
     local num_requests = vim.tbl_count(bps)
     if num_requests == 0 then
       if on_done then
