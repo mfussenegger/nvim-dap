@@ -222,7 +222,7 @@ M.frames = frames
 
 function frames.render_item(frame)
   local session = require('dap').session()
-  if session and frame.id == session.current_frame.id then
+  if session and frame.id == (session.current_frame or {}).id then
     return '→ ' .. frame.name .. ':' .. frame.line
   else
     return '  ' .. frame.name .. ':' .. frame.line
