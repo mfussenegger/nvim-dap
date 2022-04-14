@@ -222,11 +222,16 @@ M.frames = frames
 
 function frames.render_item(frame)
   local session = require('dap').session()
+  local line
   if session and frame.id == (session.current_frame or {}).id then
-    return '→ ' .. frame.name .. ':' .. frame.line
+    line = '→ ' .. frame.name .. ':' .. frame.line
   else
-    return '  ' .. frame.name .. ':' .. frame.line
+    line = '  ' .. frame.name .. ':' .. frame.line
   end
+  if frame.presentationHint == 'subtle' then
+    return line, {{'Comment', 0, -1},}
+  end
+  return line
 end
 
 
