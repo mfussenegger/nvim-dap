@@ -81,16 +81,18 @@ The `Adapter` needs to contain a `type`, which can be one of:
 For `executable` the following options are supported:
 
 >
-    command: string     -- command to invoke
-    args:    string[]   -- arguments for the command
+    command: string         -- command to invoke
+    args:    string[]       -- arguments for the command
     options?: {
-      env?: {}          -- Set the environment variables for the command
-      cwd?: string      -- Set the working directory for the command
+      env?: {}              -- Set the environment variables for the command
+      cwd?: string          -- Set the working directory for the command
+      detached?: boolean    -- Spawn the debug adapter process in a detached state.
+                               Defaults to true.
     }
-    id?: string         -- Identifier of the adapter. This is used for the
-                           `adapterId` property of the initialize request.
-                           For most debug adapters setting this is not
-                           necessary.
+    id?: string             -- Identifier of the adapter. This is used for the
+                               `adapterId` property of the initialize request.
+                               For most debug adapters setting this is not
+                               necessary.
 
 For `server` the following options are supported:
 
