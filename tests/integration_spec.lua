@@ -244,22 +244,23 @@ describe('run_to_cursor', function()
   local server
   before_each(function()
     server = require('tests.server').spawn()
-    dap.adapters.dummy = server.adapter
-  end)
-  after_each(function()
-    dap.close()
-    server.stop()
-  end)
-
-  it('clears breakpoints from buffers, adds breakpoint for current line, continues, restores breakpoints', function()
-
     server.client.setBreakpoints = function(self, request)
       local breakpoints = request.arguments.breakpoints
       self:send_response(request, {
         breakpoints = vim.tbl_map(function() return { verified = true } end, breakpoints)
       })
     end
+    dap.adapters.dummy = server.adapter
+  end)
+  after_each(function()
+    dap.close()
+    server.stop()
+    for _, buf in pairs(api.nvim_list_bufs()) do
+      api.nvim_buf_delete(buf, { force = true })
+    end
+  end)
 
+  it('clears breakpoints from buffers, adds breakpoint for current line, continues, restores breakpoints', function()
     local win = api.nvim_get_current_win()
     local buf1 = api.nvim_create_buf(false, true)
     local buf2 = api.nvim_create_buf(false, true)
@@ -333,5 +334,60 @@ describe('run_to_cursor', function()
     assert.are.same('setBreakpoints', set_bps2.command)
     assert.are.same('dummy_buf1', set_bps2.arguments.source.name)
     assert.are.same({ { line = 1 }, }, set_bps2.arguments.breakpoints)
+  end)
+  it('clears temporary run_to_cursor breakpoint if buffer contained no breakpoints before', function()
+    local win = api.nvim_get_current_win()
+    local buf1 = api.nvim_create_buf(false, true)
+    local buf2 = api.nvim_create_buf(false, true)
+    api.nvim_buf_set_name(buf1, 'dummy_buf1')
+    api.nvim_buf_set_name(buf2, 'dummy_buf2')
+    api.nvim_buf_set_lines(buf1, 0, -1, false, {'buf1: line1'})
+    api.nvim_buf_set_lines(buf2, 0, -1, false, {'buf2: line 1', 'buf2: line2'})
+
+    api.nvim_win_set_buf(win, buf1)
+    api.nvim_win_set_cursor(win, { 1, 0 })
+    dap.toggle_breakpoint()
+    local session = run_and_wait_until_initialized(config, server)
+    -- wait for initialize, launch, and setBreakpoints
+    vim.wait(1000, function() return #server.spy.requests == 3 end, 100)
+    server.spy.clear()
+    assert.are.same(1, vim.tbl_count(require('dap.breakpoints').get()))
+
+    api.nvim_win_set_buf(win, buf2)
+    api.nvim_win_set_cursor(win, { 2, 0 })
+
+    -- Pretend to be stopped
+    session.stopped_thread_id = 1
+    dap.run_to_cursor()
+    -- sets breakpoints in two buffers
+    vim.wait(1000, function() return #server.spy.requests == 2 end, 100)
+    server.spy.clear()
+    server.client:send_event('stopped', {
+      reason = 'stopped',
+      allThreadsStopped = true,
+    })
+    -- continues, resets breakpoints in both buffers
+    vim.wait(1000, function() return #server.spy.requests == 3 end, 100)
+    local set_bps_requests = { server.spy.requests[2], server.spy.requests[3] }
+    table.sort(set_bps_requests, function(a, b)
+      return a.arguments.source.name < b.arguments.source.name
+    end)
+    local set_bps1 = set_bps_requests[1]
+    assert.are.same('setBreakpoints', set_bps1.command)
+    assert.are.same('dummy_buf1', set_bps1.arguments.source.name)
+    assert.are.same({ { line = 1 }, }, set_bps1.arguments.breakpoints)
+
+    local set_bps2 = set_bps_requests[2]
+    assert.are.same('setBreakpoints', set_bps2.command)
+    assert.are.same('dummy_buf2', set_bps2.arguments.source.name)
+    assert.are.same({}, set_bps2.arguments.breakpoints)
+    local expected_bps = {
+      [buf1] = {
+        {
+          line = 1,
+        },
+      }
+    }
+    assert.are.same(expected_bps, require('dap.breakpoints').get())
   end)
 end)
