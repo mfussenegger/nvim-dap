@@ -537,7 +537,19 @@ do
           name = vim.fn.fnamemodify(path, ':t')
         };
         sourceModified = false;
-        breakpoints = buf_bps;
+        breakpoints = vim.tbl_map(
+          function(bp)
+            -- trim extra information like the state
+            return {
+              line = bp.line,
+              column = bp.column,
+              condition = bp.condition,
+              hitCondition = bp.hitCondition,
+              logMessage = bp.logMessage,
+            }
+          end,
+          buf_bps
+        ),
         lines = vim.tbl_map(function(x) return x.line end, buf_bps);
       }
       self:request('setBreakpoints', payload, function(err1, resp)
