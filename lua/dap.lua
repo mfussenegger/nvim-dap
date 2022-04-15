@@ -530,6 +530,10 @@ function M.run_to_cursor()
     end
   end
 
+  if bps_before[cur_bufnr] == nil then
+    bps_before[cur_bufnr] = {}
+  end
+
   local function restore_breakpoints()
     M.listeners.before.event_stopped['dap.run_to_cursor'] = nil
     M.listeners.before.event_terminated['dap.run_to_cursor'] = nil
