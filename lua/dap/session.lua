@@ -1103,6 +1103,10 @@ function Session.event_process()
 end
 
 
+function Session.event_loadedSource()
+end
+
+
 function Session:event_thread(event)
   if event.reason == 'exited' then
     self.threads[event.threadId] = nil
