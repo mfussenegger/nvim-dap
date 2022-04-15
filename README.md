@@ -1,7 +1,7 @@
 # DAP (Debug Adapter Protocol)
 
-`nvim-dap` is a Debug Adapter Protocol client implementation for [Neovim][1]
-(>= 0.5). `nvim-dap` allows you to:
+`nvim-dap` is a Debug Adapter Protocol client implementation for [Neovim][1].
+`nvim-dap` allows you to:
 
 - Launch an application to debug
 - Attach to running applications and debug them
@@ -12,7 +12,7 @@
 
 ## Installation
 
-- Requires Neovim (>= 0.5)
+- Requires Neovim (>= 0.6)
 - nvim-dap is a plugin. Install it like any other Neovim plugin.
   - If using [vim-plug][11]: `Plug 'mfussenegger/nvim-dap'`
   - If using [packer.nvim][12]: `use 'mfussenegger/nvim-dap'`
