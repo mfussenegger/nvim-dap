@@ -247,7 +247,7 @@ local function jump_to_location(bufnr, line, column)
   for _, win in pairs(api.nvim_tabpage_list_wins(0)) do
     if api.nvim_win_get_buf(win) == bufnr then
       api.nvim_win_set_cursor(win, { line, column - 1 })
-      with_win(win, api.nvim_command, 'normal zv')
+      with_win(win, api.nvim_command, 'normal! zv')
       return
     end
   end
@@ -260,7 +260,7 @@ local function jump_to_location(bufnr, line, column)
       local bufchanged, _ = pcall(api.nvim_win_set_buf, win, bufnr)
       if bufchanged then
         api.nvim_win_set_cursor(win, { line, column - 1 })
-        with_win(win, api.nvim_command, 'normal zv')
+        with_win(win, api.nvim_command, 'normal! zv')
         return
       end
     end
