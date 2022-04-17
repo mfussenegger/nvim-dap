@@ -47,9 +47,17 @@ supported.
 - [nvim-dap Debug-Adapter Installation & Configuration][5]
 
 The Wiki is community maintained. If you got an adapter working that isn't
-listed yet, please extend the Wiki. If you struggle getting an adapter working,
-please create an issue.
+listed yet, please extend the Wiki.
 
+Some debug adapters have [language specific
+extensions](https://github.com/mfussenegger/nvim-dap/wiki/Extensions#language-specific-extensions).
+Using them over a manual configuration is recommended, as they're
+usually better maintained.
+
+If the instructions in the wiki for a debug adapter are not working, consider
+that debug adapters may have made changes since the instructions were written.
+You may want to read the release notes of the debug adapters or try with an
+older version. Please update the wiki if you discover outdated examples.
 
 ## Goals
 
