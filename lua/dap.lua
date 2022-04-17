@@ -269,10 +269,16 @@ function M.run(config, opts)
       end,
       config
     )
+  elseif adapter == nil then
+    utils.notify(string.format(
+      'The selected configuration references adapter `%s`, but dap.adapters.%s is undefined',
+      config.type,
+      config.type
+    ), vim.log.levels.ERROR)
   else
-    utils.notify(
-      string.format(
-        'Invalid adapter `%s` for config `%s`',
+    utils.notify(string.format(
+        'Invalid adapter `%s` for config `%s`. Expected a table or function. '
+          .. 'Read :help dap-adapter and define a valid adapter.',
         vim.inspect(adapter),
         config.type
       ),
