@@ -81,6 +81,8 @@ that's not listed.
   editor plugin to re-invent a package manager. Use your system package
   manager. Use Nix. Use Ansible.
 
+- [nvim-dapconfig](https://github.com/nvim-lua/wishlist/issues/37#issuecomment-1023363686)
+
 - Vim support. It's not going to happen. Use [vimspector][2] instead.
 
 ## Alternatives
