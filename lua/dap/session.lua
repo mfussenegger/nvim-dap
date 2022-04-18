@@ -357,7 +357,8 @@ local function get_top_frame(frames)
       return frame
     end
   end
-  return next(frames)
+  local _, first = next(frames)
+  return first
 end
 
 

@@ -79,6 +79,32 @@ describe('dap with fake server', function()
     assert.are.same(nil, server.client.socket)
     assert.are.same(nil, dap.session())
   end)
+
+  it('Can handle frames without source/path on stopped event', function()
+    run_and_wait_until_initialized(config, server)
+    server.spy.clear()
+    server.client.threads = function(self, request)
+      self:send_response(request, {
+        threads = { { id = 1, name = 'thread1' }, }
+      })
+    end
+    server.client.stackTrace = function(self, request)
+      self:send_response(request, {
+        stackFrames = {
+          {
+            id = 1,
+            name = 'stackFrame1',
+            line = 1,
+          },
+        },
+      })
+    end
+    server.client:send_event('stopped', {
+      threadId = 1,
+      reason = 'unknown',
+    })
+    vim.wait(1000, function() return #server.spy.requests == 3 end, 100)
+  end)
 end)
 
 describe('session disconnect', function()
