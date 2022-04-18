@@ -660,8 +660,20 @@ function M.attach(adapter, config, opts, bwc_dummy)
   assert(adapter.host, 'Adapter used with attach must have a host property')
   assert(adapter.port, 'Adapter used with attach must have a port property')
   session = require('dap.session'):connect(adapter, opts, function(err)
-    assert(not err, vim.inspect(err))
-    session:initialize(config)
+    if err then
+      vim.schedule(function()
+        utils.notify(
+          string.format("Couldn't connect to %s:%s: %s", adapter.host, adapter.port, err),
+          vim.log.levels.ERROR
+        )
+        if session then
+          session:close()
+          M.set_session(nil)
+        end
+      end)
+    else
+      session:initialize(config)
+    end
   end)
   return session
 end
