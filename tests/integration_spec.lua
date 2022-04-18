@@ -105,6 +105,31 @@ describe('dap with fake server', function()
     })
     vim.wait(1000, function() return #server.spy.requests == 3 end, 100)
   end)
+
+  it('Deleting a buffer clears breakpoints for that buffer', function()
+    local win = api.nvim_get_current_win()
+    local buf1 = api.nvim_create_buf(false, true)
+    api.nvim_buf_set_name(buf1, 'dummy_buf1')
+    api.nvim_buf_set_lines(buf1, 0, -1, false, {'buf1: line1'})
+    api.nvim_win_set_buf(win, buf1)
+    api.nvim_win_set_cursor(win, { 1, 0 })
+    dap.toggle_breakpoint()
+
+    run_and_wait_until_initialized(config, server)
+    -- wait for initialize, launch and one setBreakpoints request
+    vim.wait(1000, function() return #server.spy.requests == 3 end, 100)
+    assert.are.same(3, #server.spy.requests)
+    server.spy.clear()
+    api.nvim_buf_delete(buf1, { force = true })
+
+    vim.wait(1000, function() return #server.spy.requests == 1 end, 100)
+    local setBreakpoints = server.spy.requests[1]
+    assert.are.same('setBreakpoints', setBreakpoints.command)
+    assert.are.same('dummy_buf1', setBreakpoints.arguments.source.name)
+    assert.are.same({}, setBreakpoints.arguments.breakpoints)
+
+    assert.are.same({}, require('dap.breakpoints').get())
+  end)
 end)
 
 describe('session disconnect', function()
