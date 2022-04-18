@@ -521,6 +521,8 @@ do
     end
   end
 
+  local detach_handlers = {}
+
   function Session:set_breakpoints(bps, on_done)
     local num_requests = vim.tbl_count(bps)
     if num_requests == 0 then
@@ -531,6 +533,15 @@ do
     end
     for bufnr, buf_bps in pairs(bps) do
       notify_if_missing_capability(buf_bps, self.capabilities)
+      local on_detach = detach_handlers[bufnr]
+      if not on_detach and non_empty(buf_bps) then
+        on_detach = function()
+          self:set_breakpoints({[bufnr] = {}})
+          detach_handlers[bufnr] = nil
+        end
+        detach_handlers[bufnr] = on_detach
+        api.nvim_buf_attach(bufnr, false, { on_detach = on_detach })
+      end
       local path = api.nvim_buf_get_name(bufnr)
       local payload = {
         source = {
