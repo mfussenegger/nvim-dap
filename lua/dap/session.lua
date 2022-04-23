@@ -97,26 +97,9 @@ local function launch_external_terminal(terminal, args)
   return handle, pid_or_err
 end
 
-
-local function run_in_terminal(self, request)
-  local body = request.arguments
-  log.debug('run_in_terminal', body)
-  local settings = dap().defaults[self.config.type]
-  if body.kind == 'external' or (settings.force_external_terminal and settings.external_terminal) then
-    local terminal = settings.external_terminal
-    if not terminal then
-      utils.notify('Requested external terminal, but none configured. Fallback to integratedTerminal', vim.log.levels.WARN)
-    else
-      local handle, pid = launch_external_terminal(terminal, body.args)
-      if not handle then
-        utils.notify('Could not launch terminal ' .. terminal.command, vim.log.levels.ERROR)
-      end
-      self:response(request, {
-        success = handle ~= nil;
-        body = { processId = pid; };
-      })
-      return
-    end
+local function open_console(self, body)
+  if dap().defaults.open_console then
+    return dap().defaults.open_console(body)
   end
   local cur_win = api.nvim_get_current_win()
   local cur_buf = api.nvim_get_current_buf()
@@ -151,8 +134,39 @@ local function run_in_terminal(self, request)
   if not dap().defaults[self.config.type].focus_terminal then
       api.nvim_set_current_win(cur_win)
   end
-  if jobid == 0 or jobid == -1 then
-    log.error('Could not spawn terminal', jobid, request)
+  if jobid <= 0 then
+    return jobid
+  end
+
+  return vim.fn.jobpid(jobid)
+end
+
+
+local function run_in_terminal(self, request)
+  local body = request.arguments
+  log.debug('run_in_terminal', body)
+  local settings = dap().defaults[self.config.type]
+  if body.kind == 'external' or (settings.force_external_terminal and settings.external_terminal) then
+    local terminal = settings.external_terminal
+    if not terminal then
+      utils.notify('Requested external terminal, but none configured. Fallback to integratedTerminal', vim.log.levels.WARN)
+    else
+      local handle, pid = launch_external_terminal(terminal, body.args)
+      if not handle then
+        utils.notify('Could not launch terminal ' .. terminal.command, vim.log.levels.ERROR)
+      end
+      self:response(request, {
+        success = handle ~= nil;
+        body = { processId = pid; };
+      })
+      return
+    end
+  end
+
+  local pid = open_console(self, body)
+
+  if pid <= 0 then
+    log.error('Could not spawn terminal', pid, request)
     self:response(request, {
       success = false;
       message = 'Could not spawn terminal';
@@ -161,7 +175,7 @@ local function run_in_terminal(self, request)
     self:response(request, {
       success = true;
       body = {
-        processId = vim.fn.jobpid(jobid);
+        processId = pid;
       };
     })
   end

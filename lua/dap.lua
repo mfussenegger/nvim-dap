@@ -54,6 +54,7 @@ M.defaults = setmetatable(
       focus_terminal = false;
       auto_continue_if_many_stopped = true;
     },
+    open_console = false;
   },
   {
     __index = function(tbl, key)
