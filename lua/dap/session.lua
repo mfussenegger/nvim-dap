@@ -568,7 +568,12 @@ do
         if err1 then
           utils.notify('Error setting breakpoints: ' .. err1.message, vim.log.levels.ERROR)
         else
-          for _, bp in pairs(resp.breakpoints) do
+          for i, bp in pairs(resp.breakpoints) do
+            local payload_bp = payload.breakpoints[i]
+            if bp.line ~= payload_bp.line then
+                breakpoints.remove(bufnr, payload_bp.line, bp)
+                breakpoints.toggle({ replace = true }, bufnr, bp.line)
+            end
             breakpoints.set_state(bufnr, bp.line, bp)
             if not bp.verified then
               log.info('Server rejected breakpoint', bp)
