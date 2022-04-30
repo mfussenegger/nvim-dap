@@ -244,7 +244,12 @@ M.expression = {
   end,
   render = function(view, expr)
     local session = require('dap').session()
-    local frame = session and session.current_frame or {}
+    local layer = view.layer()
+    if not session then
+      layer.render({'No active session'})
+      return
+    end
+    local frame = session.current_frame or {}
     local expression = expr or view.__expression
     local variable
     local scopes = frame.scopes or {}
@@ -259,7 +264,6 @@ M.expression = {
       tree.render(view.layer(), variable)
     else
       session:evaluate(expression, function(err, resp)
-        local layer = view.layer()
         if err then
           local msg = 'Cannot evaluate "'..expression..'"!'
           layer.render({msg})
