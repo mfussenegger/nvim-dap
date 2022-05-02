@@ -1,7 +1,7 @@
 DAP client                                           *dap.txt*
 
 
-nvim-dap is a debug adapter protocol client, or "debugger", or "debug-frontend".
+nvim-dap is a Debug Adapter Protocol client, or "debugger", or "debug-frontend".
 
 With the help of a debug-adapter it can:
 
@@ -20,7 +20,7 @@ language specific debugger:
                 |        Implementation specific communication
                 |        Debug-adapter and debugger could be the same process
                 |
-         Communication via debug adapter protocol
+         Communication via the Debug Adapter Protocol
 
 
 To debug applications, you need to configure two things per language:
@@ -886,7 +886,7 @@ option to avoid conflicts with others.
 `<command>` is the name of the command that got executed and resulted in the
 response.
 
-Please refer to the debug adapter protocol specification to get a list of all
+Please refer to the Debug Adapter Protocol specification to get a list of all
 events or requests and their response formats:
 
 - https://microsoft.github.io/debug-adapter-protocol/specification#Requests
