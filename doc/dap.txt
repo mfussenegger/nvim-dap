@@ -3,14 +3,14 @@ DAP client                                           *dap.txt*
 
 nvim-dap is a Debug Adapter Protocol client, or "debugger", or "debug-frontend".
 
-With the help of a debug-adapter it can:
+With the help of a debug adapter it can:
 
 - Launch an application to debug
 - Attach to running applications to debug them
 - Set breakpoints and step through code
 - Inspect the state of the application
 
-A debug-adapter is a facilitator between nvim-dap (the client), and a
+A debug adapter is a facilitator between nvim-dap (the client), and a
 language specific debugger:
 
 
@@ -45,15 +45,15 @@ Debug Adapter protocol:
 ADAPTER CONFIGURATION                                *dap-adapter*
 
 
-Neovim needs a debug-adapter with which it can communicate. Neovim can either
-launch the debug-adapter itself, or it can attach to an existing one.
+Neovim needs a debug adapter with which it can communicate. Neovim can either
+launch the debug adapter itself, or it can attach to an existing one.
 
 To tell Neovim if it should launch a debug adapter or connect to one, and if
 so, how, you need to configure them via the `dap.adapters` table. The key of
 the table is an arbitrary name that debug adapters are looked up by when using
 a |dap-configuration|.
 
-For example, to register the `debugpy` debug-adapter under the type `python` you
+For example, to register the `debugpy` debug adapter under the type `python` you
 can add the following entry:
 
 >
@@ -71,12 +71,12 @@ can add the following entry:
 
 The `Adapter` needs to contain a `type`, which can be one of:
 
-- `executable`, to indicate that nvim-dap must launch the debug-adapter. In
+- `executable`, to indicate that nvim-dap must launch the debug adapter. In
   this case nvim-dap will spawn the given process and communicate with it using
   stdio.
 
-- `server`, to indicate that nvim-dap can connect to an already running
-  debug-adapter via TCP.
+- `server`, to indicate that nvim-dap can connect to an already-running
+  debug adapter via TCP.
 
 For `executable` the following options are supported:
 
@@ -128,7 +128,7 @@ The second argument is the |dap-configuration| which the user wants to use.
 
 This can be used to defer the resolving of the values to when a configuration
 is used. An example use is java with eclipse.jdt.ls and java-debug, where the
-debug-adapter is spawned via a LSP command:
+debug adapter is spawned via a LSP command:
 >
 
     dap.adapters.java = function(callback, config)
@@ -170,8 +170,8 @@ classPaths or modulePaths dynamically, so that users don't have to do that.
 DEBUGEE CONFIGURATION                                *dap-configuration*
 
 
-In addition to having to know how to (launch) and connect to a debug-adapter,
-Neovim needs to instruct the debug-adapter how to launch the debugee or how to
+In addition to having to know how to (launch) and connect to a debug adapter,
+Neovim needs to instruct the debug adapter how to launch the debugee or how to
 connect to it. The debugee is the application you want to debug.
 
 This is configured via a `Configuration`, a `Configuration` has 3 required
@@ -180,12 +180,12 @@ fields:
 >
     type: string        -- References the Adapter to use
     request: string     -- Either `attach` or `launch`, indicates if the
-                        -- debug-adapter in turn should launch a debugee or if
+                        -- debug adapter in turn should launch a debugee or if
                         -- it can attach to a debugee.
     name: string        -- A user readable name for the configuration
 <
 
-It takes any number of further options which are debug-adapter specific.
+It takes any number of further options which are debug-adapter-specific.
 
 The configurations are set via the `dap.configurations` table. The keys are
 filetypes. If you run |dap-continue| it will look up configurations under the
@@ -453,7 +453,7 @@ run({config})                                                        *dap.run()*
 
 
 run_last()                                                      *dap.run_last()*
-        Re-runs the last debug-adapter/configuration that ran using
+        Re-runs the last debug adapter / configuration that ran using
         |dap.run()|.
 
 
