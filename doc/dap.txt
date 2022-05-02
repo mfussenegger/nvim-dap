@@ -11,32 +11,32 @@ With the help of a debug adapter it can:
 - Inspect the state of the application
 
 A debug adapter is a facilitator between nvim-dap (the client), and a
-language specific debugger:
+language-specific debugger:
 
 
     DAP-Client ----- Debug Adapter ------- Debugger ------ Debugee
     (nvim-dap)  |   (per language)  |   (per language)    (your app)
                 |                   |
                 |        Implementation specific communication
-                |        Debug-adapter and debugger could be the same process
+                |        Debug adapter and debugger could be the same process
                 |
          Communication via the Debug Adapter Protocol
 
 
 To debug applications, you need to configure two things per language:
 
-- A debug adapter (|dap-adapter|)
+- A debug adapter (|dap-adapter|).
 - How to launch your application to debug or how to attach to a running
-  application (|dap-configuration|)
+  application (|dap-configuration|).
 
 
-Available Debug Adapters:
+Available debug adapters:
   https://microsoft.github.io/debug-adapter-protocol/implementors/adapters/
 
-Adapter configuration and installation instructions:
+Debug adapter configuration and installation instructions:
   https://github.com/mfussenegger/nvim-dap/wiki/Debug-Adapter-installation
 
-Debug Adapter protocol:
+Debug Adapter Protocol:
   https://microsoft.github.io/debug-adapter-protocol/
 
                                       Type |gO| to see the table of contents.
@@ -140,7 +140,6 @@ debug adapter is spawned via a LSP command:
     end
 <
 
-
 There is an additional `enrich_config` property available for both adapter
 types. This property is a function which allows an adapter to enrich a
 configuration with additional information. It receives a configuration as first
@@ -170,28 +169,28 @@ classPaths or modulePaths dynamically, so that users don't have to do that.
 DEBUGEE CONFIGURATION                                *dap-configuration*
 
 
-In addition to having to know how to (launch) and connect to a debug adapter,
-Neovim needs to instruct the debug adapter how to launch the debugee or how to
-connect to it. The debugee is the application you want to debug.
+In addition to launching (possibly) and connecting to a debug adapter, Neovim
+needs to instruct the debug adapter itself how to launch and connect to the
+debugee. The debugee is the application you want to debug.
 
-This is configured via a `Configuration`, a `Configuration` has 3 required
-fields:
+This is controlled via a `Configuration`, which has 3 required fields:
 
 >
-    type: string        -- References the Adapter to use
-    request: string     -- Either `attach` or `launch`, indicates if the
-                        -- debug adapter in turn should launch a debugee or if
-                        -- it can attach to a debugee.
-    name: string        -- A user readable name for the configuration
+    type: string        -- Which debug adapter to use.
+    request: string     -- Either `attach` or `launch`. Indicates whether the
+                        -- debug adapter should launch a debugee or attach to
+                        -- one that is already running.
+    name: string        -- A user-readable name for the configuration.
 <
 
-It takes any number of further options which are debug-adapter-specific.
+In addition, a `Configuration` accepts an arbitrary number of further options
+which are debug-adapter-specific.
 
-The configurations are set via the `dap.configurations` table. The keys are
+Configurations are set in the `dap.configurations` table. The keys are
 filetypes. If you run |dap-continue| it will look up configurations under the
-current files filetype.
+current filetype.
 
-An example:
+For example:
 
 >
     lua << EOF
@@ -212,8 +211,10 @@ An example:
 
 Things to note:
 
-- Values for properties other than the 3 required properties can be functions,
-  they will be evaluated once the configuration is used.
+- Values for properties other than the 3 required properties `type`,
+  `request`, and `name` can be functions. If a value is given as a function,
+  the function will be evaluated to get the property value when the
+  configuration is used.
 
 - Some variables are supported:
   - `${file}`: Active filename
@@ -229,14 +230,15 @@ Things to note:
 ==============================================================================
 DEBUGEE CONFIGURATION via launch.json                *dap-launch.json*
 
-nvim-dap supports a subset of the `launch.json` file that is used to
-configure debug adapters in Visual Studio Code.
 
-To load a `launch.json file`, use the `load_launchjs` function from the
+nvim-dap supports a subset of the `launch.json` file format used to configure
+debug adapters in Visual Studio Code.
+
+To load a `launch.json` file, use the `load_launchjs` function from the
 `dap.ext.vscode` module.
 
-Opposed to Visual Studio Code, nvim-dap only supports regular JSON. Trailing
-comma's on the last item of a list are an error.
+Unlike VS Code, nvim-dap only supports standard JSON. Trailing commas on the
+last item of a list are an error.
 
 
 load_launchjs({path}, {type_to_filetypes})        *dap.ext.vscode.load_launchjs*
@@ -246,15 +248,14 @@ load_launchjs({path}, {type_to_filetypes})        *dap.ext.vscode.load_launchjs*
 
   Parameters:
       {path}    Path to the `launch.json` file. Defaults to
-                `.vscode/launch.json` relative to the working directory.
+                `.vscode/launch.json` in the current working directory.
 
-      {type_to_filetypes}  A table mapping the `type` values of the
-                           configuration entries in the JSON file to one or
-                           more filetypes.
-                           Defaults to use the `type` value verbatim as
-                           filetype.
+      {type_to_filetypes}  A table mapping `type` values in `launch.json` to
+                           one or more filetypes.
+                           By default, the `type` values in `launch.json` will
+                           be used as filetypes verbatim.
 
-An example given a `launch.json` file like this:
+An example `launch.json` might look like this:
 
 >
   {
@@ -273,10 +274,10 @@ An example given a `launch.json` file like this:
 
 <
 
-Given the above configuration, calling `load_launchjs` adds the first entry to
+For the above configuration, calling `load_launchjs` adds the first entry to
 `dap.configurations.java` and the second entry to `dap.configurations.cppdbg`.
 If you wanted to add the second entry to the `c` or `cpp` configurations you
-could call the function like this instead:
+could call `load_launchjs` like this instead:
 >
   require('dap.ext.vscode').load_launchjs(nil, { cppdbg = {'c', 'cpp'} })
 <
@@ -286,23 +287,20 @@ SIGNS CONFIGURATION
 
 nvim-dap uses five signs:
 
-- `DapBreakpoint` which defaults to `B` for breakpoints
-- `DapBreakpointCondition` which defaults to `C` for conditional breakpoints
-- `DapLogPoint` which defaults to `L` and is for log-points
-- `DapStopped` which defaults to `→` and is used to indicate the position where
-  the debugee is stopped.
-- `DapBreakpointRejected`, defaults to `R` for breakpoints which the debug
-  adapter rejected.
+- `DapBreakpoint` for breakpoints (default: `B`)
+- `DapBreakpointCondition` for conditional breakpoints (default: `C`)
+- `DapLogPoint` for log points (default: `L`)
+- `DapStopped` to indicate where the debugee is stopped (default: `→`)
+- `DapBreakpointRejected` to indicate breakpoints rejected by the debug
+  adapter (default: `R`)
 
-You can customize the signs by overriding the definition after you've loaded `dap`.
-An example:
+You can customize the signs by overriding their definitions after you've
+loaded `dap`. For example:
 
 >
     lua << EOF
-
     require('dap')
     vim.fn.sign_define('DapBreakpoint', {text='🛑', texthl='', linehl='', numhl=''})
-
     EOF
 <
 
@@ -313,41 +311,44 @@ REPL COMPLETION                                               *dap-completion*
 nvim-dap includes an omnifunc implementation which uses the active debug
 session to get completion candidates.
 
-It is by default set within the REPL which means you can use `CTRL-X CTRL-O` to
-trigger completion within the REPL.
+It is enabled by default in the REPL, which means you can use `CTRL-X CTRL-O`
+to trigger completion within the REPL.
 
-You can also setup the completion to trigger automatically:
+You can also configure completion to trigger automatically:
 
 >
   au FileType dap-repl lua require('dap.ext.autocompl').attach()
 <
 
 Completion will then trigger automatically on any of the completion trigger
-characters reported by the debug adapter or if none are reported on `.`.
+characters reported by the debug adapter, or on `.` if none are reported.
 
 ==============================================================================
 MAPPINGS                                             *dap-mappings*
 
 
-Some example mappings:
+nvim-dap does not configure any mappings by default.
+
+Some example mappings you could configure:
 
 >
-    nnoremap <silent> <F5> :lua require'dap'.continue()<CR>
-    nnoremap <silent> <F10> :lua require'dap'.step_over()<CR>
-    nnoremap <silent> <F11> :lua require'dap'.step_into()<CR>
-    nnoremap <silent> <F12> :lua require'dap'.step_out()<CR>
-    nnoremap <silent> <leader>b :lua require'dap'.toggle_breakpoint()<CR>
-    nnoremap <silent> <leader>B :lua require'dap'.set_breakpoint(vim.fn.input('Breakpoint condition: '))<CR>
-    nnoremap <silent> <leader>lp :lua require'dap'.set_breakpoint(nil, nil, vim.fn.input('Log point message: '))<CR>
-    nnoremap <silent> <leader>dr :lua require'dap'.repl.open()<CR>
-    nnoremap <silent> <leader>dl :lua require'dap'.run_last()<CR>
+    nnoremap <silent> <F5> <Cmd>lua require'dap'.continue()<CR>
+    nnoremap <silent> <F10> <Cmd>lua require'dap'.step_over()<CR>
+    nnoremap <silent> <F11> <Cmd>lua require'dap'.step_into()<CR>
+    nnoremap <silent> <F12> <Cmd>lua require'dap'.step_out()<CR>
+    nnoremap <silent> <Leader>b <Cmd>lua require'dap'.toggle_breakpoint()<CR>
+    nnoremap <silent> <Leader>B <Cmd>lua require'dap'.set_breakpoint(vim.fn.input('Breakpoint condition: '))<CR>
+    nnoremap <silent> <Leader>lp <Cmd>lua require'dap'.set_breakpoint(nil, nil, vim.fn.input('Log point message: '))<CR>
+    nnoremap <silent> <Leader>dr <Cmd>lua require'dap'.repl.open()<CR>
+    nnoremap <silent> <Leader>dl <Cmd>lua require'dap'.run_last()<CR>
 
 
 ==============================================================================
 TERMINAL CONFIGURATION                               *dap-terminal*
 
-Some debug adapters support launching the debugee in an integrated terminal or
-an external terminal.
+
+Some debug adapters support launching the debugee in an integrated or external
+terminal.
 
 For that they usually provide a `console` option in their |dap-configuration|.
 The supported values are sometimes called `internalConsole`,
@@ -415,6 +416,7 @@ specific terminal configurations.
 
 ==============================================================================
 API                                                  *dap-api*
+
 
 Lua module: dap
 
@@ -892,9 +894,7 @@ events or requests and their response formats:
 - https://microsoft.github.io/debug-adapter-protocol/specification#Requests
 - https://microsoft.github.io/debug-adapter-protocol/specification#Events
 
-
-An example:
-
+For example:
 
 >
   local dap = require('dap')
@@ -902,7 +902,6 @@ An example:
     print('Session terminated', vim.inspect(session), vim.inspect(body))
   end
 <
-
 
 Listeners registered in the `before` table are called *before* the internal `nvim-dap` handlers are called. The listeners registered in the `after` table are called *after* internal `nvim-dap` handlers.
 
@@ -922,8 +921,8 @@ For events, the listeners are called with two arguments:
 ==============================================================================
 UTILS API                                                          *dap-utils*
 
-Lua module: dap.utils
 
+Lua module: dap.utils
 
 pick_process()                                         *dap.utils.pick_process*
         Show a prompt to pick a PID from a list of processes.
