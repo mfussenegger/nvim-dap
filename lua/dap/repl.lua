@@ -117,6 +117,11 @@ local function print_commands()
       M.append('  ' .. table.concat(commands, ', '))
     end
   end
+
+  M.append('Custom commands:')
+  for command, _ in pairs(M.commands.custom_commands or {}) do
+    M.append('  ' .. command)
+  end
 end
 
 
@@ -355,13 +360,21 @@ do
         return offset
       end
       local completions = {}
-      for _, values in pairs(M.commands) do
-        for _, val in pairs(values) do
-          if vim.startswith(val, base) then
-            table.insert(completions, val)
+      for key, values in pairs(M.commands) do
+        if key ~= "custom_commands" then
+          for _, val in pairs(values) do
+            if vim.startswith(val, base) then
+              table.insert(completions, val)
+            end
           end
         end
       end
+      for key, _ in pairs(M.commands.custom_commands or {}) do
+        if vim.startswith(key, base) then
+          table.insert(completions, key)
+        end
+      end
+
       return completions
     end
     local supportsCompletionsRequest = ((session or {}).capabilities or {}).supportsCompletionsRequest;
