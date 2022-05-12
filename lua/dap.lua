@@ -1,6 +1,8 @@
 local api = vim.api
 local utils = require('dap.utils')
 local M = {}
+
+---@type Session|nil
 local session = nil
 local last_run = nil
 
@@ -48,7 +50,7 @@ M.defaults = setmetatable(
   {
     fallback = {
       exception_breakpoints = 'default';
-      -- type SteppingGranularity = 'statement' | 'line' | 'instruction'
+      ---@type "statement"|"line"|"instruction"
       stepping_granularity = 'statement';
       terminal_win_cmd = 'belowright new';
       focus_terminal = false;
@@ -303,6 +305,7 @@ function M.run(config, opts)
 end
 
 
+--- Run the last debug session again
 function M.run_last()
   if last_run then
     M.run(last_run.config, last_run.opts)
@@ -311,8 +314,8 @@ function M.run_last()
   end
 end
 
-
-
+--- Step over the current line
+---@param opts table
 function M.step_over(opts)
   if not session then return end
   session:_step('next', opts)
@@ -649,13 +652,11 @@ function M.omnifunc(findstart, base)
 end
 
 
---- Attach to an existing debug-adapter running on host, port
---  and then initialize it with config
---
--- Configuration:         -- Specifies how the debug adapter should connect/launch the debugee
---    request: string     -- attach or launch
---    ...                 -- debug adapter specific options
---
+--- Connect to a debug adapter via TCP
+---@param adapter ServerAdapter
+---@param config Configuration
+---@param opts table
+---@param bwc_dummy any
 function M.attach(adapter, config, opts, bwc_dummy)
   if type(adapter) == 'string' then
     utils.notify(
@@ -687,32 +688,25 @@ function M.attach(adapter, config, opts, bwc_dummy)
         end
       end)
     else
-      session:initialize(config)
+      if session then
+        session:initialize(config)
+      end
     end
   end)
   return session
 end
 
 
---- Launch a new debug adapter and then initialize it with config
---
--- Adapter:
---    command: string     -- command to invoke
---    args:    string[]   -- arguments for the command
---    options?: {
---      env?: {}          -- Set the environment variables for the command
---      cwd?: string      -- Set the working directory for the command
---    }
---
---
--- Configuration:         -- Specifies how the debug adapter should connect/launch the debugee
---    request: string     -- attach or launch
---    ...                 -- debug adapter specific options
---
+--- Launch an executable debug adapter and initialize a session
+---
+---@param adapter ExecutableAdapter
+---@param config Configuration
+---@param opts table
 function M.launch(adapter, config, opts)
-  session = require('dap.session'):spawn(adapter, opts)
-  session:initialize(config)
-  return session
+  local s = require('dap.session'):spawn(adapter, opts)
+  session = s
+  s:initialize(config)
+  return s
 end
 
 
@@ -730,12 +724,13 @@ function M._vim_exit_handler()
 end
 
 
---- Return the current session or nil
+---@return Session|nil
 function M.session()
   return session
 end
 
 
+---@param s Session|nil
 function M.set_session(s)
   session = s
 end
