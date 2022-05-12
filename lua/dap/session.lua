@@ -14,11 +14,97 @@ local mime_to_filetype = {
   ['text/javascript'] = 'javascript'
 }
 
+---@class Session
+---@field capabilities Capabilities
+---@field adapter Adapter
+---@field dirty table<string, boolean>
+---@field handlers table<string, fun(self: Session, payload: table)|fun()>
+---@field client Client
+---@field current_frame StackFrame|nil
+---@field initialized boolean
+---@field stopped_thread_id number|nil
+
+
+---@class StackFrame
+---@field id number
+---@field source Source|nil
+
+---@class Source
+
+---@class Client
+---@field close function
+---@field write function
+
+---@class Capabilities
+---@field supportsConfigurationDoneRequest boolean|nil
+---@field supportsFunctionBreakpoints boolean|nil
+---@field supportsConditionalBreakpoints boolean|nil
+---@field supportsHitConditionalBreakpoints boolean|nil
+---@field supportsEvaluateForHovers boolean|nil
+---@field exceptionBreakpointFilters ExceptionBreakpointsFilter[]|nil
+---@field supportsStepBack boolean|nil
+---@field supportsSetVariable boolean|nil
+---@field supportsRestartFrame boolean|nil
+---@field supportsGotoTargetsRequest boolean|nil
+---@field supportsStepInTargetsRequest boolean|nil
+---@field supportsCompletionsRequest boolean|nil
+---@field completionTriggerCharacters string[]|nil
+---@field supportsModulesRequest boolean|nil
+---@field additionalModuleColumns ColumnDescriptor[]|nil
+---@field supportedChecksumAlgorithms ChecksumAlgorithm[]|nil
+---@field supportsRestartRequest boolean|nil
+---@field supportsExceptionOptions boolean|nil
+---@field supportsValueFormattingOptions boolean|nil
+---@field supportsExceptionInfoRequest boolean|nil
+---@field supportTerminateDebuggee boolean|nil
+---@field supportSuspendDebuggee boolean|nil
+---@field supportsDelayedStackTraceLoading boolean|nil
+---@field supportsLoadedSourcesRequest boolean|nil
+---@field supportsLogPoints boolean|nil
+---@field supportsTerminateThreadsRequest boolean|nil
+---@field supportsSetExpression boolean|nil
+---@field supportsTerminateRequest boolean|nil
+---@field supportsDataBreakpoints boolean|nil
+---@field supportsReadMemoryRequest boolean|nil
+---@field supportsWriteMemoryRequest boolean|nil
+---@field supportsDisassembleRequest boolean|nil
+---@field supportsCancelRequest boolean|nil
+---@field supportsBreakpointLocationsRequest boolean|nil
+---@field supportsClipboardContext boolean|nil
+---@field supportsSteppingGranularity boolean|nil
+---@field supportsInstructionBreakpoints boolean|nil
+---@field supportsExceptionFilterOptions boolean|nil
+---@field supportsSingleThreadExecutionRequests boolean|nil
+
+
+---@class ExceptionBreakpointsFilter
+---@field filter string
+---@field label string
+---@field description string|nil
+---@field default boolean|nil
+---@field supportsCondition boolean|nil
+---@field conditionDescription string|nil
+
+---@class ColumnDescriptor
+---@field attributeName string
+---@field label string
+---@field format string|nil
+---@field type nil|"string"|"number"|"number"|"unixTimestampUTC"
+---@field width number|nil
+
+
+---@class ChecksumAlgorithm
+---@field algorithm "MD5"|"SHA1"|"SHA256"|"timestamp"
+---@field checksum string
+
+---@class Session
 local Session = {}
+
 local ns_pos = 'dap_pos'
 local terminal_buf
 
 local NIL = vim.NIL
+
 local function convert_nil(v)
   if v == NIL then
     return nil
@@ -28,6 +114,7 @@ local function convert_nil(v)
     return v
   end
 end
+
 local json_decode
 local json_encode = vim.fn.json_encode
 local send_payload
@@ -42,7 +129,7 @@ if vim.json then
   end
 else
   json_decode = function(payload)
-    return convert_nil(vim.fn.json_decode(payload))
+    return assert(convert_nil(vim.fn.json_decode(payload)), "json_decode must return a value")
   end
   send_payload = function(client, payload)
     vim.schedule(function()
@@ -706,7 +793,8 @@ local default_reverse_request_handlers = {
 }
 
 
-local function session_defaults(adapter, opts)
+---@return Session
+local function new_session(adapter, opts)
   local handlers = {}
   handlers.after = opts.after
   handlers.reverse_requests = vim.tbl_extend(
@@ -714,7 +802,7 @@ local function session_defaults(adapter, opts)
     default_reverse_request_handlers,
     adapter.reverse_request_handlers or {}
   )
-  return {
+  local state = {
     handlers = handlers;
     message_callbacks = {};
     message_requests = {};
@@ -726,14 +814,13 @@ local function session_defaults(adapter, opts)
     adapter = adapter;
     dirty = {};
   }
+  return setmetatable(state, { __index = Session })
 end
 
 
-function Session:connect(adapter, opts, on_connect)
+function Session.connect(_, adapter, opts, on_connect)
   log.debug('Connecting to debug adapter', adapter)
-  local session = session_defaults(adapter, opts or {})
-  setmetatable(session, self)
-  self.__index = self
+  local session = new_session(adapter, opts or {})
 
   local closed = false
   local client = uv.new_tcp()
@@ -796,11 +883,12 @@ function Session:connect(adapter, opts, on_connect)
 end
 
 
-function Session:spawn(adapter, opts)
+---@param adapter ExecutableAdapter
+---@param opts table|nil
+---@return Session
+function Session.spawn(_, adapter, opts)
   log.debug('Spawning debug adapter', adapter)
-  local session = session_defaults(adapter, opts or {})
-  setmetatable(session, self)
-  self.__index = self
+  local session = new_session(adapter, opts or {})
 
   local stdin = uv.new_pipe(false)
   local stdout = uv.new_pipe(false)
@@ -906,6 +994,8 @@ function Session:_pause(thread_id, cb)
 end
 
 
+---@param step "next"|"stepIn"|"stepOut"|"stepBack"|"continue"|"reverseContinue"
+---@param params table|nil
 function Session:_step(step, params)
   if not self.stopped_thread_id then
     utils.notify('No stopped thread. Cannot move', vim.log.levels.ERROR)
@@ -1008,6 +1098,8 @@ function Session:response(request, payload)
 end
 
 
+--- Initialize the debug session
+---@param config Configuration
 function Session:initialize(config)
   vim.schedule(repl.clear)
   local adapter_responded = false
