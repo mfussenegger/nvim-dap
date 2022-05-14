@@ -70,6 +70,38 @@ describe('dap with fake server', function()
     })
   end)
 
+  it('jumps to location on stopped with reason=pause and allThreadsStopped', function()
+    local session = run_and_wait_until_initialized(config, server)
+    server.spy.clear()
+    server.client.threads = function(self, request)
+      self:send_response(request, {
+        threads = { { id = 1, name = 'thread1' }, }
+      })
+    end
+    server.client.stackTrace = function(self, request)
+      self:send_response(request, {
+        stackFrames = {
+          {
+            id = 1,
+            name = 'stackFrame1',
+            line = 1,
+          },
+        },
+      })
+    end
+    session:event_stopped({
+      allThreadsStopped = true,
+      threadId = 1,
+      reason = 'pause',
+    })
+    -- should request threads, stackTrace and scopes on stopped event
+    vim.wait(1000, function() return #server.spy.requests == 3 end)
+    assert.are.same('threads', server.spy.requests[1].command)
+    assert.are.same('stackTrace', server.spy.requests[2].command)
+    assert.are_not.same(nil, session.current_frame)
+    assert.are.same('stackFrame1', session.current_frame.name)
+  end)
+
   it('resets session if connection disconnects without terminate event', function()
     local session = run_and_wait_until_initialized(config, server)
     assert.are_not.same(nil, dap.session())

@@ -461,7 +461,7 @@ function Session:event_stopped(stopped)
     return
   end
 
-  local should_jump = stopped.reason ~= 'pause'
+  local should_jump = stopped.reason ~= 'pause' or stopped.allThreadsStopped
   if self.stopped_thread_id and should_jump then
     local thread = self.threads[self.stopped_thread_id]
     if defaults(self).auto_continue_if_many_stopped then
