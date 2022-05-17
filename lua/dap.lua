@@ -53,6 +53,14 @@ M.defaults = setmetatable(
       ---@type "statement"|"line"|"instruction"
       stepping_granularity = 'statement';
       terminal_win_cmd = 'belowright new';
+      create_terminal_buffer = function ()
+        local cur_win = api.nvim_get_current_win()
+        api.nvim_command(M.defaults.fallback.terminal_win_cmd)
+        local terminal_win = api.nvim_get_current_win()
+        local terminal_buf = api.nvim_get_current_buf()
+        api.nvim_set_current_win(cur_win)
+        return terminal_buf, api.nvim_win_get_width(terminal_win), api.nvim_win_get_height(terminal_win)
+      end,
       focus_terminal = false;
       auto_continue_if_many_stopped = true;
     },

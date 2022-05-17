@@ -101,7 +101,7 @@ local mime_to_filetype = {
 local Session = {}
 
 local ns_pos = 'dap_pos'
-local terminal_buf
+local terminal_buf, terminal_width, terminal_height
 
 local NIL = vim.NIL
 
@@ -205,38 +205,44 @@ local function run_in_terminal(self, request)
       return
     end
   end
-  local cur_win = api.nvim_get_current_win()
   local cur_buf = api.nvim_get_current_buf()
   if terminal_buf and api.nvim_buf_is_valid(terminal_buf) then
-    local terminal_buf_win = false
     api.nvim_buf_set_option(terminal_buf, 'modified', false)
-    for _, win in pairs(api.nvim_tabpage_list_wins(0)) do
-      if api.nvim_win_get_buf(win) == terminal_buf then
-        terminal_buf_win = true
-        api.nvim_set_current_win(win)
-      end
-    end
-    if not terminal_buf_win then
-      api.nvim_buf_delete(terminal_buf, {force=true})
-      api.nvim_command(dap().defaults[self.config.type].terminal_win_cmd)
-      terminal_buf = api.nvim_get_current_buf()
-    end
   else
-    api.nvim_command(dap().defaults[self.config.type].terminal_win_cmd)
-    terminal_buf = api.nvim_get_current_buf()
+    terminal_buf, terminal_width, terminal_height = dap().defaults[self.config.type].create_terminal_buffer()
+    terminal_width = terminal_width or 80
+    terminal_height = terminal_height or 40
   end
   local ok, path = pcall(api.nvim_buf_get_option, cur_buf, 'path')
   if ok then
     api.nvim_buf_set_option(terminal_buf, 'path', path)
   end
+  local jobid
+
+  local chan = api.nvim_open_term(terminal_buf, {
+    on_input = function(_, _, _, data)
+      pcall(api.nvim_chan_send, jobid, data)
+    end,
+  })
   local opts = {
-    clear_env = false;
     env = next(body.env or {}) and body.env or vim.empty_dict(),
-    cwd = (body.cwd and body.cwd ~= '') and body.cwd or nil
+    cwd = (body.cwd and body.cwd ~= '') and body.cwd or nil,
+    height = terminal_height,
+    width = terminal_width,
+    pty = true,
+    on_stdout = function(_, data)
+      data = table.concat(data, "\r\n")
+      api.nvim_chan_send(chan, data)
+    end,
   }
-  local jobid = vim.fn.termopen(body.args, opts)
-  if not dap().defaults[self.config.type].focus_terminal then
-      api.nvim_set_current_win(cur_win)
+  jobid = vim.fn.jobstart(body.args, opts)
+  if dap().defaults[self.config.type].focus_terminal then
+    for _, win in pairs(api.nvim_tabpage_list_wins(0)) do
+      if api.nvim_win_get_buf(win) == terminal_buf then
+        api.nvim_set_current_win(win)
+        break
+      end
+    end
   end
   if jobid == 0 or jobid == -1 then
     log.error('Could not spawn terminal', jobid, request)
@@ -314,7 +320,7 @@ local function with_win(win, fn, ...)
   local cur_win = api.nvim_get_current_win()
   api.nvim_set_current_win(win)
   local ok, err = pcall(fn, ...)
-  api.nvim_set_current_win(cur_win)
+  pcall(api.nvim_set_current_win, cur_win)
   assert(ok, err)
 end
 
