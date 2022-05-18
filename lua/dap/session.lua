@@ -231,8 +231,14 @@ local function run_in_terminal(self, request)
     width = terminal_width,
     pty = true,
     on_stdout = function(_, data)
-      data = table.concat(data, "\r\n")
-      api.nvim_chan_send(chan, data)
+      -- See :help channel-lines
+      for _, line in pairs(data) do
+        if line == '' then
+          api.nvim_chan_send(chan, '\n')
+        else
+          api.nvim_chan_send(chan, line)
+        end
+      end
     end,
   }
   jobid = vim.fn.jobstart(body.args, opts)
