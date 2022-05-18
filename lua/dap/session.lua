@@ -185,6 +185,23 @@ local function launch_external_terminal(terminal, args)
 end
 
 
+local function create_terminal_buf(terminal_win_cmd)
+  local cur_win = api.nvim_get_current_win()
+  if type(terminal_win_cmd) == "string" then
+    api.nvim_command(terminal_win_cmd)
+    local bufnr = api.nvim_get_current_buf()
+    local win = api.nvim_get_current_win()
+    vim.wo[win].number = false
+    vim.wo[win].relativenumber = false
+    api.nvim_set_current_win(cur_win)
+    return bufnr, win
+  else
+    assert(type(terminal_win_cmd) == "function", "terminal_win_cmd must be a string or a function")
+    return terminal_win_cmd()
+  end
+end
+
+
 local function run_in_terminal(self, request)
   local body = request.arguments
   log.debug('run_in_terminal', body)
@@ -209,9 +226,10 @@ local function run_in_terminal(self, request)
   if terminal_buf and api.nvim_buf_is_valid(terminal_buf) then
     api.nvim_buf_set_option(terminal_buf, 'modified', false)
   else
-    terminal_buf, terminal_width, terminal_height = dap().defaults[self.config.type].create_terminal_buffer()
-    terminal_width = terminal_width or 80
-    terminal_height = terminal_height or 40
+    local terminal_win
+    terminal_buf, terminal_win = create_terminal_buf(settings.terminal_win_cmd)
+    terminal_width = terminal_win and api.nvim_win_get_width(terminal_win) or 80
+    terminal_height = terminal_win and api.nvim_win_get_height(terminal_win) or 40
     api.nvim_buf_set_name(terminal_buf, '[dap-terminal] ' .. body.args[1])
   end
   local ok, path = pcall(api.nvim_buf_get_option, cur_buf, 'path')
@@ -246,7 +264,7 @@ local function run_in_terminal(self, request)
     end,
   }
   jobid = vim.fn.jobstart(body.args, opts)
-  if dap().defaults[self.config.type].focus_terminal then
+  if settings.focus_terminal then
     for _, win in pairs(api.nvim_tabpage_list_wins(0)) do
       if api.nvim_win_get_buf(win) == terminal_buf then
         api.nvim_set_current_win(win)
