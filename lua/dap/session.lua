@@ -241,6 +241,9 @@ local function run_in_terminal(self, request)
         end
       end
     end,
+    on_exit = function(_, exit_code)
+      api.nvim_chan_send(chan, '[Process exited ' .. tostring(exit_code) .. ']')
+    end,
   }
   jobid = vim.fn.jobstart(body.args, opts)
   if dap().defaults[self.config.type].focus_terminal then
