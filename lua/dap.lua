@@ -58,6 +58,8 @@ M.defaults = setmetatable(
         api.nvim_command(M.defaults.fallback.terminal_win_cmd)
         local terminal_win = api.nvim_get_current_win()
         local terminal_buf = api.nvim_get_current_buf()
+        vim.wo[terminal_win].number = false
+        vim.wo[terminal_win].relativenumber = false
         api.nvim_set_current_win(cur_win)
         return terminal_buf, api.nvim_win_get_width(terminal_win), api.nvim_win_get_height(terminal_win)
       end,
