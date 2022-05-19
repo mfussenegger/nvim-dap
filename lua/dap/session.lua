@@ -261,7 +261,11 @@ local function run_in_terminal(self, request)
     end,
     on_exit = function(_, exit_code)
       api.nvim_chan_send(chan, '[Process exited ' .. tostring(exit_code) .. ']')
-    end,
+      api.nvim_buf_set_keymap(terminal_buf, "t", "<CR>", "", {
+        noremap = true,
+        silent = true,
+        callback = function() api.nvim_buf_delete(terminal_buf, { force = true }) end})
+      end,
   }
   jobid = vim.fn.jobstart(body.args, opts)
   if settings.focus_terminal then
