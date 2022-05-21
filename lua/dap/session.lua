@@ -243,6 +243,7 @@ local function run_in_terminal(self, request)
       pcall(api.nvim_chan_send, jobid, data)
     end,
   })
+  
   local opts = {
     env = next(body.env or {}) and body.env or vim.empty_dict(),
     cwd = (body.cwd and body.cwd ~= '') and body.cwd or nil,
@@ -250,22 +251,12 @@ local function run_in_terminal(self, request)
     width = terminal_width,
     pty = true,
     on_stdout = function(_, data)
-      -- See :help channel-lines
-      for _, line in pairs(data) do
-        if line == '' then
-          api.nvim_chan_send(chan, '\n')
-        else
-          api.nvim_chan_send(chan, line)
-        end
-      end
+      api.nvim_chan_send(chan, table.concat(data, "\n"))
     end,
     on_exit = function(_, exit_code)
-      api.nvim_chan_send(chan, '[Process exited ' .. tostring(exit_code) .. ']')
-      api.nvim_buf_set_keymap(terminal_buf, "t", "<CR>", "", {
-        noremap = true,
-        silent = true,
-        callback = function() api.nvim_buf_delete(terminal_buf, { force = true }) end})
-      end,
+      api.nvim_chan_send(chan, '\r\n[Process exited ' .. tostring(exit_code) .. ']')
+      api.nvim_buf_set_keymap(terminal_buf, "t", "<CR>", "<cmd>bd!<CR>", { noremap = true, silent = true})
+    end,
   }
   jobid = vim.fn.jobstart(body.args, opts)
   if settings.focus_terminal then
