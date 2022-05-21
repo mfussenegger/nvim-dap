@@ -193,6 +193,7 @@ local function create_terminal_buf(terminal_win_cmd)
     local win = api.nvim_get_current_win()
     vim.wo[win].number = false
     vim.wo[win].relativenumber = false
+    vim.wo[win].signcolumn = "no"
     api.nvim_set_current_win(cur_win)
     return bufnr, win
   else
@@ -243,7 +244,6 @@ local function run_in_terminal(self, request)
       pcall(api.nvim_chan_send, jobid, data)
     end,
   })
-  
   local opts = {
     env = next(body.env or {}) and body.env or vim.empty_dict(),
     cwd = (body.cwd and body.cwd ~= '') and body.cwd or nil,
