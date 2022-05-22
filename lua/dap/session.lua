@@ -191,9 +191,6 @@ local function create_terminal_buf(terminal_win_cmd)
     api.nvim_command(terminal_win_cmd)
     local bufnr = api.nvim_get_current_buf()
     local win = api.nvim_get_current_win()
-    vim.wo[win].number = false
-    vim.wo[win].relativenumber = false
-    vim.wo[win].signcolumn = "no"
     api.nvim_set_current_win(cur_win)
     return bufnr, win
   else
@@ -229,6 +226,11 @@ local function run_in_terminal(self, request)
   else
     local terminal_win
     terminal_buf, terminal_win = create_terminal_buf(settings.terminal_win_cmd)
+    if terminal_win then
+      vim.wo[terminal_win].number = false
+      vim.wo[terminal_win].relativenumber = false
+      vim.wo[terminal_win].signcolumn = "no"
+    end
     terminal_width = terminal_win and api.nvim_win_get_width(terminal_win) or 80
     terminal_height = terminal_win and api.nvim_win_get_height(terminal_win) or 40
     api.nvim_buf_set_name(terminal_buf, '[dap-terminal] ' .. body.args[1])
