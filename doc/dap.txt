@@ -396,7 +396,8 @@ that is used to create a split window:
 
 <
 
-The `terminal_win_cmd` defaults to `belowright new`.
+The `terminal_win_cmd` defaults to `belowright new`. The value can also be a
+function which returns a buffer number and optionally a window ID.
 
 Be default `dap` opens the integrated terminal but keeps focus on the current
 buffer. If you rather have focus to be shifted to the terminal when it opens
