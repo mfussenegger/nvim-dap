@@ -34,25 +34,48 @@ end
 
 --- Show a prompt to select a process pid
 function M.pick_process()
-  local output = vim.fn.system({'ps', 'a'})
+  local is_windows = vim.fn.has('win32') == 1
+  local separator = is_windows and ',' or ' \\+'
+  local command = is_windows and {'tasklist', '/nh', '/fo', 'csv'} or {'ps', 'ah'}
+  -- output format for tasklist /nh /fo csv
+  --    '"smss.exe","600","Services","0","1,036 K"'
+  -- output format for ps ah
+  --    " 107021 pts/4    Ss     0:00 /bin/zsh <args>"
+  local get_pid = function (parts)
+      if is_windows then
+          return vim.fn.trim(parts[2], '"')
+      else
+          return parts[1]
+      end
+  end
+
+  local get_process_name = function (parts)
+      if is_windows then
+          return vim.fn.trim(parts[1], '"')
+      else
+          return table.concat({unpack(parts, 5)}, ' ')
+      end
+  end
+
+  local output = vim.fn.system(command)
   local lines = vim.split(output, '\n')
   local procs = {}
+
   for _, line in pairs(lines) do
-    -- output format
-    --    " 107021 pts/4    Ss     0:00 /bin/zsh <args>"
-    local parts = vim.fn.split(vim.fn.trim(line), ' \\+')
-    local pid = parts[1]
-    local name = table.concat({unpack(parts, 5)}, ' ')
-    if pid and pid ~= 'PID' then
-      pid = tonumber(pid)
-      if pid ~= vim.fn.getpid() then
-        table.insert(procs, { pid = pid, name = name })
-      end
+    if line ~= "" then -- tasklist command outputs additional empty line in the end
+        local parts = vim.fn.split(vim.fn.trim(line), separator)
+        local pid, name = get_pid(parts), get_process_name(parts)
+        pid = tonumber(pid)
+        if pid ~= vim.fn.getpid() then
+            table.insert(procs, { pid = pid, name = name })
+        end
     end
   end
+
   local label_fn = function(proc)
     return string.format("id=%d name=%s", proc.pid, proc.name)
   end
+
   local result = require('dap.ui').pick_one_sync(procs, "Select process", label_fn)
   return result and result.pid or nil
 end
