@@ -34,7 +34,7 @@ end
 
 --- Show a prompt to select a process pid
 function M.pick_process()
-  local is_windows = vim.fn.has('win32')
+  local is_windows = vim.fn.has('win32') == 1
   local separator = is_windows and ',' or ' \\+'
   local command = is_windows and {'tasklist', '/nh', '/fo', 'csv'} or {'ps', 'ah'}
   -- output format for tasklist /nh /fo csv
