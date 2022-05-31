@@ -762,7 +762,7 @@ function Session:handle_body(body)
     self.message_callbacks[decoded.request_seq] = nil
     if not callback then
       log.warn('No callback for ', decoded)
-      return
+      callback = function(...) end
     end
     if decoded.success then
       vim.schedule(function()
