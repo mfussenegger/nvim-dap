@@ -350,6 +350,23 @@ local function with_win(win, fn, ...)
 end
 
 
+local function set_cursor(win, line, column)
+  local ok, err = pcall(api.nvim_win_set_cursor, win, { line, column - 1 })
+  if ok then
+    with_win(win, api.nvim_command, 'normal! zv')
+  else
+    local msg = string.format(
+      "Debug adapter reported a frame at line %s column %s, but: %s. "
+      .. "Ensure executable is up2date and if using a source mapping ensure it is correct",
+      line,
+      column,
+      err
+    )
+    utils.notify(msg, vim.log.levels.WARN)
+  end
+end
+
+
 local function jump_to_location(bufnr, line, column)
   local ok, failure = pcall(vim.fn.sign_place, 0, ns_pos, 'DapStopped', bufnr, { lnum = line; priority = 12 })
   if not ok then
@@ -364,8 +381,7 @@ local function jump_to_location(bufnr, line, column)
   end
   for _, win in pairs(api.nvim_tabpage_list_wins(0)) do
     if api.nvim_win_get_buf(win) == bufnr then
-      api.nvim_win_set_cursor(win, { line, column - 1 })
-      with_win(win, api.nvim_command, 'normal! zv')
+      set_cursor(win, line, column)
       return
     end
   end
@@ -377,8 +393,7 @@ local function jump_to_location(bufnr, line, column)
     if buftype == '' or vim.b[winbuf].dap_source_buf == true then
       local bufchanged, _ = pcall(api.nvim_win_set_buf, win, bufnr)
       if bufchanged then
-        api.nvim_win_set_cursor(win, { line, column - 1 })
-        with_win(win, api.nvim_command, 'normal! zv')
+        set_cursor(win, line, column)
         return
       end
     end

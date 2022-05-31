@@ -102,6 +102,48 @@ describe('dap with fake server', function()
     assert.are.same('stackFrame1', session.current_frame.name)
   end)
 
+  it('jump to location results in nice error if location outside buffer contents', function()
+    local buf = api.nvim_create_buf(true, false)
+    local win = api.nvim_get_current_win()
+    api.nvim_buf_set_lines(buf, 0, -1, false, {'line 1', 'line 2'})
+    api.nvim_win_set_buf(win, buf)
+    api.nvim_win_set_cursor(win, { 1, 0})
+
+    local session = run_and_wait_until_initialized(config, server)
+    server.spy.clear()
+    server.client.threads = function(self, request)
+      self:send_response(request, {
+        threads = { { id = 1, name = 'thread1' }, }
+      })
+    end
+    server.client.stackTrace = function(self, request)
+      self:send_response(request, {
+        stackFrames = {
+          {
+            id = 1,
+            name = 'stackFrame1',
+            line = 40,
+            column = 3,
+            source = {
+              sourceReference = 0,
+              path = vim.uri_from_bufnr(buf),
+            },
+          },
+        },
+      })
+    end
+    local captured_msg
+    vim.notify = function(msg)
+      captured_msg = msg
+    end
+    session:event_stopped({
+      threadId = 1,
+      reason = 'breakpoint',
+    })
+    vim.wait(1000, function() return captured_msg ~= nil end)
+    assert.are.same('Debug adapter reported a frame at line 40 column 3, but: Cursor position outside buffer. Ensure executable is up2date and if using a source mapping ensure it is correct', captured_msg)
+  end)
+
   it('resets session if connection disconnects without terminate event', function()
     local session = run_and_wait_until_initialized(config, server)
     assert.are_not.same(nil, dap.session())
