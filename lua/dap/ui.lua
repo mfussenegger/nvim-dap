@@ -419,6 +419,9 @@ function M.layer(buf)
     -- start is 0-indexed
     -- end_ is 0-indexed exclusive
     render = function(xs, render_fn, context, start, end_)
+      if not api.nvim_buf_is_valid(buf) then
+        return
+      end
       local modifiable = api.nvim_buf_get_option(buf, 'modifiable')
       api.nvim_buf_set_option(buf, 'modifiable', true)
       if not start and not end_ then
