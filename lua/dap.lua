@@ -592,10 +592,15 @@ function M.continue()
   elseif session.stopped_thread_id then
     session:_step('continue')
   else
-    local prompt = (session.initialized
-      and "Session active, but not stopped at breakpoint> "
-      or "Session still initializing> "
-    )
+    local stopped_threads = vim.tbl_filter(function(t) return t.stopped end, session.threads)
+    local prompt
+    if not session.initialized then
+      prompt = "Session still initializing> "
+    elseif next(stopped_threads) then
+      prompt = "Not focused on any stopped Thread> "
+    else
+      prompt = "Session active, but not stopped at breakpoint> "
+    end
     local choices = {
       {
         label = "Terminate session",
@@ -626,6 +631,24 @@ function M.continue()
         action = function() end,
       },
     }
+    if next(stopped_threads) then
+      table.insert(choices, 1, {
+        label = "Resume stopped thread",
+        action = vim.schedule_wrap(function()
+          lazy.ui.pick_if_many(
+            stopped_threads,
+            'Thread to resume> ',
+            function(t) return t.name or t.id end,
+            function(choice)
+              if choice then
+                session.stopped_thread_id = choice.id
+                session:_step('continue')
+              end
+            end
+          )
+        end),
+      })
+    end
     lazy.ui.pick_one(choices, prompt, function(x) return x.label end, function(choice)
       if choice then
         choice.action()
