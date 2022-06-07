@@ -516,6 +516,7 @@ function Session:event_stopped(stopped)
         'Resuming newly stopped thread. ' ..
         'To disable this set the `auto_continue_if_many_stopped` option to false.')
       self:request('continue', { threadId = stopped.threadId })
+      return
     else
       -- Allow thread to stop, but don't jump to it because stepping
       -- interleaved between threads is confusing
