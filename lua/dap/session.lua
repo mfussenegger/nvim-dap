@@ -700,7 +700,7 @@ do
       self:request('setBreakpoints', payload, function(err1, resp)
         if err1 then
           utils.notify('Error setting breakpoints: ' .. err1.message, vim.log.levels.ERROR)
-        else
+        elseif resp then
           for _, bp in pairs(resp.breakpoints) do
             breakpoints.set_state(bufnr, bp.line, bp)
             if not bp.verified then
