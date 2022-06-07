@@ -233,8 +233,8 @@ local function run_in_terminal(self, request)
     end
     terminal_width = terminal_win and api.nvim_win_get_width(terminal_win) or 80
     terminal_height = terminal_win and api.nvim_win_get_height(terminal_win) or 40
-    api.nvim_buf_set_name(terminal_buf, '[dap-terminal] ' .. (self.config.name or body.args[1]))
   end
+  api.nvim_buf_set_name(terminal_buf, '[dap-terminal] ' .. (self.config.name or body.args[1]))
   local ok, path = pcall(api.nvim_buf_get_option, cur_buf, 'path')
   if ok then
     api.nvim_buf_set_option(terminal_buf, 'path', path)
