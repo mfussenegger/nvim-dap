@@ -459,7 +459,10 @@ function Session:source(source, cb)
     api.nvim_buf_set_lines(buf, 0, -1, false, vim.split(response.content, '\n'))
     if not ft and source.path and vim.filetype then
       pcall(api.nvim_buf_set_name, buf, source.path)
-      pcall(vim.filetype.match, source.path, buf)
+      local ok, filetype = pcall(vim.filetype.match, source.path, buf)
+      if ok and filetype then
+        vim.bo[buf].filetype = filetype
+      end
     end
     if cb then
       cb(nil, buf)
