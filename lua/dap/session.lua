@@ -253,7 +253,14 @@ local function run_in_terminal(self, request)
     width = terminal_width,
     pty = true,
     on_stdout = function(_, data)
-      api.nvim_chan_send(chan, table.concat(data, "\n"))
+      local count = #data
+      for idx, line in pairs(data) do
+        if idx == count then
+          api.nvim_chan_send(chan, line)
+        else
+          api.nvim_chan_send(chan, line .. '\n')
+        end
+      end
     end,
     on_exit = function(_, exit_code)
       api.nvim_chan_send(chan, '\r\n[Process exited ' .. tostring(exit_code) .. ']')
