@@ -532,10 +532,6 @@ function Session:event_stopped(stopped)
 
   if stopped.allThreadsStopped then
     progress.report('All threads stopped')
-    utils.notify(
-      'All threads stopped. ' .. stopped.reason and 'Reason: ' .. stopped.reason or '',
-      vim.log.levels.INFO
-    )
     for _, thread in pairs(self.threads) do
       thread.stopped = true
     end
