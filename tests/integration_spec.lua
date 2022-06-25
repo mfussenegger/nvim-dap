@@ -133,7 +133,8 @@ describe('dap with fake server', function()
       })
     end
     local captured_msg
-    vim.notify = function(msg)
+    vim.notify = function(...)
+      local msg = select(1, ...)
       captured_msg = msg
     end
     session:event_stopped({
