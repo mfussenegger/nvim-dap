@@ -467,6 +467,10 @@ function Session:source(source, cb)
     if not ft and source.path and vim.filetype then
       pcall(api.nvim_buf_set_name, buf, source.path)
       local ok, filetype = pcall(vim.filetype.match, source.path, buf)
+      if not ok then
+        -- API changed
+        ok, filetype = pcall(vim.filetype.match, { buf = buf })
+      end
       if ok and filetype then
         vim.bo[buf].filetype = filetype
       end
