@@ -393,6 +393,12 @@ local function jump_to_location(bufnr, line, column)
   if column == 0 then
     column = 1
   end
+  local cur_buf = api.nvim_get_current_buf()
+  if cur_buf == bufnr and api.nvim_win_get_cursor(0)[1] == line and column == 1 then
+    -- A user might have positioned the cursor over a variable in anticipation of hitting a breakpoint
+    -- Don't move the cursor to the beginning of the line if it's in the right place
+    return
+  end
   for _, win in pairs(api.nvim_tabpage_list_wins(0)) do
     if api.nvim_win_get_buf(win) == bufnr then
       set_cursor(win, line, column)
