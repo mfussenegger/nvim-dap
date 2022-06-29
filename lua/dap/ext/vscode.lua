@@ -24,14 +24,19 @@ function M.load_launchjs(path, type_to_filetypes)
   assert(data.configurations, "launch.json must have a 'configurations' key")
   for _, config in ipairs(data.configurations) do
     assert(config.type, "Configuration in launch.json must have a 'type' key")
-    local filetypes = type_to_filetypes[config.type] or {config.type,}
+    assert(config.name, "Configuration in launch.json must have a 'name' key")
+    local filetypes = type_to_filetypes[config.type] or { config.type, }
     for _, filetype in pairs(filetypes) do
-      local configurations = dap.configurations[filetype] or {}
-      dap.configurations[filetype] = configurations
-      table.insert(configurations, config)
+      local dap_configurations = dap.configurations[filetype] or {}
+      for i, dap_config in pairs(dap_configurations) do
+        if dap_config.name == config.name then
+          -- remove old value
+          table.remove(dap_configurations, i)
+        end
+      end
+      table.insert(dap_configurations, config)
     end
   end
 end
-
 
 return M
