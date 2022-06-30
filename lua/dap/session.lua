@@ -412,24 +412,35 @@ local function jump_to_frame(cur_session, frame, preserve_focus_hint)
   if preserve_focus_hint or frame.line < 0 then
     return
   end
+
+  local file_bufnr
+  if source.path:match('^([a-z]+)://.*') then
+    file_bufnr = vim.uri_to_bufnr(source.path)
+  else
+    file_bufnr = vim.uri_to_bufnr(vim.uri_from_fname(source.path))
+  end
+
   if not source.sourceReference or source.sourceReference == 0 then
     if not source.path then
       utils.notify('Source path not available, cannot jump to frame', vim.log.levels.INFO)
       return
     end
-    local scheme = source.path:match('^([a-z]+)://.*')
-    local bufnr
-    if scheme then
-      bufnr = vim.uri_to_bufnr(source.path)
-    else
-      bufnr = vim.uri_to_bufnr(vim.uri_from_fname(source.path))
-    end
-    vim.fn.bufload(bufnr)
-    jump_to_location(bufnr, frame.line, frame.column)
+
+    vim.fn.bufload(file_bufnr)
+    jump_to_location(file_bufnr, frame.line, frame.column)
   else
-    cur_session:source(source, function(err, buf)
+    cur_session:source(source, function(err, source_bufnr)
       assert(not err, vim.inspect(err))
-      jump_to_location(buf, frame.line, frame.column)
+
+      local file_content = utils.get_buffer_content_as_string(file_bufnr)
+      local source_content = utils.get_buffer_content_as_string(source_bufnr)
+
+      -- Jump to actual file on disk if source matches file content
+      if file_content == source_content then
+        jump_to_location(file_bufnr, frame.line, frame.column)
+      else
+        jump_to_location(source_bufnr, frame.line, frame.column)
+      end
     end)
   end
 end

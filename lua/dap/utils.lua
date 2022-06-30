@@ -124,5 +124,9 @@ function M.if_nil(x, default)
   return x == nil and default or x
 end
 
+function M.get_buffer_content_as_string(bufnr)
+  return table.concat(vim.api.nvim_buf_get_lines(bufnr, 0, -1, false))
+end
+
 
 return M
