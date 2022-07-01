@@ -109,6 +109,20 @@ clarify whether the change is in scope of the nvim-dap core.
 Please keep pull requests focused and don't change multiple things at the same
 time.
 
+### Running tests
+
+Tests can be run inside a docker container: 
+
+To run all tests:
+```console
+$ ./tests/run.sh
+```
+
+To run only a specific test file:
+```console
+$ ./tests/run.sh tests/debugpy_spec.lua
+```
+
 ## Features
 
 - [x] launch debug adapter
