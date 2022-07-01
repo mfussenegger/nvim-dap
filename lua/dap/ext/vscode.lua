@@ -35,6 +35,7 @@ function M.load_launchjs(path, type_to_filetypes)
         end
       end
       table.insert(dap_configurations, config)
+      dap.configurations[filetype] = dap_configurations
     end
   end
 end
