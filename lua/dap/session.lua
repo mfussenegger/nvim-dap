@@ -256,15 +256,21 @@ local function run_in_terminal(self, request)
       local count = #data
       for idx, line in pairs(data) do
         if idx == count then
-          api.nvim_chan_send(chan, line)
+          local send_ok = pcall(api.nvim_chan_send, chan, line)
+          if not send_ok then
+            return
+          end
         else
-          api.nvim_chan_send(chan, line .. '\n')
+          local send_ok = pcall(api.nvim_chan_send, chan, line .. '\n')
+          if not send_ok then
+            return
+          end
         end
       end
     end,
     on_exit = function(_, exit_code)
-      api.nvim_chan_send(chan, '\r\n[Process exited ' .. tostring(exit_code) .. ']')
-      api.nvim_buf_set_keymap(terminal_buf, "t", "<CR>", "<cmd>bd!<CR>", { noremap = true, silent = true})
+      pcall(api.nvim_chan_send, chan, '\r\n[Process exited ' .. tostring(exit_code) .. ']')
+      pcall(api.nvim_buf_set_keymap, terminal_buf, "t", "<CR>", "<cmd>bd!<CR>", { noremap = true, silent = true})
     end,
   }
   jobid = vim.fn.jobstart(body.args, opts)
