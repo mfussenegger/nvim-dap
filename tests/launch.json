@@ -3,11 +3,13 @@
     "configurations": [
         {
             "type": "java",
-            "request": "launch"
+            "request": "launch",
+            "name": "java test"
         },
         {
             "type": "bar",
-            "request": "attach"
+            "request": "attach",
+            "name": "bar test"
         }
     ]
 }
