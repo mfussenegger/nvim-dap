@@ -102,6 +102,13 @@ local DAP_QUICKFIX_CONTEXT = DAP_QUICKFIX_TITLE
 ---@field type "server"
 ---@field host string|nil
 ---@field port number
+---@field executable nil|ServerAdapterExecutable
+
+---@class ServerAdapterExecutable
+---@field command string
+---@field args nil|string[]
+---@field cwd nil|string
+---@field detached nil|boolean
 
 
 --- Adapter definitions. See `:help dap-adapter` for more help
@@ -698,13 +705,12 @@ function M.attach(adapter, config, opts, bwc_dummy)
     utils.notify('Config needs the `request` property which must be one of `attach` or `launch`', vim.log.levels.ERROR)
     return
   end
-  assert(adapter.host, 'Adapter used with attach must have a host property')
   assert(adapter.port, 'Adapter used with attach must have a port property')
   session = require('dap.session'):connect(adapter, opts, function(err)
     if err then
       vim.schedule(function()
         utils.notify(
-          string.format("Couldn't connect to %s:%s: %s", adapter.host, adapter.port, err),
+          string.format("Couldn't connect to %s:%s: %s", adapter.host or '127.0.0.1', adapter.port, err),
           vim.log.levels.ERROR
         )
         if session then

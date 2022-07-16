@@ -87,7 +87,8 @@ function Client:launch(request)
 end
 
 
-function M.spawn()
+function M.spawn(opts)
+  opts = opts or {}
   local server = uv.new_tcp()
   local host = '127.0.0.1'
   local spy = {
@@ -100,7 +101,7 @@ function M.spawn()
     spy.responses = {}
     spy.events = {}
   end
-  server:bind(host, 0)
+  server:bind(host, opts.port or 0)
   local client = {
     seq = 0,
     handlers = {},
@@ -112,7 +113,7 @@ function M.spawn()
     local socket = uv.new_tcp()
     client.socket = socket
     server:accept(socket)
-    socket:read_start(rpc.create_read_loop(vim.schedule_wrap(function(body)
+    socket:read_start(rpc.create_read_loop((function(body)
       client:handle_input(body)
     end)))
   end)
