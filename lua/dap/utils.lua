@@ -116,7 +116,13 @@ function M.get_visual_selection_text()
 end
 
 function M.notify(msg, log_level)
-  vim.notify(msg, log_level, {title = 'DAP'})
+  if vim.in_fast_event() then
+    vim.schedule(function()
+      vim.notify(msg, log_level, {title = 'DAP'})
+    end)
+  else
+    vim.notify(msg, log_level, {title = 'DAP'})
+  end
 end
 
 

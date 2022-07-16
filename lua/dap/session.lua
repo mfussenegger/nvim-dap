@@ -881,27 +881,108 @@ local function new_session(adapter, opts)
 end
 
 
-function Session.connect(_, adapter, opts, on_connect)
-  log.debug('Connecting to debug adapter', adapter)
-  local session = new_session(adapter, opts or {})
+local function get_free_port()
+  local tcp = uv.new_tcp()
+  tcp:bind('127.0.0.1', 0)
+  local port = tcp:getsockname().port
+  tcp:shutdown()
+  tcp:close()
+  return port
+end
 
+
+---@param adapter ServerAdapter
+local function spawn_server_executable(adapter)
+  local cmd = assert(adapter.executable.command, "executable of server adapter must have a `command` property")
+  log.debug("Starting debug adapter server executable", adapter.executable)
+  if adapter.port == "${port}" then
+    local port = get_free_port()
+    -- don't mutate original adapter definition
+    adapter = vim.deepcopy(adapter)
+    adapter.port = port
+    if adapter.executable.args then
+      local args = adapter.executable.args
+      for idx, arg in pairs(args) do
+        args[idx] = arg:gsub('${port}', tostring(port))
+      end
+    end
+  end
+  local stdout = uv.new_pipe(false)
+  local stderr = uv.new_pipe(false)
+  local opts = {
+    stdio = {nil, stdout, stderr},
+    args = adapter.executable.args or {},
+    detached = utils.if_nil(adapter.executable.detached, true),
+    cwd = adapter.executable.cwd,
+  }
+  local handle, pid_or_err = uv.spawn(cmd, opts, function(code)
+    stdout:close()
+    stderr:close()
+    if code ~= 0 then
+      utils.notify(cmd .. " exited with code " .. code, vim.log.levels.WARN)
+    end
+  end)
+  if not handle then
+    stdout:close()
+    stderr:close()
+    error(pid_or_err)
+  end
+  log.debug(
+    "Debug adapter server executable started (" .. pid_or_err .. "), listening on " .. adapter.port)
+
+  local read_output = function(stream)
+    return function(err, chunk)
+      assert(not err, err)
+      if chunk then
+        vim.schedule(function()
+          repl.append('[debug-adapter ' .. stream .. '] ' .. chunk)
+        end)
+      end
+    end
+  end
+  stderr:read_start(read_output('stderr'))
+  stdout:read_start(read_output('stdout'))
+  return handle, adapter
+end
+
+
+function Session.connect(_, adapter, opts, on_connect)
+  local session = new_session(adapter, opts or {})
   local closed = false
   local client = uv.new_tcp()
+
+  local function close()
+    if closed then
+      return
+    end
+    closed = true
+    client:shutdown()
+    client:close()
+  end
+
   session.client = {
     write = function(line)
       client:write(line)
     end;
-    close = function()
-      if closed then
-        return
-      end
-      closed = true
-      client:shutdown()
-      client:close()
-    end;
+    close = close
   }
+
+  if adapter.executable then
+    local handle
+    handle, adapter = spawn_server_executable(adapter)
+    session.client.close = function()
+      if handle and not handle:is_closing() then
+        handle:close()
+        handle = nil
+      end
+      close()
+    end
+  end
+  log.debug('Connecting to debug adapter', adapter)
+
   local host = adapter.host or '127.0.0.1'
-  local on_addresses = function(err, addresses)
+  local on_addresses
+  on_addresses = function(err, addresses, retry_count)
     if err or #addresses == 0 then
       err = err or ('Could not resolve ' .. host)
       on_connect(err)
@@ -909,26 +990,42 @@ function Session.connect(_, adapter, opts, on_connect)
     end
     local address = addresses[1]
     client:connect(address.addr, tonumber(adapter.port), function(conn_err)
-      if not conn_err then
-        local handle_body = vim.schedule_wrap(function(body)
-          session:handle_body(body)
-        end)
-        client:read_start(rpc.create_read_loop(handle_body, function()
-          if not closed then
-            closed = true
-            client:shutdown()
-            client:close()
-          end
-          local s = dap().session()
-          if s == session then
-            vim.schedule(function()
-              utils.notify('Debug adapter disconnected', vim.log.levels.INFO)
-            end)
-            dap().set_session(nil)
-          end
-        end))
+      if conn_err then
+        retry_count = retry_count or 1
+        if retry_count < 3 then
+          -- Possible luv bug? A second client:connect gets stuck
+          -- Create new handle as workaround
+          client:close()
+          client = uv.new_tcp()
+          local timer = uv.new_timer()
+          timer:start(500, 0, function()
+            timer:stop()
+            timer:close()
+            on_addresses(nil, addresses, retry_count + 1)
+          end)
+        else
+          on_connect(conn_err)
+        end
+        return
       end
-      on_connect(conn_err)
+      local handle_body = vim.schedule_wrap(function(body)
+        session:handle_body(body)
+      end)
+      client:read_start(rpc.create_read_loop(handle_body, function()
+        if not closed then
+          closed = true
+          client:shutdown()
+          client:close()
+        end
+        local s = dap().session()
+        if s == session then
+          vim.schedule(function()
+            utils.notify('Debug adapter disconnected', vim.log.levels.INFO)
+          end)
+          dap().set_session(nil)
+        end
+      end))
+      on_connect(nil)
     end)
   end
   -- getaddrinfo fails for some users with `bad argument #3 to 'getaddrinfo' (Invalid protocol hint)`

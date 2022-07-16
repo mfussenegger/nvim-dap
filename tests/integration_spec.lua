@@ -116,7 +116,7 @@ describe('dap with fake server', function()
         threads = { { id = 1, name = 'thread1' }, }
       })
     end
-    server.client.stackTrace = function(self, request)
+    server.client.stackTrace = vim.schedule_wrap(function(self, request)
       self:send_response(request, {
         stackFrames = {
           {
@@ -131,7 +131,7 @@ describe('dap with fake server', function()
           },
         },
       })
-    end
+    end)
     local captured_msg
     vim.notify = function(...)
       local msg = select(1, ...)

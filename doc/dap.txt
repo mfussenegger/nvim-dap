@@ -97,12 +97,28 @@ For `executable` the following options are supported:
 For `server` the following options are supported:
 
 >
-    host?: string       -- host to connect to, defaults to 127.0.0.1
-    port:  number       -- port to connect to
-    id?: string         -- Identifier of the adapter. This is used for the
-                           `adapterId` property of the initialize request.
-                           For most debug adapters setting this is not
-                           necessary.
+    host?: string             -- host to connect to, defaults to 127.0.0.1
+    port:  number|"${port}"   -- port to connect to.
+                              -- If "${port}" nvim-dap resolves a free port.
+                              -- This is intended to be used with
+                              -- `executable.args` further below below
+    id?: string               -- Identifier of the adapter. This is used for the
+                                 `adapterId` property of the initialize request.
+                                  For most debug adapters setting this is not
+                                  necessary.
+
+    -- nvim-dap can optionally launch the debug-adapter on each new debug session
+    -- And then connect via TCP.
+    --
+    executable?: {
+      command: string       -- command that spawns the server
+      args?: string[]       -- command arguments
+                            -- ${port} used in the args is replaced with a
+                            -- dynamically resolved free port number
+      detached?: boolean    -- Spawn the debug adapter in detached mode.
+                            -- Defaults to true.
+      cwd?: string          -- Working directory
+    }
 
 
 Both types support the following additional options:
