@@ -647,6 +647,11 @@ function Session:_goto(line, source, col)
       return
     end
     local params = {threadId = self.stopped_thread_id, targetId = response.targets[1].id }
+    local thread = self.threads[self.stopped_thread_id]
+    if thread then
+      thread.stopped = false
+    end
+    self.stopped_thread_id = nil
     self:request('goto', params, function(err1, _)
       if err1 then
         utils.notify('Error executing goto: ' .. err1.message, vim.log.levels.ERROR)
