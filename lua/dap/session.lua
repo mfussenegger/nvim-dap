@@ -501,6 +501,10 @@ function Session:update_threads(cb)
     local threads = {}
     for _, thread in pairs(response.threads) do
       threads[thread.id] = thread
+      local old_thread = self.threads[thread.id]
+      if old_thread and old_thread.stopped then
+        thread.stopped = true
+      end
     end
     self.threads = threads
     self.dirty.threads = false
@@ -1169,27 +1173,48 @@ end
 ---@param step "next"|"stepIn"|"stepOut"|"stepBack"|"continue"|"reverseContinue"
 ---@param params table|nil
 function Session:_step(step, params)
-  if not self.stopped_thread_id then
-    utils.notify('No stopped thread. Cannot move', vim.log.levels.ERROR)
-    return
-  end
-  vim.fn.sign_unplace(ns_pos)
-  params = params or {}
-  params.threadId = self.stopped_thread_id
-  if not params.granularity then
-    params.granularity = dap().defaults[self.config.type].stepping_granularity
-  end
-  local thread = self.threads[self.stopped_thread_id]
-  if thread then
-    thread.stopped = false
-  end
-  self.stopped_thread_id = nil
-  self:request(step, params, function(err)
-    if err then
-      utils.notify('Error on '.. step .. ': ' .. err.message, vim.log.levels.ERROR)
+  local function step_thread(thread_id)
+    vim.fn.sign_unplace(ns_pos)
+    params = params or {}
+    params.threadId = thread_id
+    if not params.granularity then
+      params.granularity = dap().defaults[self.config.type].stepping_granularity
     end
-    progress.report('Running')
-  end)
+    local thread = self.threads[thread_id]
+    if thread then
+      thread.stopped = false
+    end
+    self.stopped_thread_id = nil
+    self:request(step, params, function(err)
+      if err then
+        utils.notify('Error on '.. step .. ': ' .. err.message, vim.log.levels.ERROR)
+      end
+      progress.report('Running')
+    end)
+  end
+
+  if self.stopped_thread_id then
+    step_thread(self.stopped_thread_id)
+  else
+    local paused_threads = vim.tbl_filter(
+      function(t) return t.stopped end,
+      vim.tbl_values(self.threads)
+    )
+    if not next(paused_threads) then
+      utils.notify('No stopped threads. Cannot move', vim.log.levels.ERROR)
+      return
+    end
+    ui().pick_if_many(
+      paused_threads,
+      "Select thread to step in> ",
+      function(t) return t.name end,
+      function(thread)
+        if thread then
+          step_thread(thread.id)
+        end
+      end
+    )
+  end
 end
 
 
