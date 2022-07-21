@@ -867,6 +867,9 @@ Available widget builder functions:
     It can be either a string as described in |expand()| or a function that
     should return the variable or expression that should be evaluated.
 
+- preview({expr})
+    Like hover but uses the preview window
+
 All widget builder functions return a `view`. A view has the following methods:
 
 - open()

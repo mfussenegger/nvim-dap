@@ -4,11 +4,9 @@ local api = vim.api
 local M = {}
 
 
-local function new_buf()
-  local buf = api.nvim_create_buf(false, true)
+local function set_default_bufopts(buf)
   api.nvim_buf_set_option(buf, 'modifiable', false)
   api.nvim_buf_set_option(buf, 'buftype', 'nofile')
-  api.nvim_buf_set_option(buf, 'modifiable', false)
   api.nvim_buf_set_keymap(
     buf, "n", "<CR>", "<Cmd>lua require('dap.ui').trigger_actions({ mode = 'first' })<CR>", {})
   api.nvim_buf_set_keymap(
@@ -17,6 +15,12 @@ local function new_buf()
     buf, "n", "o", "<Cmd>lua require('dap.ui').trigger_actions()<CR>", {})
   api.nvim_buf_set_keymap(
     buf, "n", "<2-LeftMouse>", "<Cmd>lua require('dap.ui').trigger_actions()<CR>", {})
+end
+
+
+local function new_buf()
+  local buf = api.nvim_create_buf(false, true)
+  set_default_bufopts(buf)
   return buf
 end
 
@@ -356,14 +360,18 @@ function M.builder(widget)
 end
 
 
-function M.hover(expr, winopts)
+local function eval_expression(expr)
   expr = expr or '<cexpr>'
-  local value
   if type(expr) == "function" then
-    value = expr()
+    return expr()
   elseif type(expr) == "string" then
-    value = vim.fn.expand(expr)
+    return vim.fn.expand(expr)
   end
+end
+
+
+function M.hover(expr, winopts)
+  local value = eval_expression(expr)
   local view = M.builder(M.expression)
     .new_win(M.with_resize(with_winopts(M.new_cursor_anchored_float_win, winopts)))
     .build()
@@ -388,6 +396,38 @@ function M.centered_float(widget, winopts)
     .new_win(with_winopts(M.new_centered_float_win, winopts))
     .build()
   view.open()
+  return view
+end
+
+
+function M.preview(expr)
+  local value = eval_expression(expr)
+
+  local function new_preview_buf()
+    vim.cmd('pedit ' .. 'dap-preview: ' .. value)
+    for _, win in pairs(api.nvim_list_wins()) do
+      if vim.wo[win].previewwindow then
+        local buf = api.nvim_win_get_buf(win)
+        set_default_bufopts(buf)
+        return buf
+      end
+    end
+  end
+
+  local function new_preview_win()
+    vim.cmd('pedit ' .. 'dap-preview: ' .. value)
+    for _, win in pairs(api.nvim_list_wins()) do
+      if vim.wo[win].previewwindow then
+        return win
+      end
+    end
+  end
+
+  local view = M.builder(M.expression)
+    .new_buf(new_preview_buf)
+    .new_win(new_preview_win)
+    .build()
+  view.open(value)
   return view
 end
 
