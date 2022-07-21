@@ -232,6 +232,26 @@ Things to note:
   the function will be evaluated to get the property value when the
   configuration is used.
 
+  To support asynchronous operations, the function can return a `thread`
+  (created via `coroutine.create`) following two constraints:
+
+    - The coroutine/thread must be in a suspended state
+    - The coroutine/thread must resume the nvim-dap `run` coroutine with the
+      result
+
+  An example:
+
+    foo = function()
+      return coroutine.create(function(dap_run_co)
+        local items = {'one', 'two'}
+        vim.ui.select(items, { label = 'foo> '}, function(choice)
+          coroutine.resume(dap_run_co, choice)
+        end)
+      end)
+    end,
+<
+
+
 - Some variables are supported:
   - `${file}`: Active filename
   - `${fileBasename}`: The current file's basename
