@@ -19,6 +19,7 @@ local mime_to_filetype = {
 ---@field adapter Adapter
 ---@field dirty table<string, boolean>
 ---@field handlers table<string, fun(self: Session, payload: table)|fun()>
+---@field message_callbacks table<number, fun(err: nil|table, body: nil|table)>
 ---@field client Client
 ---@field current_frame StackFrame|nil
 ---@field initialized boolean
