@@ -162,6 +162,17 @@ local function expand_config_variables(option)
   if type(option) == 'function' then
     option = option()
   end
+  if type(option) == "thread" then
+    assert(coroutine.status(option) == "suspended", "If option is a thread it must be suspended")
+    local co = coroutine.running()
+    -- Schedule ensures `coroutine.resume` happens _after_ coroutine.yield
+    -- This is necessary in case the option coroutine is synchronous and
+    -- gives back control immediately
+    vim.schedule(function()
+      coroutine.resume(option, co)
+    end)
+    option = coroutine.yield()
+  end
   if type(option) == "table" then
     local mt = getmetatable(option)
     local result = {}
@@ -282,35 +293,38 @@ function M.run(config, opts)
   if opts.before then
     config = opts.before(config)
   end
-  config = vim.tbl_map(expand_config_variables, config)
-  local adapter = M.adapters[config.type]
-  if type(adapter) == 'table' then
-    lazy.progress.report('Launching debug adapter')
-    maybe_enrich_config_and_run(adapter, config, opts)
-  elseif type(adapter) == 'function' then
-    lazy.progress.report('Launching debug adapter')
-    adapter(
-      function(resolved_adapter)
-        maybe_enrich_config_and_run(resolved_adapter, config, opts)
-      end,
-      config
-    )
-  elseif adapter == nil then
-    utils.notify(string.format(
-      'The selected configuration references adapter `%s`, but dap.adapters.%s is undefined',
-      config.type,
-      config.type
-    ), vim.log.levels.ERROR)
-  else
-    utils.notify(string.format(
-        'Invalid adapter `%s` for config `%s`. Expected a table or function. '
-          .. 'Read :help dap-adapter and define a valid adapter.',
-        vim.inspect(adapter),
+  local trigger_run = coroutine.wrap(function()
+    config = vim.tbl_map(expand_config_variables, config)
+    local adapter = M.adapters[config.type]
+    if type(adapter) == 'table' then
+      lazy.progress.report('Launching debug adapter')
+      maybe_enrich_config_and_run(adapter, config, opts)
+    elseif type(adapter) == 'function' then
+      lazy.progress.report('Launching debug adapter')
+      adapter(
+        function(resolved_adapter)
+          maybe_enrich_config_and_run(resolved_adapter, config, opts)
+        end,
+        config
+      )
+    elseif adapter == nil then
+      utils.notify(string.format(
+        'The selected configuration references adapter `%s`, but dap.adapters.%s is undefined',
+        config.type,
         config.type
-      ),
-      vim.log.levels.ERROR
-    )
-  end
+      ), vim.log.levels.ERROR)
+    else
+      utils.notify(string.format(
+          'Invalid adapter `%s` for config `%s`. Expected a table or function. '
+            .. 'Read :help dap-adapter and define a valid adapter.',
+          vim.inspect(adapter),
+          config.type
+        ),
+        vim.log.levels.ERROR
+      )
+    end
+  end)
+  trigger_run()
 end
 
 
