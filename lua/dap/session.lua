@@ -232,6 +232,7 @@ local function run_in_terminal(self, request)
       vim.wo[terminal_win].relativenumber = false
       vim.wo[terminal_win].signcolumn = "no"
     end
+    vim.b[terminal_buf]['dap-type'] = self.config.type
     terminal_width = terminal_win and api.nvim_win_get_width(terminal_win) or 80
     terminal_height = terminal_win and api.nvim_win_get_height(terminal_win) or 40
   end
