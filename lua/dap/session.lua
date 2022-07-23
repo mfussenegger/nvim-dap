@@ -1463,8 +1463,15 @@ function Session:event_continued(event)
 end
 
 
-function Session.event_breakpoint()
+function Session.event_breakpoint(_, event)
+  if event.reason == 'changed' then
+    local bp = event.breakpoint
+    if bp.id then
+      breakpoints.update(bp)
+    end
+  end
 end
+
 
 function Session:event_capabilities(body)
   local capabilities = self.capabilities or {}
