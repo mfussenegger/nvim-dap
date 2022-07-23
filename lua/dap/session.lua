@@ -1219,9 +1219,7 @@ function Session:_step(step, params)
 end
 
 
-
 function Session:close()
-  vim.fn.sign_unplace(ns_pos)
   self.threads = {}
   self.message_callbacks = {}
   self.message_requests = {}
@@ -1366,8 +1364,13 @@ function Session:disconnect(opts, cb)
     terminateDebuggee = nil;
   }, opts or {})
   local disconnect_timeout_sec = (self.adapter.options or {}).disconnect_timeout_sec or 3
+  local session = dap().session()
   self:request_with_timeout('disconnect', opts, disconnect_timeout_sec * sec_to_ms, function(err, resp)
-    dap().set_session(nil)
+    -- If user already started a new session, don't clear it.
+    -- If user triggers disconnect multiple times, subsequent calls will timeout and still call the callback
+    if session == dap().session() then
+      dap().set_session(nil)
+    end
     self:close()
     log.info('Session closed due to disconnect')
     if cb then
