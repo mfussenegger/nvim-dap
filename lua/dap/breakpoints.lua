@@ -22,6 +22,43 @@ local function get_breakpoint_signs(bufexpr)
 end
 
 
+local function get_sign_name(bp)
+  if bp.verified == false then
+    return 'DapBreakpointRejected'
+  elseif non_empty(bp.condition) then
+    return 'DapBreakpointCondition'
+  elseif non_empty(bp.logMessage) then
+    return 'DapLogPoint'
+  else
+    return 'DapBreakpoint'
+  end
+end
+
+
+function M.update(breakpoint)
+  assert(breakpoint.id, "To update a breakpoint it must have an id property")
+  for sign_id, bp in pairs(bp_by_sign) do
+    if bp.state and bp.state.id == breakpoint.id then
+      local verified_changed =
+        bp.state.verified == false and breakpoint.verified
+        or breakpoint.verified == false and bp.state.verified
+      if verified_changed then
+        vim.fn.sign_place(
+          sign_id,
+          ns,
+          get_sign_name(bp),
+          bp.buf,
+          { lnum = bp.line; priority = 11; }
+        )
+      end
+      bp.state.verified = breakpoint.verified
+      bp.state.message = breakpoint.message
+      return
+    end
+  end
+end
+
+
 function M.set_state(bufnr, lnum, state)
   local placements = vim.fn.sign_getplaced(bufnr, { group = ns; lnum = lnum; })
   local signs = placements[1].signs
@@ -68,13 +105,13 @@ function M.toggle(opts, bufnr, lnum)
   if M.remove(bufnr, lnum) and not opts.replace then
     return
   end
-  local sign_name = 'DapBreakpoint'
-  if (non_empty(opts.condition)) then
-    sign_name = 'DapBreakpointCondition'
-  end
-  if (non_empty(opts.log_message)) then
-    sign_name = 'DapLogPoint'
-  end
+  local bp = {
+    buf = bufnr,
+    condition = opts.condition,
+    logMessage = opts.log_message,
+    hitCondition = opts.hit_condition
+  }
+  local sign_name = get_sign_name(bp)
   local sign_id = vim.fn.sign_place(
     0,
     ns,
@@ -83,11 +120,7 @@ function M.toggle(opts, bufnr, lnum)
     { lnum = lnum; priority = 11; }
   )
   if sign_id ~= -1 then
-    bp_by_sign[sign_id] = {
-      condition = opts.condition,
-      logMessage = opts.log_message,
-      hitCondition = opts.hit_condition
-    }
+    bp_by_sign[sign_id] = bp
   end
 end
 

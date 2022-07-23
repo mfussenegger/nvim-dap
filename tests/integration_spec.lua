@@ -6,6 +6,16 @@ local config = {
   request = 'launch',
   name = 'Launch file',
 }
+
+
+local function wait(predicate)
+  vim.wait(1000, predicate)
+  local result = predicate()
+  assert.are_not.same(false, result)
+  assert.are_not.same(nil, result)
+end
+
+
 local function run_and_wait_until_initialized(conf, server)
   dap.run(conf)
   vim.wait(1000, function()
@@ -507,5 +517,79 @@ describe('run_to_cursor', function()
       }
     }
     assert.are.same(expected_bps, require('dap.breakpoints').get())
+  end)
+end)
+
+describe('breakpoint events', function()
+  local server
+  before_each(function()
+    server = require('tests.server').spawn()
+    dap.adapters.dummy = server.adapter
+  end)
+  after_each(function()
+    server.stop()
+    dap.close()
+    require('dap.breakpoints').clear()
+  end)
+  it('can change state from rejected to verified', function()
+    server.client.setBreakpoints = function(self, request)
+      self:send_response(request, {
+        breakpoints = {
+          {
+            id = 1,
+            verified = false,
+            message = "I don't like this breakpoint",
+          }
+        }
+      })
+    end
+
+    run_and_wait_until_initialized(config, server)
+    local win = api.nvim_get_current_win()
+    local buf1 = api.nvim_create_buf(false, true)
+    api.nvim_buf_set_name(buf1, 'dummy_buf1')
+    api.nvim_buf_set_lines(buf1, 0, -1, false, {'buf1: line1'})
+    api.nvim_win_set_buf(win, buf1)
+    api.nvim_win_set_cursor(win, { 1, 0 })
+    dap.toggle_breakpoint()
+
+    local breakpoints = require('dap.breakpoints')
+
+    -- initialize, launch, setBreakpoints == 3 requests
+    wait(function() return #server.spy.requests == 3 end)
+    wait(function() return #server.spy.responses == 3 end)
+    wait(function() return breakpoints.get()[buf1][1].state end)
+
+    local bps = breakpoints.get()
+    assert.are.same(1, vim.tbl_count(bps))
+    local expected_breakpoint = {
+      line = 1,
+      state = {
+        id = 1,
+        message = "I don't like this breakpoint",
+        verified = false,
+      }
+    }
+    assert.are.same(expected_breakpoint, bps[buf1][1])
+    local signs = vim.fn.sign_getplaced(buf1, { group = 'dap_breakpoints' })
+    assert.are.same('DapBreakpointRejected', signs[1].signs[1].name)
+
+    local num_events = #server.spy.events
+    server.client:send_event('breakpoint', {
+      reason = 'changed',
+      breakpoint = {
+        id = 1,
+        verified = true,
+        message = "I don't like this breakpoint",
+      }
+    })
+    wait(function() return #server.spy.events == num_events + 1 end)
+    wait(function() return breakpoints.get()[buf1][1].state.verified end)
+    assert.are.same(num_events + 1, #server.spy.events)
+    expected_breakpoint.state.verified = true
+    assert.are.same(expected_breakpoint, breakpoints.get()[buf1][1])
+
+    signs = vim.fn.sign_getplaced(buf1, { group = 'dap_breakpoints' })
+    assert.are.same('DapBreakpoint', signs[1].signs[1].name)
   end)
 end)

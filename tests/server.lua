@@ -21,11 +21,10 @@ function Client:send_err_response(request, message, error)
       error = error,
     },
   }
-  table.insert(self.spy.responses, payload)
   if self.socket then
     self.socket:write(rpc.msg_with_content_length(json_encode(payload)))
   end
-
+  table.insert(self.spy.responses, payload)
 end
 
 function Client:send_response(request, body)
@@ -38,10 +37,10 @@ function Client:send_response(request, body)
     request_seq = request.seq,
     body = body,
   }
-  table.insert(self.spy.responses, payload)
   if self.socket then
     self.socket:write(rpc.msg_with_content_length(json_encode(payload)))
   end
+  table.insert(self.spy.responses, payload)
 end
 
 
@@ -53,8 +52,8 @@ function Client:send_event(event, body)
     event = event,
     body = body,
   }
-  table.insert(self.spy.events, payload)
   self.socket:write(rpc.msg_with_content_length(json_encode(payload)))
+  table.insert(self.spy.events, payload)
 end
 
 
