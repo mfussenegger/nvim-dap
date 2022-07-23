@@ -1432,11 +1432,19 @@ function Session:event_thread(event)
   if event.reason == 'exited' then
     self.threads[event.threadId] = nil
   else
-    self.dirty.threads = true
-    self.threads[event.threadId] = {
-      id = event.threadId,
-      name = 'Unknown'
-    }
+    local thread = self.threads[event.threadId]
+    if thread then
+      thread.stopped = false
+      if self.stopped_thread_id == thread.id then
+        self.stopped_thread_id = nil
+      end
+    else
+      self.dirty.threads = true
+      self.threads[event.threadId] = {
+        id = event.threadId,
+        name = 'Unknown'
+      }
+    end
   end
 end
 
