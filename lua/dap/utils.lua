@@ -32,8 +32,8 @@ function M.index_of(items, predicate)
 end
 
 
---- Show a prompt to select a process pid
-function M.pick_process()
+--- Return running processes as a list with { pid, name } tables.
+function M.get_processes()
   local is_windows = vim.fn.has('win32') == 1
   local separator = is_windows and ',' or ' \\+'
   local command = is_windows and {'tasklist', '/nh', '/fo', 'csv'} or {'ps', 'ah'}
@@ -73,12 +73,28 @@ function M.pick_process()
     end
   end
 
+  return procs
+end
+
+
+--- Show a prompt to select a process pid
+function M.pick_process()
   local label_fn = function(proc)
     return string.format("id=%d name=%s", proc.pid, proc.name)
   end
-
-  local result = require('dap.ui').pick_one_sync(procs, "Select process", label_fn)
-  return result and result.pid or nil
+  local co = coroutine.running()
+  if co then
+    return coroutine.create(function()
+      local procs = M.get_processes()
+      require('dap.ui').pick_one(procs, "Select process", label_fn, function(choice)
+        coroutine.resume(co, choice and choice.pid or nil)
+      end)
+    end)
+  else
+    local procs = M.get_processes()
+    local result = require('dap.ui').pick_one_sync(procs, "Select process", label_fn)
+    return result and result.pid or nil
+  end
 end
 
 
