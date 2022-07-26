@@ -432,6 +432,7 @@ function M.preview(expr)
       if vim.wo[win].previewwindow then
         local buf = api.nvim_win_get_buf(win)
         set_default_bufopts(buf)
+        vim.bo[buf].bufhidden = 'delete'
         return buf
       end
     end
