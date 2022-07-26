@@ -102,6 +102,14 @@ end
 ----
 ---- The range of ts nodes start with 0 and the ending range is exclusive.
 function M.visual_selection_range()
+  local msg = "dap.utils.visual_selection_range is deprecated for removal in 0.3.0. "
+    .. "If you're using it with dap.ui.widgets.hover you no longer need it. "
+    .. "See https://github.com/mfussenegger/nvim-dap/pull/621"
+  if vim.notify_once then
+    vim.notify_once(msg, vim.log.levels.WARN)
+  else
+    M.notify(msg, vim.log.levels.WARN)
+  end
   local _, csrow, cscol, _ = unpack(vim.fn.getpos("'<"))
   local _, cerow, cecol, _ = unpack(vim.fn.getpos("'>"))
   if csrow < cerow or (csrow == cerow and cscol <= cecol) then
@@ -114,6 +122,14 @@ end
 
 ---- Returns visual selection if it exists or nil
 function M.get_visual_selection_text()
+  local msg = "dap.utils.get_visual_selection_text is deprecated for removal in 0.3.0. "
+    .. "If you're using it with dap.ui.widgets.hover you no longer need it. "
+    .. "See https://github.com/mfussenegger/nvim-dap/pull/621"
+  if vim.notify_once then
+    vim.notify_once(msg, vim.log.levels.WARN)
+  else
+    M.notify(msg, vim.log.levels.WARN)
+  end
   local bufnr = vim.api.nvim_get_current_buf()
 
   -- We have to remember that end_col is end-exclusive
