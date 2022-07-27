@@ -28,9 +28,13 @@ end
 --  contains exactly one item.
 function M.pick_if_many(items, prompt, label_fn, cb)
   if #items == 1 then
-    cb(items[1])
+    if not cb then
+      return items[1]
+    else
+      cb(items[1])
+    end
   else
-    M.pick_one(items, prompt, label_fn, cb)
+    return M.pick_one(items, prompt, label_fn, cb)
   end
 end
 
@@ -49,14 +53,32 @@ end
 
 
 function M.pick_one(items, prompt, label_fn, cb)
-  if vim.ui then
-    return vim.ui.select(items, {
-      prompt = prompt,
-      format_item = label_fn,
-    }, cb)
+  local co
+  if not cb then
+    co = coroutine.running()
+    if co then
+      cb = function(item)
+        coroutine.resume(co, item)
+      end
+    end
   end
-  local result = M.pick_one_sync(items, prompt, label_fn)
-  cb(result)
+  -- vim.schedule ensures this method yields _before_ the coroutine.resume call happens
+  if vim.ui then
+    vim.schedule(function()
+      vim.ui.select(items, {
+        prompt = prompt,
+        format_item = label_fn,
+      }, cb)
+    end)
+  else
+    local result = M.pick_one_sync(items, prompt, label_fn)
+    vim.schedule(function()
+      cb(result)
+    end)
+  end
+  if co then
+    return coroutine.yield()
+  end
 end
 
 

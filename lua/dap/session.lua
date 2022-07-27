@@ -661,7 +661,15 @@ function Session:_goto(line, source, col)
       utils.notify("No goto targets available. Can't execute goto", vim.log.levels.INFO)
       return
     end
-    local params = {threadId = self.stopped_thread_id, targetId = response.targets[1].id }
+    local target = ui().pick_if_many(
+      response.targets,
+      'goto target> ',
+      function(target) return target.label end
+    )
+    if not target then
+      return
+    end
+    local params = {threadId = self.stopped_thread_id, targetId = target.id }
     local thread = self.threads[self.stopped_thread_id]
     if thread then
       thread.stopped = false
