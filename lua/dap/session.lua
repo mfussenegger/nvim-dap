@@ -644,13 +644,15 @@ end
 function Session:_goto(line, source, col)
   local frame = self.current_frame
   if not frame then
+    utils.notify("No current frame available, cannot use goto", vim.log.levels.INFO)
     return
   end
   if not self.capabilities.supportsGotoTargetsRequest then
     utils.notify("Debug Adapter doesn't support GotoTargetRequest", vim.log.levels.INFO)
     return
   end
-  self:request('gotoTargets',  {source = source or frame.source, line = line, col = col}, function(err, response)
+  coroutine.wrap(function()
+    local err, response = self:request('gotoTargets',  {source = source or frame.source, line = line, col = col})
     if err then
       utils.notify('Error getting gotoTargets: ' .. err.message, vim.log.levels.ERROR)
       return
@@ -665,12 +667,11 @@ function Session:_goto(line, source, col)
       thread.stopped = false
     end
     self.stopped_thread_id = nil
-    self:request('goto', params, function(err1, _)
-      if err1 then
-        utils.notify('Error executing goto: ' .. err1.message, vim.log.levels.ERROR)
-      end
-    end)
-  end)
+    local goto_err = self:request('goto', params)
+    if goto_err then
+      utils.notify('Error executing goto: ' .. goto_err.message, vim.log.levels.ERROR)
+    end
+  end)()
 end
 
 
@@ -1269,6 +1270,12 @@ function Session:request_with_timeout(command, arguments, timeout_ms, callback)
 end
 
 
+--- Send a request to the debug adapter
+---@param command string command to execute
+---@param arguments any|nil object containing arguments for the command
+---@param callback fun(err: table, result: any)|nil
+--  callback called with the response result.
+--- If nil and running within a coroutine the function will yield the result
 function Session:request(command, arguments, callback)
   local payload = {
     seq = self.seq;
@@ -1279,11 +1286,23 @@ function Session:request(command, arguments, callback)
   log.debug('request', payload)
   local current_seq = self.seq
   self.seq = self.seq + 1
+  local co
+  if not callback then
+    co = coroutine.running()
+    if co then
+      callback = function(err, result)
+        coroutine.resume(co, err, result)
+      end
+    end
+  end
   if callback then
     self.message_callbacks[current_seq] = callback
     self.message_requests[current_seq] = arguments
   end
   send_payload(self.client, payload)
+  if co then
+    return coroutine.yield()
+  end
 end
 
 
