@@ -1114,7 +1114,11 @@ function Session.spawn(_, adapter, opts)
   handle, pid_or_err = uv.spawn(adapter.command, spawn_opts, onexit)
   if not handle then
     onexit()
-    error('Error running ' .. adapter.command .. ': ' .. pid_or_err)
+    if adapter.command == "" then
+      error("adapter.command must not be empty. Got: " .. vim.inspect(adapter))
+    else
+      error('Error running ' .. adapter.command .. ': ' .. pid_or_err)
+    end
   end
   session.client = {
     write = function(line) stdin:write(line) end;
