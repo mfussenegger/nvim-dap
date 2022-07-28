@@ -62,19 +62,15 @@ function M.pick_one(items, prompt, label_fn, cb)
       end
     end
   end
-  -- vim.schedule ensures this method yields _before_ the coroutine.resume call happens
+  cb = vim.schedule_wrap(cb)
   if vim.ui then
-    vim.schedule(function()
-      vim.ui.select(items, {
-        prompt = prompt,
-        format_item = label_fn,
-      }, cb)
-    end)
+    vim.ui.select(items, {
+      prompt = prompt,
+      format_item = label_fn,
+    }, cb)
   else
     local result = M.pick_one_sync(items, prompt, label_fn)
-    vim.schedule(function()
-      cb(result)
-    end)
+    cb(result)
   end
   if co then
     return coroutine.yield()
