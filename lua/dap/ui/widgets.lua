@@ -461,13 +461,23 @@ end
 --
 -- Use this if you want a widget to live-update.
 function M.with_refresh(new_buf_, listener)
+  local listeners
+  if type(listener) == "table" then
+    listeners = listener
+  else
+    listeners = {listener}
+  end
   return function(view)
     local dap = require('dap')
-    dap.listeners.after[listener][view] = view.refresh
+    for _, l in pairs(listeners) do
+      dap.listeners.after[l][view] = view.refresh
+    end
     local buf = new_buf_(view)
     api.nvim_buf_attach(buf, false, {
       on_detach = function()
-        dap.listeners.after[listener][view] = nil
+        for _, l in pairs(listeners) do
+          dap.listeners.after[l][view] = nil
+        end
       end
     })
     return buf
