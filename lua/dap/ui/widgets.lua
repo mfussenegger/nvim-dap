@@ -380,6 +380,8 @@ local function eval_expression(expr)
       start_col, end_col = end_col, start_col
     end
 
+    api.nvim_feedkeys(api.nvim_replace_termcodes('<ESC>', true, false, true), 'n', false)
+
     -- buf_get_text is 0-indexed; end-col is exclusive
     local lines = api.nvim_buf_get_text(0, start_row - 1, start_col - 1, end_row - 1, end_col, {})
     return table.concat(lines, '\n')
