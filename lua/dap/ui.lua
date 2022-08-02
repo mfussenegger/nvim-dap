@@ -102,6 +102,8 @@ function M.new_tree(opts)
   local compute_actions = opts.compute_actions or function() return {} end
   local extra_context = opts.extra_context or {}
   local implicit_expand_action = if_nil(opts.implicit_expand_action, true)
+  local is_lazy = opts.is_lazy or function(_) return false end
+  local load_value = opts.load_value or function(_, _) assert(false, "load_value not implemented") end
 
   local self  -- forward reference
 
@@ -246,7 +248,12 @@ function M.new_tree(opts)
 
   self = {
     toggle = function(layer, value, lnum, context)
-      if is_expanded(value) then
+      if is_lazy(value) then
+        load_value(value, function(var)
+          local render = with_indent(context.indent, opts.render_child)
+          layer.render({var}, render, context, lnum, lnum + 1)
+        end)
+      elseif is_expanded(value) then
         collapse(layer, value, lnum, context)
       elseif opts.has_children(value) then
         expand(layer, value, lnum, context)

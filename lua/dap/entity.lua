@@ -20,6 +20,11 @@ function variable.get_key(var)
 end
 
 
+function variable.is_lazy(var)
+  return (var.presentationHint or {}).lazy
+end
+
+
 function variable.render_parent(var)
   if var.name then
     return variable.render_child(var, 0)
@@ -94,6 +99,32 @@ function variable.fetch_children(var, cb)
     end)
   else
     cb({})
+  end
+end
+
+
+function variable.load_value(var, cb)
+  assert(variable.is_lazy(var), "Must not call load_value if not lazy")
+  local session = require('dap').session()
+  if not session then
+    cb(var)
+  else
+    local params = { variablesReference = var.variablesReference }
+    session:request('variables', params, function(err, resp)
+      if err then
+        utils.notify(err.message, vim.log.levels.ERROR)
+      else
+        local new_var = resp.variables[1]
+        -- keep using the old variable;
+        -- it has parent references and the parent contains references to the child
+        var.value = new_var.value
+        var.presentationHint = new_var.presentationHint
+        var.variablesReference = new_var.variablesReference
+        var.namedVariables = new_var.namedVariables
+        var.indexedVariables = new_var.indexedVariables
+        cb(var)
+      end
+    end)
   end
 end
 
@@ -185,6 +216,8 @@ variable.tree_spec = {
   render_child = variable.render_child,
   has_children = variable.has_children,
   get_children = variable.get_children,
+  is_lazy = variable.is_lazy,
+  load_value = variable.load_value,
   fetch_children = variable.fetch_children,
   compute_actions = function(info)
     local session = require('dap').session()
