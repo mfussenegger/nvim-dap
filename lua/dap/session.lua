@@ -988,6 +988,9 @@ function Session.connect(_, adapter, opts, on_connect)
     closed = true
     client:shutdown()
     client:close()
+    session.threads = {}
+    session.message_callbacks = {}
+    session.message_requests = {}
   end
 
   session.client = {
@@ -1094,6 +1097,9 @@ function Session.spawn(_, adapter, opts)
     stdin:shutdown(function()
       stdout:close()
       stderr:close()
+      session.threads = {}
+      session.message_callbacks = {}
+      session.message_requests = {}
       log.info('Closed all handles')
       if handle and not handle:is_closing() then
         handle:close(function()
@@ -1237,9 +1243,6 @@ end
 
 
 function Session:close()
-  self.threads = {}
-  self.message_callbacks = {}
-  self.message_requests = {}
   if self.handlers.after then
     self.handlers.after()
     self.handlers.after = nil
