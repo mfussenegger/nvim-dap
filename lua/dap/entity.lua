@@ -91,7 +91,7 @@ function variable.fetch_children(var, cb)
     local params = { variablesReference = var.variablesReference }
     session:request('variables', params, function(err, resp)
       if err then
-        utils.notify(err.message, vim.log.levels.ERROR)
+        utils.notify('Error fetching variables: ' .. err.message, vim.log.levels.ERROR)
       else
         var.variables = sort_vars(resp.variables)
         cb(var.variables)
@@ -112,7 +112,7 @@ function variable.load_value(var, cb)
     local params = { variablesReference = var.variablesReference }
     session:request('variables', params, function(err, resp)
       if err then
-        utils.notify(err.message, vim.log.levels.ERROR)
+        utils.notify('Error fetching variable: ' .. err.message, vim.log.levels.ERROR)
       else
         local new_var = resp.variables[1]
         -- keep using the old variable;
@@ -176,7 +176,7 @@ local function set_variable(_, item, _, context)
   }
   session:request('setVariable', params, function(err)
     if err then
-      utils.notify(err.message, vim.log.levels.WARN)
+      utils.notify('Error setting variable: ' .. err.message, vim.log.levels.WARN)
     else
       session:_request_scopes(session.current_frame)
     end
@@ -202,7 +202,7 @@ local function set_expression(_, item, _, context)
   }
   session:request('setExpression', params, function(err)
     if err then
-      utils.notify(err.message, vim.log.levels.WARN)
+      utils.notify('Error on setExpression: ' .. err.message, vim.log.levels.WARN)
     else
       session:_request_scopes(session.current_frame)
     end
@@ -320,7 +320,7 @@ function threads_spec.fetch_children(thread, cb)
     local params = { threadId = thread.id }
     local on_frames = function(err, resp)
       if err then
-        utils.notify(err.message, vim.log.levels.WARN)
+        utils.notify('Error fetching stackTrace: ' .. err.message, vim.log.levels.WARN)
       else
         thread.frames = resp.stackFrames
         if is_stopped then
@@ -329,7 +329,7 @@ function threads_spec.fetch_children(thread, cb)
           thread.stopped = false
           session:request('continue', params, function(err0)
             if err0 then
-              utils.notify(err.message, vim.log.levels.WARN)
+              utils.notify('Error on continue: ' .. err.message, vim.log.levels.WARN)
             end
             cb(threads_spec.get_children(thread))
           end)
@@ -381,7 +381,7 @@ function threads_spec.compute_actions(info)
             thread.stopped = false
             session:request('continue', { threadId = thread.id }, function(err)
               if err then
-                utils.notify(err.message, vim.log.levels.WARN)
+                utils.notify('Error on continue: ' .. err.message, vim.log.levels.WARN)
               end
               context.refresh()
             end)
