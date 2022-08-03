@@ -12,12 +12,18 @@
 
 ## Installation
 
-- Requires Neovim (>= 0.6)
-- nvim-dap is a plugin. Install it like any other Neovim plugin.
-  - If using [vim-plug][11]: `Plug 'mfussenegger/nvim-dap'`
-  - If using [packer.nvim][12]: `use 'mfussenegger/nvim-dap'`
+- Install nvim-dap like any other Neovim plugin:
+  - `git clone https://github.com/mfussenegger/nvim-dap.git ~/.config/nvim/pack/plugins/start/nvim-dap`
+  - Or with [vim-plug][11]: `Plug 'mfussenegger/nvim-dap'`
+  - Or with [packer.nvim][12]: `use 'mfussenegger/nvim-dap'`
 - Generate the documentation for nvim-dap using `:helptags ALL` or
   `:helptags <PATH-TO-PLUGIN/doc/>`
+
+Supported Neovim versions:
+
+- Latest nightly
+- 0.7.2 (Recommended)
+- 0.6.1
 
 You'll need to install and configure a debug adapter per language. See
 
@@ -129,8 +135,6 @@ time.
 
 [1]: https://neovim.io/
 [2]: https://github.com/puremourning/vimspector
-[3]: https://github.com/neovim/nvim-lsp
-[4]: https://github.com/microsoft/debugpy
 [5]: https://github.com/mfussenegger/nvim-dap/wiki/Debug-Adapter-installation
 [7]: https://github.com/theHamsta/nvim-dap-virtual-text
 [8]: https://github.com/mfussenegger/nvim-jdtls
