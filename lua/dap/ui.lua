@@ -260,8 +260,8 @@ function M.new_tree(opts)
       end
     end,
 
-    render = function(layer, value, on_done)
-      layer.render({value}, opts.render_parent)
+    render = function(layer, value, on_done, lnum, end_)
+      layer.render({value}, opts.render_parent, nil, lnum, end_)
       if not opts.has_children(value) then
         if on_done then
           on_done()
@@ -474,6 +474,9 @@ function M.layer(buf)
       -- the loop below will add the actual values
       local lines = vim.tbl_map(function() return '' end, xs)
       api.nvim_buf_set_lines(buf, start, end_, true, lines)
+      if start == -1 then
+        start = api.nvim_buf_line_count(buf) - #lines
+      end
 
       for i = start, start + #lines - 1 do
         local item = xs[i + 1 - start]
