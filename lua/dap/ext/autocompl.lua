@@ -12,9 +12,11 @@ local function destroy_timer()
 end
 
 
-local function trigger_completion()
+local function trigger_completion(buf)
   destroy_timer()
-  api.nvim_feedkeys(api.nvim_replace_termcodes('<C-x><C-o>', true, false, true), 'm', true)
+  if api.nvim_get_current_buf() == buf then
+    api.nvim_feedkeys(api.nvim_replace_termcodes('<C-x><C-o>', true, false, true), 'm', true)
+  end
 end
 
 
@@ -25,6 +27,7 @@ function M._InsertCharPre()
   if tonumber(vim.fn.pumvisible()) == 1 then
     return
   end
+  local buf = api.nvim_get_current_buf()
   local char = api.nvim_get_vvar('char')
   local session = require('dap').session()
   local trigger_characters = ((session or {}).capabilities or {}).completionTriggerCharacters
@@ -36,7 +39,9 @@ function M._InsertCharPre()
   end
   if vim.tbl_contains(triggers, char) then
     timer = vim.loop.new_timer()
-    timer:start(50, 0, vim.schedule_wrap(trigger_completion))
+    timer:start(50, 0, vim.schedule_wrap(function()
+      trigger_completion(buf)
+    end))
   end
 end
 
@@ -48,12 +53,15 @@ end
 
 function M.attach(bufnr)
   bufnr = bufnr or api.nvim_get_current_buf()
-  vim.cmd(string.format(
-    "autocmd InsertCharPre <buffer=%d> lua require('dap.ext.autocompl')._InsertCharPre()",
-    bufnr
-  ))
-  vim.cmd(string.format(
-    "autocmd InsertLeave <buffer=%d> lua require('dap.ext.autocompl')._InsertLeave()",
+  vim.cmd(string.format([[
+    augroup dap_autocomplete-%d
+    au!
+    autocmd InsertCharPre <buffer=%d> lua require('dap.ext.autocompl')._InsertCharPre()
+    autocmd InsertLeave <buffer=%d> lua require('dap.ext.autocompl')._InsertLeave()
+    augroup end
+    ]],
+    bufnr,
+    bufnr,
     bufnr
   ))
 end
