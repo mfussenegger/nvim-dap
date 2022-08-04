@@ -133,10 +133,28 @@ local function evaluate_handler(err, resp)
   local layer = ui.layer(repl.buf)
   local attributes = (resp.presentationHint or {}).attributes or {}
   if resp.variablesReference > 0 or vim.tbl_contains(attributes, 'rawString') then
-    local tree = ui.new_tree(require('dap.entity').variable.tree_spec)
-    tree.render(layer, resp)
+    local spec = require('dap.entity').variable.tree_spec
+    local tree = ui.new_tree(spec)
+    -- tree.render would "append" twice, once for the top element and once for the children
+    -- Appending twice would result in a intermediate "dap> " prompt
+    -- To avoid that this eagerly fetches the children; pre-renders the region
+    -- and lets tree.render override it
+    if spec.has_children(resp) then
+      spec.fetch_children(resp, function()
+        local lnum = api.nvim_buf_line_count(repl.buf) - 1
+        local lines = {''}
+        for _ = 1, #resp.variables do
+          table.insert(lines, '')
+        end
+        api.nvim_buf_set_lines(repl.buf, -1, -1, true, lines)
+        tree.render(layer, resp, nil, lnum, -1)
+      end)
+    else
+      tree.render(layer, resp)
+    end
   else
-    layer.render(vim.split(resp.result, '\n', { trimempty = true }))
+    local lines = vim.split(resp.result, '\n', { trimempty = true })
+    layer.render(lines)
   end
 end
 
