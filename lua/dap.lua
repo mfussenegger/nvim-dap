@@ -98,11 +98,15 @@ local DAP_QUICKFIX_CONTEXT = DAP_QUICKFIX_TITLE
 ---@field cwd nil|string
 ---@field detached nil|boolean
 
----@class ServerAdapter
+---@class ServerOptions : AdapterOptions
+---@field max_retries nil|number
+
+---@class ServerAdapter : Adapter
 ---@field type "server"
 ---@field host string|nil
 ---@field port number
 ---@field executable nil|ServerAdapterExecutable
+---@field options nil|ServerOptions
 
 ---@class ServerAdapterExecutable
 ---@field command string

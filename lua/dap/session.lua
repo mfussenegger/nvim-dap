@@ -20,6 +20,7 @@ local mime_to_filetype = {
 ---@field dirty table<string, boolean>
 ---@field handlers table<string, fun(self: Session, payload: table)|fun()>
 ---@field message_callbacks table<number, fun(err: nil|table, body: nil|table)>
+---@field message_requests table<number, any>
 ---@field client Client
 ---@field current_frame StackFrame|nil
 ---@field initialized boolean
@@ -1012,6 +1013,7 @@ function Session.connect(_, adapter, opts, on_connect)
     end
   end
   log.debug('Connecting to debug adapter', adapter)
+  local max_retries = (adapter.options or {}).max_retries or 14
 
   local host = adapter.host or '127.0.0.1'
   local on_addresses
@@ -1025,13 +1027,13 @@ function Session.connect(_, adapter, opts, on_connect)
     client:connect(address.addr, tonumber(adapter.port), function(conn_err)
       if conn_err then
         retry_count = retry_count or 1
-        if retry_count < 3 then
+        if retry_count < max_retries then
           -- Possible luv bug? A second client:connect gets stuck
           -- Create new handle as workaround
           client:close()
           client = uv.new_tcp()
           local timer = uv.new_timer()
-          timer:start(500, 0, function()
+          timer:start(250, 0, function()
             timer:stop()
             timer:close()
             on_addresses(nil, addresses, retry_count + 1)
