@@ -120,6 +120,13 @@ For `server` the following options are supported:
       cwd?: string          -- Working directory
     }
 
+    options?: {
+      max_retries?: number  -- Amount of times the client should attempt to
+                            -- connect before erroring out.
+                            -- There is a 250ms delay between each retry
+                            -- Defaults to 14 (3.5 seconds)
+    }
+
 
 Both types support the following additional options:
 
