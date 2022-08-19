@@ -9,6 +9,8 @@ local history = {
   idx = 1
 }
 
+local autoscroll = vim.fn.has('nvim-0.7') == 1
+
 local function get_session()
   return require('dap').session()
 end
@@ -33,6 +35,23 @@ local function new_buf()
   api.nvim_buf_set_keymap(buf, 'i', '<down>', "<Cmd>lua require('dap.repl').on_down()<CR>", {})
   vim.fn.prompt_setprompt(buf, 'dap> ')
   vim.fn.prompt_setcallback(buf, execute)
+  if vim.fn.has('nvim-0.7') == 1 then
+    vim.keymap.set('n', 'G', function()
+      autoscroll = true
+      vim.cmd('normal! G')
+    end, { silent = true, buffer = buf })
+    api.nvim_create_autocmd({'InsertEnter', 'CursorMoved'}, {
+      group = api.nvim_create_augroup('dap-repl-au', {clear = true}),
+      buffer = buf,
+      callback = function()
+        local active_buf = api.nvim_win_get_buf(0)
+        if active_buf == buf then
+          local lnum = api.nvim_win_get_cursor(0)[1]
+          autoscroll = lnum == api.nvim_buf_line_count(buf)
+        end
+      end
+    })
+  end
   return buf
 end
 
@@ -348,6 +367,9 @@ function M.append(line, lnum)
     api.nvim_buf_set_lines(buf, -1, -1, true, lines)
   else
     api.nvim_buf_set_lines(buf, lnum, lnum, true, lines)
+  end
+  if autoscroll and repl.win and api.nvim_win_is_valid(repl.win) then
+    pcall(api.nvim_win_set_cursor, repl.win, { lnum + 2, 0 })
   end
   return lnum
 end
