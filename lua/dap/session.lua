@@ -987,6 +987,7 @@ function Session.connect(_, adapter, opts, on_connect)
       return
     end
     closed = true
+    vim.fn.sign_unplace(ns_pos)
     client:shutdown()
     client:close()
     session.threads = {}
