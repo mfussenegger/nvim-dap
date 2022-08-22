@@ -987,9 +987,9 @@ function Session.connect(_, adapter, opts, on_connect)
       return
     end
     closed = true
-    vim.fn.sign_unplace(ns_pos)
     client:shutdown()
     client:close()
+    dap().set_session(nil)
     session.threads = {}
     session.message_callbacks = {}
     session.message_requests = {}
