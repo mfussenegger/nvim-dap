@@ -989,7 +989,6 @@ function Session.connect(_, adapter, opts, on_connect)
     closed = true
     client:shutdown()
     client:close()
-    dap().set_session(nil)
     session.threads = {}
     session.message_callbacks = {}
     session.message_requests = {}
