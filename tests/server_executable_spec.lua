@@ -1,14 +1,7 @@
 local dap = require('dap')
 
 describe('server executable', function()
-  after_each(function()
-    dap.terminate()
-    dap.close()
-    vim.wait(100, function()
-      return dap.session() == nil
-    end)
-  end)
-  it('Starts adapter executable and connects', function()
+  before_each(function()
     dap.adapters.dummy = {
       type = 'server',
       port = '${port}',
@@ -23,6 +16,15 @@ describe('server executable', function()
         },
       }
     }
+  end)
+  after_each(function()
+    dap.terminate()
+    dap.close()
+    vim.wait(100, function()
+      return dap.session() == nil
+    end)
+  end)
+  it('Starts adapter executable and connects', function()
     local messages = {}
     require('dap.repl').append = function(line)
       local msg = line:gsub('port=%d+', 'port=12345')
@@ -44,6 +46,25 @@ describe('server executable', function()
     assert.are.same(true, session.initialized, "initialized must be true")
 
     dap.terminate()
+    vim.wait(100, function()
+      return dap.session() == nil
+    end)
+    assert.are.same(nil, dap.session())
+  end)
+  it('Clears session after closing', function()
+    dap.run({
+      type = 'dummy',
+      request = 'launch',
+      name = 'Launch',
+    })
+    vim.wait(2000, function()
+      local session = dap.session()
+      return (session and session.initialized)
+    end)
+    local session = dap.session()
+    assert.are_not.same(nil, session)
+    assert.are.same(true, session.initialized, "initialized must be true")
+    dap.close()
     vim.wait(100, function()
       return dap.session() == nil
     end)

@@ -446,7 +446,7 @@ end
 function M.close()
   if session then
     session:close()
-    session = nil
+    M.set_session(nil)
   end
 end
 
