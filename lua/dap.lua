@@ -342,7 +342,7 @@ function M.run_last()
 end
 
 --- Step over the current line
----@param opts table
+---@param opts table|nil
 function M.step_over(opts)
   if not session then return end
   session:_step('next', opts)
