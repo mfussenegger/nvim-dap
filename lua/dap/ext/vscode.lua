@@ -49,6 +49,13 @@ end
 
 
 local function apply_input(inputs, value)
+  if type(value) == "table" then
+    local new_value = {}
+    for k, v in pairs(value) do
+      new_value[k] = apply_input(inputs, v)
+    end
+    value = new_value
+  end
   if type(value) ~= "string" then
     return value
   end
