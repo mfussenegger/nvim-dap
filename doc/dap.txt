@@ -308,11 +308,13 @@ An example `launch.json` might look like this:
       "configurations": [
           {
               "type": "java",
-              "request": "launch"
+              "request": "launch",
+              "name": "Launch Java"
           },
           {
               "type": "cppdbg",
-              "request": "launch"
+              "request": "launch",
+              "name": "Launch CPP"
           }
       ]
   }
@@ -326,6 +328,45 @@ could call `load_launchjs` like this instead:
 >
   require('dap.ext.vscode').load_launchjs(nil, { cppdbg = {'c', 'cpp'} })
 <
+
+
+load_launchjs supports `inputs`. Inputs can be used to define custom input prompts.
+They are declared in an "inputs" array and each input must have the following properties:
+
+- "id": the identifier of an input
+- "type": Either `pickString` or `promptString`
+- "description": Descriptive text shown to the user
+- "default": Default value
+
+`pickString` has an additional "options" property, which is an array of strings.
+These are shown to the user as options.
+
+Inputs can be referenced with `${input:<id>}` placeholders.
+
+>
+  {
+      "version": "0.2.0",
+      "configurations": [
+          {
+              "type": "python",
+              "request": "launch"
+              "name": "Launch",
+              "program": "${input:myPrompt}"
+          }
+      ],
+      "inputs": [
+          {
+              "id": "myPrompt",
+              "type": "pickString",
+              "description": "Program to run: ",
+              "default": "foobar"
+          }
+      ]
+  }
+<
+
+
+
 ==============================================================================
 SIGNS CONFIGURATION
 
