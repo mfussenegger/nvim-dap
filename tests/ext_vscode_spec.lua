@@ -1,7 +1,7 @@
+local vscode = require('dap.ext.vscode')
 describe('dap.ext.vscode', function()
   it('can load launch.json file and map adapter type to filetypes', function()
     local dap = require('dap')
-    local vscode = require('dap.ext.vscode')
     vscode.load_launchjs('tests/launch.json', { bar = { 'c', 'cpp' } })
     assert.are.same(3, vim.tbl_count(dap.configurations))
     assert.are.same({ { type = 'java', request = 'launch', name = "java test" }, }, dap.configurations.java)
@@ -17,7 +17,6 @@ describe('dap.ext.vscode', function()
       default = default_
       return 'Fake input'
     end
-    local vscode = require('dap.ext.vscode')
     local jsonstr = [[
       {
         "configurations": [
@@ -54,7 +53,6 @@ describe('dap.ext.vscode', function()
   it('supports pickString input', function()
     local options
     local opts
-    local vscode = require('dap.ext.vscode')
     vim.ui.select = function(options_, opts_, on_choice)
       options = options_
       opts = opts_
@@ -92,5 +90,43 @@ describe('dap.ext.vscode', function()
     assert.are.same("${workspaceFolder}/one", result)
     assert.are.same("Select input", opts.prompt)
     assert.are.same({"one", "two", "three"}, options)
+  end)
+
+  it('inputs can be used in arrays or dicts', function()
+    vim.fn.input = function(_, default_value)
+      return default_value
+    end
+    local jsonstr = [[
+      {
+        "configurations": [
+          {
+            "type": "dummy",
+            "request": "launch",
+            "name": "Dummy",
+            "args": ["one", "${input:myInput}", "three"]
+          }
+        ],
+        "inputs": [
+          {
+            "id": "myInput",
+            "type": "promptString",
+            "description": "Your input",
+            "default": "the default value"
+          }
+        ]
+      }
+    ]]
+    local config = vscode._load_json(jsonstr)[1]
+    assert.are.same(3, #config.args)
+    assert.are.same("one", config.args[1])
+    assert.are.same("function", type(config.args[2]))
+    assert.are.same("three", config.args[3])
+    local ok = false
+    local result
+    coroutine.wrap(function()
+      ok, result = true, config.args[2]()
+    end)()
+    vim.wait(1000, function() return ok end)
+    assert.are.same("the default value", result)
   end)
 end)
