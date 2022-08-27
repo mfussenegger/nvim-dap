@@ -245,8 +245,20 @@ local function maybe_enrich_config_and_run(adapter, configuration, opts)
   end
 end
 
+local function load_project_config_if_exists()
+    for _, p in ipairs({"./.nvim-dap.lua", "./.nvim-dap/nvim-dap.lua"}) do
+        local f = io.open(p)
+        if f ~= nil then
+            f:close()
+            utils.notify(string.format("Loading project configuration: %s", p), vim.log.levels.INFO)
+            vim.cmd(":luafile " .. p)
+            return
+        end
+    end
+end
 
 local function select_config_and_run()
+  load_project_config_if_exists()
   local filetype = api.nvim_buf_get_option(0, 'filetype')
   local configurations = M.configurations[filetype] or {}
   assert(
