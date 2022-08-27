@@ -129,4 +129,43 @@ describe('dap.ext.vscode', function()
     vim.wait(1000, function() return ok end)
     assert.are.same("the default value", result)
   end)
+  it('can use two inputs within one property', function()
+    vim.fn.input = function(_, default_value)
+      return default_value
+    end
+    local jsonstr = [[
+      {
+        "configurations": [
+          {
+            "type": "dummy",
+            "request": "launch",
+            "name": "Dummy",
+            "program": "${input:input1}-${input:input2}"
+          }
+        ],
+        "inputs": [
+          {
+            "id": "input1",
+            "type": "promptString",
+            "description": "first input",
+            "default": "one"
+          },
+          {
+            "id": "input2",
+            "type": "promptString",
+            "description": "second input",
+            "default": "two"
+          }
+        ]
+      }
+    ]]
+    local config = vscode._load_json(jsonstr)[1]
+    local ok = false
+    local result
+    coroutine.wrap(function()
+      ok, result = true, config.program()
+    end)()
+    vim.wait(1000, function() return ok end)
+    assert.are.same("one-two", result)
+  end)
 end)

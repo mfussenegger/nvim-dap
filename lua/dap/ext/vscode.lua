@@ -47,6 +47,16 @@ local function create_inputs(inputs)
   return result
 end
 
+local function chain(default, fns)
+  return function()
+    local result = default
+    for _, fn in ipairs(fns) do
+      result = fn(result)
+    end
+    return result
+  end
+end
+
 
 local function apply_input(inputs, value)
   if type(value) == "table" then
@@ -59,22 +69,24 @@ local function apply_input(inputs, value)
   if type(value) ~= "string" then
     return value
   end
-  local input_id = string.match(value, "${input:(%w+)}")
-  if not input_id then
-    return value
-  end
-  local input_key = "${input:" .. input_id .. "}"
-  local input = inputs[input_key]
-  if input then
-    return function()
+  local matches = string.gmatch(value, "${input:(%w+)}")
+  local input_functions = {}
+  for input_id in matches do
+    local input_key = "${input:" .. input_id .. "}"
+    local input = inputs[input_key]
+    if not input then
+      local msg = "No input with id `" .. input_id .. "` found in inputs"
+      notify(msg, vim.log.levels.WARN)
+    end
+    table.insert(input_functions, function(val)
       assert(coroutine.running(), "Must run in coroutine")
       local input_value = input()
-      local result = value:gsub(input_key, input_value)
-      return result
-    end
+      return val:gsub(input_key, input_value)
+    end)
+  end
+  if next(input_functions) then
+    return chain(value, input_functions)
   else
-    local msg = "No input with id `" .. input_id .. "` found in inputs"
-    notify(msg, vim.log.levels.WARN)
     return value
   end
 end
