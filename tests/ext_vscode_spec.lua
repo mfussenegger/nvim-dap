@@ -12,7 +12,7 @@ describe('dap.ext.vscode', function()
   it('supports promptString input', function()
     local prompt
     local default
-    vim.fn.input = function(prompt_, default_)
+    vim.fn.input = function(prompt_, default_, _)
       prompt = prompt_
       default = default_
       return 'Fake input'
@@ -93,7 +93,7 @@ describe('dap.ext.vscode', function()
   end)
 
   it('inputs can be used in arrays or dicts', function()
-    vim.fn.input = function(_, default_value)
+    vim.fn.input = function(_, default_value, _)
       return default_value
     end
     local jsonstr = [[
@@ -130,7 +130,7 @@ describe('dap.ext.vscode', function()
     assert.are.same("the default value", result)
   end)
   it('can use two inputs within one property', function()
-    vim.fn.input = function(_, default_value)
+    vim.fn.input = function(_, default_value, _)
       return default_value
     end
     local jsonstr = [[
