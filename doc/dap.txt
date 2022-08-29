@@ -380,12 +380,11 @@ nvim-dap uses five signs:
 - `DapBreakpointRejected` to indicate breakpoints rejected by the debug
   adapter (default: `R`)
 
-You can customize the signs by overriding their definitions after you've
-loaded `dap`. For example:
+You can customize the signs by setting them with the |sign_define()| function.
+For example:
 
 >
     lua << EOF
-    require('dap')
     vim.fn.sign_define('DapBreakpoint', {text='🛑', texthl='', linehl='', numhl=''})
     EOF
 <
