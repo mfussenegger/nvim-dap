@@ -154,13 +154,25 @@ M.adapters = {}
 ---@type table<string, Configuration[]>
 M.configurations = {}
 
+local signs = {
+  DapBreakpoint = { text = "B", texthl = "", linehl = "", numhl = "" },
+  DapBreakpointCondition = { text = "C", texthl = "", linehl = "", numhl = "" },
+  DapBreakpointRejected = { text = 'R', texthl = '', linehl = '', numhl = '' },
+  DapLogPoint = { text = 'L', texthl = '', linehl = '', numhl = '' },
+  DapStopped = { text = '→', texthl = '', linehl = 'debugPC', numhl = '' },
+}
 
-vim.fn.sign_define('DapBreakpoint', {text='B', texthl='', linehl='', numhl=''})
-vim.fn.sign_define("DapBreakpointCondition", { text = "C", texthl = "", linehl = "", numhl = "" })
-vim.fn.sign_define('DapBreakpointRejected', {text='R', texthl='', linehl='', numhl=''})
-vim.fn.sign_define('DapLogPoint', {text='L', texthl='', linehl='', numhl=''})
-vim.fn.sign_define('DapStopped', {text='→', texthl='', linehl='debugPC', numhl=''})
+local function sign_try_define(name)
+  local s = vim.fn.sign_getdefined(name)
+  if vim.tbl_isempty(s) then
+    local opts = signs[name]
+    vim.fn.sign_define(name, opts)
+  end
+end
 
+for name in pairs(signs) do
+  sign_try_define(name)
+end
 
 local function expand_config_variables(option)
   if type(option) == 'function' then
