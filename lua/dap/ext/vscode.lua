@@ -2,6 +2,8 @@ local dap = require('dap')
 local notify = require('dap.utils').notify
 local M = {}
 
+M.json_decode = vim.json and vim.json.decode or vim.fn.json_decode
+
 
 local function create_input(type_, input)
   if type_ == "promptString" then
@@ -102,8 +104,7 @@ end
 
 
 function M._load_json(jsonstr)
-  local decode = vim.json and vim.json.decode or vim.fn.json_decode
-  local data = decode(jsonstr)
+  local data = M.json_decode(jsonstr)
   local inputs = create_inputs(data.inputs or {})
   local has_inputs = next(inputs) ~= nil
 

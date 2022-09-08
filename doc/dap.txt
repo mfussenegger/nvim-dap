@@ -280,8 +280,15 @@ debug adapters in Visual Studio Code.
 To load a `launch.json` file, use the `load_launchjs` function from the
 `dap.ext.vscode` module.
 
-Unlike VS Code, nvim-dap only supports standard JSON. Trailing commas on the
+Unlike VS Code, nvim-dap supports standard JSON. Trailing commas on the
 last item of a list are an error.
+
+If you install a 3rd-party json5 parser you can override the json decode
+function to support json5 features like trailing comma.
+>
+    require('dap.ext.vscode').json_decode = require'json5'.parse
+<
+(One json5 parser implementation is https://github.com/Joakker/lua-json5)
 
 
 load_launchjs({path}, {type_to_filetypes})        *dap.ext.vscode.load_launchjs*
