@@ -25,6 +25,7 @@ local mime_to_filetype = {
 ---@field current_frame StackFrame|nil
 ---@field initialized boolean
 ---@field stopped_thread_id number|nil
+---@field id number
 
 
 ---@class StackFrame
@@ -886,6 +887,7 @@ local default_reverse_request_handlers = {
   runInTerminal = run_in_terminal
 }
 
+local next_session_id = 1
 
 ---@return Session
 local function new_session(adapter, opts)
@@ -897,6 +899,7 @@ local function new_session(adapter, opts)
     adapter.reverse_request_handlers or {}
   )
   local state = {
+    id = next_session_id,
     handlers = handlers;
     message_callbacks = {};
     message_requests = {};
@@ -908,6 +911,7 @@ local function new_session(adapter, opts)
     adapter = adapter;
     dirty = {};
   }
+  next_session_id = next_session_id + 1
   return setmetatable(state, { __index = Session })
 end
 
