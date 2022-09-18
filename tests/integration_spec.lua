@@ -205,6 +205,27 @@ describe('dap with fake server', function()
 
     assert.are.same({}, require('dap.breakpoints').get())
   end)
+
+  it('prints formatted error on launch error', function()
+    local captured_msg
+    vim.notify = function(...)
+      local msg = select(1, ...)
+      captured_msg = msg
+    end
+    server.client.launch = function(self, request)
+      self:send_err_response(request, 'Failure', {
+        id = 1,
+        format = 'Failed: {e}',
+        showUser = true,
+        variables = {
+          e = 'Dummy'
+        },
+      })
+    end
+    run_and_wait_until_initialized(config, server)
+    wait(function() return captured_msg ~= nil end)
+    assert.are.same('Error on launch: Failed: Dummy', captured_msg)
+  end)
 end)
 
 describe('session disconnect', function()

@@ -1,6 +1,20 @@
 local M = {}
 
 
+---@param err ErrorResponse
+function M.fmt_error(err)
+  local body = err.body
+  if body.error and body.error.showUser then
+    local msg = body.error.format
+    for key, val in pairs(body.error.variables or {}) do
+      msg = msg:gsub('{' .. key .. '}', val)
+    end
+    return msg
+  end
+  return err.message
+end
+
+
 -- Group values (a list) into a dictionary.
 --  `get_key`   is used to get the key from an element of values
 --  `get_value` is used to set the value from an element of values and

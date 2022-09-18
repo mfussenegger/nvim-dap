@@ -372,7 +372,10 @@ function M.step_into(opts)
 
   session:request('stepInTargets', { frameId = session.current_frame.id }, function(err, response)
     if err then
-      utils.notify('Error on step_into: ' .. err.message .. ' (while requesting stepInTargets)', vim.log.levels.ERROR)
+      utils.notify(
+        'Error on step_into: ' .. utils.fmt_error(err) .. ' (while requesting stepInTargets)',
+        vim.log.levels.ERROR
+      )
       return
     end
 
@@ -495,7 +498,7 @@ function M.restart()
   if session.capabilities.supportsRestartRequest then
     session:request('restart', nil, function(err0, _)
       if err0 then
-        utils.notify('Error restarting debug adapter: ' .. err0.message, vim.log.levels.ERROR)
+        utils.notify('Error restarting debug adapter: ' .. utils.fmt_error(err0), vim.log.levels.ERROR)
       else
         utils.notify('Restarted debug adapter', vim.log.levels.INFO)
       end
