@@ -230,9 +230,17 @@ local function run_in_terminal(self, request)
     local terminal_win
     terminal_buf, terminal_win = create_terminal_buf(settings.terminal_win_cmd)
     if terminal_win then
-      vim.wo[terminal_win].number = false
-      vim.wo[terminal_win].relativenumber = false
-      vim.wo[terminal_win].signcolumn = "no"
+      if vim.fn.has('nvim-0.8') == 1 then
+        -- older versions don't support the `win` key
+        api.nvim_set_option_value('number', false, { scope = 'local', win = terminal_win })
+        api.nvim_set_option_value('relativenumber', false, { scope = 'local', win = terminal_win })
+        api.nvim_set_option_value('signcolumn', 'no', { scope = 'local', win = terminal_win })
+      else
+        -- this is like `:set` so new windows will inherit the values :/
+        vim.wo[terminal_win].number = false
+        vim.wo[terminal_win].relativenumber = false
+        vim.wo[terminal_win].signcolumn = "no"
+      end
     end
     vim.b[terminal_buf]['dap-type'] = self.config.type
     terminal_width = terminal_win and api.nvim_win_get_width(terminal_win) or 80
