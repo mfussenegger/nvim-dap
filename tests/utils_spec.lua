@@ -40,3 +40,43 @@ describe('utils.non_empty', function()
     assert.are.same(true, result)
   end)
 end)
+
+describe('utils.fmt_error', function ()
+  it('interpolates message objects with variables', function ()
+    assert.are.equal('Hello, John!', require('dap.utils').fmt_error({
+      body = {
+        error = {
+          showUser = true,
+          format = '{greeting}, {name}!',
+          variables = {
+            greeting = 'Hello',
+            name = 'John',
+          }
+        }
+      }
+    }))
+  end)
+
+  it('interpolates message objects without variables', function ()
+    assert.are.equal('Hello, John!', require('dap.utils').fmt_error({
+      body = {
+        error = {
+          showUser = true,
+          format = 'Hello, John!',
+        }
+      }
+    }))
+  end)
+
+  it('return message if showUser is false', function ()
+    assert.are.equal('Something went wrong.', require('dap.utils').fmt_error({
+      message = 'Something went wrong.',
+      body = {
+        error = {
+          showUser = false,
+          format = 'Hello, John!',
+        }
+      }
+    }))
+  end)
+end)
