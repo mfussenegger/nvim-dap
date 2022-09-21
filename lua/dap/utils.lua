@@ -2,6 +2,7 @@ local M = {}
 
 
 ---@param err ErrorResponse
+---@return string?
 function M.fmt_error(err)
   local body = err.body
   if body.error and body.error.showUser then

@@ -127,7 +127,10 @@ end
 
 local function evaluate_handler(err, resp)
   if err then
-    M.append(err.message)
+    local message = utils.fmt_error(err)
+    if message then
+      M.append(message)
+    end
     return
   end
   local layer = ui.layer(repl.buf)
@@ -319,6 +322,8 @@ function M.on_down()
 end
 
 
+---@param line string
+---@param lnum (integer|string)?
 function M.append(line, lnum)
   local buf = repl._init_buf()
   if api.nvim_get_current_win() == repl.win and lnum == '$' then
