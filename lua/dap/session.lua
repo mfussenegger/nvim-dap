@@ -934,6 +934,7 @@ local function new_session(adapter, opts)
     threads = {};
     adapter = adapter;
     dirty = {};
+    capabilities = {};
   }
   next_session_id = next_session_id + 1
   return setmetatable(state, { __index = Session })
@@ -1384,8 +1385,7 @@ function Session:initialize(config)
       adapter_responded = true
       return
     end
-    local capabilities = self.capabilities or {}
-    self.capabilities = vim.tbl_extend('force', capabilities, result or {})
+    self.capabilities = vim.tbl_extend('force', self.capabilities, result or {})
     self:request(config.request, config, function(err)
       adapter_responded = true
       if err then
@@ -1538,8 +1538,7 @@ end
 
 
 function Session:event_capabilities(body)
-  local capabilities = self.capabilities or {}
-  self.capabilities = vim.tbl_extend('force', capabilities, body.capabilities)
+  self.capabilities = vim.tbl_extend('force', self.capabilities, body.capabilities)
 end
 
 return Session
