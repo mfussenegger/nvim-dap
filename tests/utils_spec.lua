@@ -1,3 +1,5 @@
+local utils = require('dap.utils')
+
 describe('utils.index_of', function()
   it('returns index of first item where predicate matches', function()
     local result = require('dap.utils').index_of(
@@ -78,5 +80,12 @@ describe('utils.fmt_error', function ()
         }
       }
     }))
+  end)
+
+  it('can handle response without body part', function()
+    local result = utils.fmt_error({
+      message = 'Bad things happen',
+    })
+    assert.are.same('Bad things happen', result)
   end)
 end)

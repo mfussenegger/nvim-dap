@@ -4,7 +4,7 @@ local M = {}
 ---@param err ErrorResponse
 ---@return string?
 function M.fmt_error(err)
-  local body = err.body
+  local body = err.body or {}
   if body.error and body.error.showUser then
     local msg = body.error.format
     for key, val in pairs(body.error.variables or {}) do
