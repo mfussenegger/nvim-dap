@@ -511,7 +511,13 @@ end
 
 function M.list_breakpoints(open_quickfix)
   local qf_list = lazy.breakpoints.to_qf_list(lazy.breakpoints.get())
-  vim.fn.setqflist({}, 'r', {
+  local qflist = vim.fn.getqflist({ title = 1 })
+  action = 'a'
+  if qflist.title == DAP_QUICKFIX_TITLE then
+    action = 'r'
+  end
+
+  vim.fn.setqflist({}, action, {
     items = qf_list,
     context = DAP_QUICKFIX_CONTEXT,
     title = DAP_QUICKFIX_TITLE
