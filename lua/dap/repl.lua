@@ -75,6 +75,7 @@ M.commands = {
   down = {'.down'},
   goto_ = {'.goto'},
   pause = {'.pause', '.p'},
+  clear = {'.clear'},
   capabilities = {'.capabilities'},
   help = {'help', '.help', '.h'},
   custom_commands = {}
@@ -221,6 +222,12 @@ function execute(text)
   end
   if vim.tbl_contains(M.commands.help, text) then
     print_commands()
+    return
+  elseif vim.tbl_contains(M.commands.clear, text) then
+    if repl.buf and api.nvim_buf_is_loaded(repl.buf) then
+      local layer = ui.layer(repl.buf)
+      layer.render({}, tostring, {}, 0, - 1)
+    end
     return
   end
   if not session then
