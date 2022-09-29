@@ -5,23 +5,32 @@ body:
     id: problem
     attributes:
       label: Problem Statement
-      description: What problem could nvim-dap solve that it doesn't?
-      placeholder: |-
-        I want nvim-dap to immediately jump to the bug, skipping the pesky debugging steps.
+      description: Describe your problem
     validations:
       required: true
   - type: textarea
     id: expected
     attributes:
-      label: Ideas or possible solutions
-      description: Share your ideas about potential solutions
+      label: Possible Solutions
+      description: |-
+        Describe how a solution could look like.
+
+        Please focus on how you'd use the feature, this isn't about
+        implementation details.
       placeholder: |-
         🤷
+    validations:
+      required: false
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Considered Alternatives
+      description: |-
+        If you tried alternatives and they didn't work or were insufficient,
+        please mention them here.
     validations:
       required: false
   - type: markdown
     attributes:
       value: |-
         ## Thanks 🙏
-    validations:
-      required: false
