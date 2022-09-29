@@ -113,55 +113,6 @@ function M.pick_process()
 end
 
 
------ Get a ts compatible range of the current visual selection.
-----
----- The range of ts nodes start with 0 and the ending range is exclusive.
-function M.visual_selection_range()
-  local msg = "dap.utils.visual_selection_range is deprecated for removal in 0.3.0. "
-    .. "If you're using it with dap.ui.widgets.hover you no longer need it. "
-    .. "See https://github.com/mfussenegger/nvim-dap/pull/621"
-  if vim.notify_once then
-    vim.notify_once(msg, vim.log.levels.WARN)
-  else
-    M.notify(msg, vim.log.levels.WARN)
-  end
-  local _, csrow, cscol, _ = unpack(vim.fn.getpos("'<"))
-  local _, cerow, cecol, _ = unpack(vim.fn.getpos("'>"))
-  if csrow < cerow or (csrow == cerow and cscol <= cecol) then
-    return csrow - 1, cscol - 1, cerow - 1, cecol
-  else
-    return cerow - 1, cecol - 1, csrow - 1, cscol
-  end
-end
-
-
----- Returns visual selection if it exists or nil
-function M.get_visual_selection_text()
-  local msg = "dap.utils.get_visual_selection_text is deprecated for removal in 0.3.0. "
-    .. "If you're using it with dap.ui.widgets.hover you no longer need it. "
-    .. "See https://github.com/mfussenegger/nvim-dap/pull/621"
-  if vim.notify_once then
-    vim.notify_once(msg, vim.log.levels.WARN)
-  else
-    M.notify(msg, vim.log.levels.WARN)
-  end
-  local bufnr = vim.api.nvim_get_current_buf()
-
-  -- We have to remember that end_col is end-exclusive
-  local start_row, start_col, end_row, end_col = M.visual_selection_range()
-
-  if start_row ~= end_row then
-    local lines = vim.api.nvim_buf_get_lines(bufnr, start_row, end_row+1, false)
-    lines[1] = string.sub(lines[1], start_col+1)
-    lines[#lines] = string.sub(lines[#lines], 1, end_col)
-    return table.concat(lines, '\n')
-  else
-    local line = vim.api.nvim_buf_get_lines(bufnr, start_row, start_row+1, false)[1]
-    -- If line is nil then the line is empty
-    return line and table.concat({ string.sub(line, start_col+1, end_col) }, '\n')
-  end
-end
-
 function M.notify(msg, log_level)
   if vim.in_fast_event() then
     vim.schedule(function()
