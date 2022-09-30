@@ -849,8 +849,8 @@ function Session:handle_body(body)
     self.message_requests[decoded.request_seq] = nil
     self.message_callbacks[decoded.request_seq] = nil
     if not callback then
-      log.warn('No callback for ', decoded)
-      callback = function() end
+      log.error('No callback found. Did the debug adapter send duplicate responses?', decoded)
+      return
     end
     if decoded.success then
       vim.schedule(function()
@@ -1339,12 +1339,15 @@ function Session:request(command, arguments, callback)
       callback = function(err, result)
         coroutine.resume(co, err, result)
       end
+    else
+      -- Assume missing callback is intentional.
+      -- Prevent error logging in Session:handle_body
+      callback = function(_, _)
+      end
     end
   end
-  if callback then
-    self.message_callbacks[current_seq] = callback
-    self.message_requests[current_seq] = arguments
-  end
+  self.message_callbacks[current_seq] = callback
+  self.message_requests[current_seq] = arguments
   send_payload(self.client, payload)
   if co then
     return coroutine.yield()
