@@ -174,6 +174,27 @@ for name in pairs(signs) do
   sign_try_define(name)
 end
 
+local function convert_to_bazel_binary_name(workspaceFolder, filename)
+  local test = false
+  local i, _ = string.find(filename, "/main.go")
+  if i == nil then
+    i, _ = string.find(filename, "/main_test.go")
+    if i == nil then
+      return filename
+    end
+    test = true
+  end
+
+  local file_without_extension = string.sub(filename, 0, i-1)
+  local index_of_last_line_sep = file_without_extension:match'^.*()/'
+  local binary = string.sub(file_without_extension, index_of_last_line_sep, string.len(file_without_extension))
+  if test then
+    return (workspaceFolder .. "/bazel-bin/" .. file_without_extension .. binary .. "_test_" .. binary .. "_test")
+  else
+    return (workspaceFolder .. "/bazel-bin/" .. file_without_extension .. binary .. "_" .. binary)
+  end
+end
+
 local function expand_config_variables(option)
   if type(option) == 'function' then
     option = option()
@@ -210,6 +231,7 @@ local function expand_config_variables(option)
     relativeFileDirname = vim.fn.fnamemodify(vim.fn.expand("%:.:h"), ":r");
     workspaceFolder = vim.fn.getcwd();
     workspaceFolderBasename = vim.fn.fnamemodify(vim.fn.getcwd(), ":t");
+    bazelBinary = convert_to_bazel_binary_name(vim.fn.getcwd(), vim.fn.expand("%:."));
   }
   local ret = option
   for key, val in pairs(variables) do
