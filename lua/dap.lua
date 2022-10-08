@@ -174,7 +174,11 @@ for name in pairs(signs) do
   sign_try_define(name)
 end
 
-local function expand_config_variables(option)
+local lazy_variables = {
+  ['${command:pickProcess}'] = utils.pick_process
+}
+
+local function eval_option(option)
   if type(option) == 'function' then
     option = option()
   end
@@ -189,6 +193,11 @@ local function expand_config_variables(option)
     end)
     option = coroutine.yield()
   end
+  return option
+end
+
+local function expand_config_variables(option)
+  option = eval_option(option)
   if type(option) == "table" then
     local mt = getmetatable(option)
     local result = {}
@@ -214,6 +223,12 @@ local function expand_config_variables(option)
   local ret = option
   for key, val in pairs(variables) do
     ret = ret:gsub('${' .. key .. '}', val)
+  end
+  for key, fn in pairs(lazy_variables) do
+    if ret:find(key) then
+      local val = eval_option(fn)
+      ret = ret:gsub(key, val)
+    end
   end
   return ret
 end
