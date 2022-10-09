@@ -375,6 +375,16 @@ function M.step_over(opts)
   session:_step('next', opts)
 end
 
+
+function M.restart_frame()
+  if session then
+    session:restart_frame()
+  else
+    utils.notify('No active session', vim.log.levels.INFO)
+  end
+end
+
+
 function M.step_into(opts)
   if not session then return end
   opts = opts or {}

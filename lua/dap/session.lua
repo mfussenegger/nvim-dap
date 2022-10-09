@@ -1225,21 +1225,46 @@ function Session:_pause(thread_id, cb)
 end
 
 
+local function clear_running(session, thread_id)
+  vim.fn.sign_unplace(ns_pos)
+  thread_id = thread_id or session.stopped_thread_id
+  session.stopped_thread_id = nil
+  local thread = session.threads[thread_id]
+  if thread then
+    thread.stopped = false
+  end
+end
+
+
+function Session:restart_frame()
+  if not self.capabilities.supportsRestartFrame then
+    utils.notify('Debug Adapter does not support restart frame', vim.log.levels.INFO)
+    return
+  end
+  if not self.current_frame then
+    local msg = 'Current frame not set. Debug adapter needs to be stopped at breakpoint to use restart frame'
+    utils.notify(msg, vim.log.levels.INFO)
+    return
+  end
+  clear_running(self)
+  self:request('restartFrame', { frameId = self.current_frame.id }, function(err)
+    if err then
+      utils.notify('Error on restart_frame: ' .. utils.fmt_error(err), vim.log.levels.ERROR)
+    end
+  end)
+end
+
+
 ---@param step "next"|"stepIn"|"stepOut"|"stepBack"|"continue"|"reverseContinue"
 ---@param params table|nil
 function Session:_step(step, params)
   local function step_thread(thread_id)
-    vim.fn.sign_unplace(ns_pos)
     params = params or {}
     params.threadId = thread_id
     if not params.granularity then
       params.granularity = dap().defaults[self.config.type].stepping_granularity
     end
-    local thread = self.threads[thread_id]
-    if thread then
-      thread.stopped = false
-    end
-    self.stopped_thread_id = nil
+    clear_running(self, thread_id)
     self:request(step, params, function(err)
       if err then
         utils.notify('Error on '.. step .. ': ' .. utils.fmt_error(err), vim.log.levels.ERROR)
