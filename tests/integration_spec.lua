@@ -614,3 +614,69 @@ describe('breakpoint events', function()
     assert.are.same('DapBreakpoint', signs[1].signs[1].name)
   end)
 end)
+
+describe('restart_frame', function()
+  local server
+  before_each(function()
+    server = require('tests.server').spawn()
+    dap.adapters.dummy = server.adapter
+  end)
+  after_each(function()
+    server.stop()
+    dap.close()
+  end)
+  it('Requires restart capability', function()
+    run_and_wait_until_initialized(config, server)
+    local msg
+    require('dap.utils').notify = function(m, _)
+      msg = m
+    end
+    dap.restart_frame()
+    assert.are.same('Debug Adapter does not support restart frame', msg)
+  end)
+
+  it('Requires to be stopped', function()
+    local session = run_and_wait_until_initialized(config, server)
+    assert(session)
+    session.capabilities.supportsRestartFrame = true
+    local msg
+    require('dap.utils').notify = function(m, _)
+      msg = m
+    end
+    dap.restart_frame()
+    assert.are.same('Current frame not set. Debug adapter needs to be stopped at breakpoint to use restart frame', msg)
+  end)
+
+  it('Restarts frame if stopped at breakpoint', function()
+    local session = run_and_wait_until_initialized(config, server)
+    server.spy.clear()
+    server.client.threads = function(self, request)
+      self:send_response(request, {
+        threads = { { id = 1, name = 'thread1' }, }
+      })
+    end
+    server.client.stackTrace = function(self, request)
+      self:send_response(request, {
+        stackFrames = {
+          {
+            id = 1,
+            name = 'stackFrame1',
+            line = 1,
+          },
+        },
+      })
+    end
+    assert(session)
+    session:event_stopped({
+      allThreadsStopped = false,
+      threadId = 1,
+      reason = 'breakpoint',
+    })
+    session.capabilities.supportsRestartFrame = true
+
+    wait(function() return #server.spy.requests == 3 end)
+    dap.restart_frame()
+    wait(function() return #server.spy.requests == 4 end)
+    assert.are.same('restartFrame', server.spy.requests[4].command)
+  end)
+end)

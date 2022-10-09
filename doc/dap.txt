@@ -758,6 +758,12 @@ goto_({line})                                                      *dap.goto_()*
             {line}  Line number or line under cursor if nil.
 
 
+restart_frame()                                            *dap.restart_frame()*
+        Restart execution of the current frame
+
+        This is an optional feature and not all debug adapters support it.
+
+
 run_to_cursor()                                            *dap.run_to_cursor()*
         Continues execution to the current cursor.
 
