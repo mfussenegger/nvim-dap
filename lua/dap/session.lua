@@ -384,10 +384,11 @@ end
 
 
 local function with_win(win, fn, ...)
-  local cur_win = api.nvim_get_current_win()
-  api.nvim_set_current_win(win)
-  local ok, err = pcall(fn, ...)
-  pcall(api.nvim_set_current_win, cur_win)
+  local args = {...}
+  local ok, err
+  api.nvim_win_call(win, function()
+    ok, err = pcall(fn, unpack(args))
+  end)
   assert(ok, err)
 end
 
