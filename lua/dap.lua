@@ -174,10 +174,6 @@ for name in pairs(signs) do
   sign_try_define(name)
 end
 
-local lazy_variables = {
-  ['${command:pickProcess}'] = utils.pick_process
-}
-
 local function eval_option(option)
   if type(option) == 'function' then
     option = option()
@@ -196,6 +192,43 @@ local function eval_option(option)
   return option
 end
 
+local var_placeholders_once = {
+  ['${command:pickProcess}'] = utils.pick_process
+}
+
+local var_placeholders = {
+  ['${file}'] = function(_)
+    return vim.fn.expand("%:p")
+  end,
+  ['${fileBasename}'] = function(_)
+    return vim.fn.expand("%:t")
+  end,
+  ['${fileBasenameNoExtension}'] = function(_)
+    return vim.fn.fnamemodify(vim.fn.expand("%:t"), ":r")
+  end,
+  ['${fileDirname}'] = function(_)
+    return vim.fn.expand("%:p:h")
+  end,
+  ['${fileExtname}'] = function(_)
+    return vim.fn.expand("%:e")
+  end,
+  ['${relativeFile}'] = function(_)
+    return vim.fn.expand("%:.")
+  end,
+  ['${relativeFileDirname}'] = function(_)
+    return vim.fn.fnamemodify(vim.fn.expand("%:.:h"), ":r")
+  end,
+  ['${workspaceFolder}'] = function(_)
+    return vim.fn.getcwd()
+  end,
+  ['${workspaceFolderBasename}'] = function(_)
+    return vim.fn.fnamemodify(vim.fn.getcwd(), ":t")
+  end,
+  ['${env:([%w_]+)}'] = function(match)
+    return os.getenv(match) or ''
+  end,
+}
+
 local function expand_config_variables(option)
   option = eval_option(option)
   if type(option) == "table" then
@@ -209,23 +242,11 @@ local function expand_config_variables(option)
   if type(option) ~= "string" then
     return option
   end
-  local variables = {
-    file = vim.fn.expand("%:p");
-    fileBasename = vim.fn.expand("%:t");
-    fileBasenameNoExtension = vim.fn.fnamemodify(vim.fn.expand("%:t"), ":r");
-    fileDirname = vim.fn.expand("%:p:h");
-    fileExtname = vim.fn.expand("%:e");
-    relativeFile = vim.fn.expand("%:.");
-    relativeFileDirname = vim.fn.fnamemodify(vim.fn.expand("%:.:h"), ":r");
-    workspaceFolder = vim.fn.getcwd();
-    workspaceFolderBasename = vim.fn.fnamemodify(vim.fn.getcwd(), ":t");
-  }
   local ret = option
-  for key, val in pairs(variables) do
-    ret = ret:gsub('${' .. key .. '}', val)
+  for key, fn in pairs(var_placeholders) do
+    ret = ret:gsub(key, fn)
   end
-  ret = ret:gsub('${env:([%w_]+)}', function(match) return os.getenv(match) or '' end)
-  for key, fn in pairs(lazy_variables) do
+  for key, fn in pairs(var_placeholders_once) do
     if ret:find(key) then
       local val = eval_option(fn)
       ret = ret:gsub(key, val)
