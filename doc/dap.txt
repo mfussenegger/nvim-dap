@@ -270,7 +270,7 @@ Things to note:
   - `${workspaceFolder}`: The current working directory of Neovim
   - `${workspaceFolderBasename}`: The name of the folder opened in Neovim
   - `${command:pickProcess}`: Open dialog to pick process using |vim.ui.select|
-  - `${env:HOME}`: The environment variable value similar to |getenv()|
+  - `${env:Name}`: Environment variable named `Name`, for example: `${env:HOME}`.
 
 ==============================================================================
 DEBUGEE CONFIGURATION via launch.json                *dap-launch.json*
