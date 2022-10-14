@@ -224,6 +224,7 @@ local function expand_config_variables(option)
   for key, val in pairs(variables) do
     ret = ret:gsub('${' .. key .. '}', val)
   end
+  ret = ret:gsub('${env:([%w_]+)}', function(match) return os.getenv(match) or '' end)
   for key, fn in pairs(lazy_variables) do
     if ret:find(key) then
       local val = eval_option(fn)
