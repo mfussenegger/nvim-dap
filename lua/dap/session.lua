@@ -291,7 +291,12 @@ local function run_in_terminal(self, request)
     terminal_width = terminal_win and api.nvim_win_get_width(terminal_win) or 80
     terminal_height = terminal_win and api.nvim_win_get_height(terminal_win) or 40
   end
-  api.nvim_buf_set_name(terminal_buf, '[dap-terminal] ' .. (self.config.name or body.args[1]))
+  local terminal_buf_name = '[dap-terminal] ' .. (self.config.name or body.args[1])
+  local terminal_name_ok = pcall(api.nvim_buf_set_name, terminal_buf, terminal_buf_name)
+  if not terminal_name_ok then
+    log.warn(terminal_buf_name ..  ' is not a valid buffer name')
+    api.nvim_buf_set_name(terminal_buf, '[dap-terminal] <?>')
+  end
   pcall(api.nvim_buf_del_keymap, terminal_buf, "t", "<CR>")
   local ok, path = pcall(api.nvim_buf_get_option, cur_buf, 'path')
   if ok then
