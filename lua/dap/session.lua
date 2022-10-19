@@ -383,20 +383,13 @@ function Session:_show_exception_info(thread_id)
 end
 
 
-local function with_win(win, fn, ...)
-  local args = {...}
-  local ok, err
-  api.nvim_win_call(win, function()
-    ok, err = pcall(fn, unpack(args))
-  end)
-  assert(ok, err)
-end
-
 
 local function set_cursor(win, line, column)
   local ok, err = pcall(api.nvim_win_set_cursor, win, { line, column - 1 })
   if ok then
-    with_win(win, api.nvim_command, 'normal! zv')
+    api.nvim_win_call(win, function()
+      api.nvim_command('normal! zv')
+    end)
   else
     local msg = string.format(
       "Debug adapter reported a frame at line %s column %s, but: %s. "
