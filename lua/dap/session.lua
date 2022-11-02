@@ -404,7 +404,14 @@ end
 
 
 local function jump_to_location(bufnr, line, column)
-  local ok, failure = pcall(vim.fn.sign_place, 0, ns_pos, 'DapStopped', bufnr, { lnum = line; priority = 12 })
+  local ok, failure = pcall(
+    vim.fn.sign_place,
+    0,
+    ns_pos,
+    'DapStopped',
+    bufnr,
+    { lnum = line; priority = 12; }
+  )
   if not ok then
     utils.notify(failure, vim.log.levels.ERROR)
   end

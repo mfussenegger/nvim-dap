@@ -48,7 +48,7 @@ function M.update(breakpoint)
           ns,
           get_sign_name(bp),
           bp.buf,
-          { lnum = bp.line; priority = 11; }
+          { lnum = bp.line; priority = 13; }
         )
       end
       bp.state.verified = breakpoint.verified
@@ -76,7 +76,7 @@ function M.set_state(bufnr, lnum, state)
         ns,
         'DapBreakpointRejected',
         bufnr,
-        { lnum = lnum; priority = 11; }
+        { lnum = lnum; priority = 13; }
       )
     end
   end
@@ -117,7 +117,7 @@ function M.toggle(opts, bufnr, lnum)
     ns,
     sign_name,
     bufnr,
-    { lnum = lnum; priority = 11; }
+    { lnum = lnum; priority = 13; }
   )
   if sign_id ~= -1 then
     bp_by_sign[sign_id] = bp
