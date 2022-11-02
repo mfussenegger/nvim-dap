@@ -157,8 +157,10 @@ local function evaluate_handler(err, resp)
       tree.render(layer, resp)
     end
   else
-    local lines = vim.split(resp.result, '\n', { trimempty = true })
-    layer.render(lines)
+    if resp.result then
+      local lines = vim.split(resp.result, '\n', { trimempty = true })
+      layer.render(lines)
+    end
   end
 end
 
