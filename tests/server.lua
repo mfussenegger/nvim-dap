@@ -27,6 +27,7 @@ function Client:send_err_response(request, message, error)
   table.insert(self.spy.responses, payload)
 end
 
+
 function Client:send_response(request, body)
   self.seq = request.seq + 1
   local payload = {
