@@ -8,10 +8,10 @@ local config = {
 }
 
 
-local function wait(predicate)
+local function wait(predicate, msg)
   vim.wait(1000, predicate)
   local result = predicate()
-  assert.are_not.same(false, result)
+  assert.are_not.same(false, result, msg and vim.inspect(msg()) or nil)
   assert.are_not.same(nil, result)
 end
 
@@ -78,6 +78,73 @@ describe('dap with fake server', function()
       allThreadsStopped = true,
       reason = 'unknown',
     })
+  end)
+
+  it('Adds error diagnostic on stopped event due to exception', function()
+    local buf = api.nvim_create_buf(true, false)
+    local win = api.nvim_get_current_win()
+    local tmpname = os.tmpname()
+    os.remove(tmpname)
+    api.nvim_buf_set_name(buf, tmpname)
+    api.nvim_buf_set_lines(buf, 0, -1, false, {'line 1', 'line 2'})
+    api.nvim_win_set_buf(win, buf)
+    api.nvim_win_set_cursor(win, { 1, 0})
+
+    local session = run_and_wait_until_initialized(config, server)
+    server.spy.clear()
+    server.client.threads = function(self, request)
+      self:send_response(request, {
+        threads = { { id = 1, name = 'thread1' }, }
+      })
+    end
+    local path = vim.uri_from_bufnr(buf)
+    server.client.stackTrace = function(self, request)
+      self:send_response(request, {
+        stackFrames = {
+          {
+            id = 1,
+            name = 'stackFrame1',
+            line = 1,
+            column = 1,
+            source = {
+              path = path
+            }
+          },
+        },
+      })
+    end
+    session.capabilities.supportsExceptionInfoRequest = true
+    server.client.exceptionInfo = function(self, request)
+      self:send_response(request, {
+        exceptionId = "XXX",
+        breakMode = "unhandled"
+      })
+    end
+    session:event_stopped({
+      threadId = 1,
+      reason = 'exception',
+    })
+    wait(function() return #server.spy.requests == 4 end, function()
+      return {
+        requests = server.spy.requests,
+        responses = server.spy.responses
+      }
+    end)
+    local diagnostics = vim.diagnostic.get(buf)
+    local expected = {
+      {
+        bufnr = buf,
+        col = 0,
+        end_col = 0,
+        end_lnum = 0,
+        lnum = 0,
+        message = 'Thread stopped due to exception (unhandled)',
+        namespace = 1,
+        severity = 1,
+        source = 'nvim-dap',
+      }
+    }
+    assert.are.same(expected, diagnostics)
   end)
 
   it('jumps to location on stopped with reason=pause and allThreadsStopped', function()
@@ -667,12 +734,12 @@ describe('restart_frame', function()
       })
     end
     assert(session)
+    session.capabilities.supportsRestartFrame = true
     session:event_stopped({
       allThreadsStopped = false,
       threadId = 1,
       reason = 'breakpoint',
     })
-    session.capabilities.supportsRestartFrame = true
 
     wait(function() return #server.spy.requests == 3 end)
     dap.restart_frame()
@@ -707,12 +774,12 @@ describe('restart_frame', function()
       })
     end
     assert(session)
+    session.capabilities.supportsRestartFrame = true
     session:event_stopped({
       allThreadsStopped = false,
       threadId = 1,
       reason = 'breakpoint',
     })
-    session.capabilities.supportsRestartFrame = true
     local asked = false
     vim.ui.select = function(items, _, cb)
       asked = true

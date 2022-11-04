@@ -13,6 +13,7 @@ local index_of = utils.index_of
 local mime_to_filetype = {
   ['text/javascript'] = 'javascript'
 }
+local ns = api.nvim_create_namespace('dap')
 
 
 ---@class Session
@@ -33,6 +34,7 @@ local mime_to_filetype = {
 ---@field id number
 ---@field name string
 ---@field frames nil|dap.StackFrame[] not part of the spec; added by nvim-dap
+---@field stopped nil|boolean not part of the spec; added by nvim-dap
 
 ---@class ErrorResponse
 ---@field message string
@@ -47,13 +49,25 @@ local mime_to_filetype = {
 ---@field variables nil|table
 ---@field showUser nil|boolean
 
-
 ---@class dap.StackFrame
 ---@field id number
----@field source Source|nil
+---@field name string
+---@field source dap.Source|nil
+---@field line number
+---@field column number
+---@field endLine nil|number
+---@field endColumn nil|number
 ---@field canRestart boolean|nil
+---@field presentationHint nil|"normal"|"label"|"subtle";
 
----@class Source
+---@class dap.Source
+---@field name nil|string
+---@field path nil|string
+---@field sourceReference nil|number
+---@field presentationHint nil|"normal"|"emphasize"|"deemphasize"
+---@field origin nil|string
+---@field sources nil|dap.Source[]
+---@field adapterData nil|any
 
 ---@class Client
 ---@field close function
@@ -120,6 +134,15 @@ local mime_to_filetype = {
 ---@class ChecksumAlgorithm
 ---@field algorithm "MD5"|"SHA1"|"SHA256"|"timestamp"
 ---@field checksum string
+
+---@class dap.StoppedEvent
+---@field reason "step"|"breakpoint"|"exception"|"pause"|"entry"|"goto"|"function breakpoint"|"data breakpoint"|"instruction breakpoint"|string;
+---@field description nil|string
+---@field threadId nil|number
+---@field preserveFocusHint nil|boolean
+---@field text nil|string
+---@field allThreadsStopped nil|boolean
+---@field hitBreakpointIds nil|number[]
 
 ---@class Session
 local Session = {}
@@ -359,33 +382,47 @@ function Session:event_initialized()
 end
 
 
-function Session:_show_exception_info(thread_id)
-  if not self.capabilities.supportsExceptionInfoRequest then return end
-
-  self:request('exceptionInfo', {threadId = thread_id}, function(err, response)
-    if err then
-      utils.notify('Error getting exception info: ' .. utils.fmt_error(err), vim.log.levels.ERROR)
+function Session:_show_exception_info(thread_id, bufnr, frame)
+  if not self.capabilities.supportsExceptionInfoRequest then
+    return
+  end
+  local err, response = self:request('exceptionInfo', {threadId = thread_id})
+  if err then
+    utils.notify('Error getting exception info: ' .. utils.fmt_error(err), vim.log.levels.ERROR)
+  end
+  if not response then
+    return
+  end
+  local msg_parts = {}
+  local exception_type = response.details and response.details.typeName
+  local of_type = exception_type and ' of type '..exception_type or ''
+  table.insert(msg_parts, ('Thread stopped due to exception'..of_type..' ('..response.breakMode..')'))
+  if response.description then
+    table.insert(msg_parts, ('Description: '..response.description))
+  end
+  local details = response.details or {}
+  if details.stackTrace then
+    table.insert(msg_parts, "Stack trace:")
+    table.insert(msg_parts, details.stackTrace)
+  end
+  if details.innerException then
+    table.insert(msg_parts, "Inner Exceptions:")
+    for _, e in pairs(details.innerException) do
+      table.insert(msg_parts, vim.inspect(e))
     end
-    if not response then return end
-
-    local exception_type = response.details and response.details.typeName
-    local of_type = exception_type and ' of type '..exception_type or ''
-    repl.append('Thread stopped due to exception'..of_type..' ('..response.breakMode..')')
-    if response.description then
-      repl.append('Description: '..response.description)
-    end
-    local details = response.details or {}
-    if details.stackTrace then
-      repl.append("Stack trace:")
-      repl.append(details.stackTrace)
-    end
-    if details.innerException then
-      repl.append("Inner Exceptions:")
-      for _, e in pairs(details.innerException) do
-        repl.append(vim.inspect(e))
-      end
-    end
-  end)
+  end
+  vim.diagnostic.set(ns, bufnr, {
+    {
+      bufnr = bufnr,
+      lnum = frame.line - 1,
+      end_lnum = frame.endLine and (frame.endLine - 1) or nil,
+      col = frame.col or 0,
+      end_col = frame.endColumn,
+      severity = vim.diagnostic.severity.ERROR,
+      message = table.concat(msg_parts, '\n'),
+      source = 'nvim-dap',
+    }
+  })
 end
 
 
@@ -450,7 +487,42 @@ local function jump_to_location(bufnr, line, column)
 end
 
 
-local function jump_to_frame(cur_session, frame, preserve_focus_hint)
+--- Get the bufnr for a frame.
+--- Might load source as a side effect if frame.source has sourceReference ~= 0
+--- Must be called in a coroutine
+---
+---@param session Session
+---@param frame dap.StackFrame
+---@return number|nil
+local function frame_to_bufnr(session, frame)
+  local source = frame.source
+  if not source then
+    return nil
+  end
+  if not source.sourceReference or source.sourceReference == 0 then
+    if not source.path then
+      return nil
+    end
+    local scheme = source.path:match('^([a-z]+)://.*')
+    if scheme then
+      return vim.uri_to_bufnr(source.path)
+    else
+      return vim.uri_to_bufnr(vim.uri_from_fname(source.path))
+    end
+  end
+  local co = coroutine.running()
+  session:source(source, function(err, bufnr)
+    coroutine.resume(co, err, bufnr)
+  end)
+  return coroutine.yield()
+end
+
+
+---@param session Session
+---@param frame dap.StackFrame
+---@param preserve_focus_hint boolean
+---@param stopped nil|dap.StoppedEvent
+local function jump_to_frame(session, frame, preserve_focus_hint, stopped)
   local source = frame.source
   if not source then
     utils.notify('Source not available, cannot jump to frame', vim.log.levels.INFO)
@@ -460,31 +532,21 @@ local function jump_to_frame(cur_session, frame, preserve_focus_hint)
   if preserve_focus_hint or frame.line < 0 then
     return
   end
-  if not source.sourceReference or source.sourceReference == 0 then
-    if not source.path then
-      utils.notify('Source path not available, cannot jump to frame', vim.log.levels.INFO)
-      return
-    end
-    local scheme = source.path:match('^([a-z]+)://.*')
-    local bufnr
-    if scheme then
-      bufnr = vim.uri_to_bufnr(source.path)
-    else
-      bufnr = vim.uri_to_bufnr(vim.uri_from_fname(source.path))
-    end
-    vim.fn.bufload(bufnr)
-    jump_to_location(bufnr, frame.line, frame.column)
-  else
-    cur_session:source(source, function(err, buf)
-      assert(not err, vim.inspect(err))
-      jump_to_location(buf, frame.line, frame.column)
-    end)
+  local bufnr = frame_to_bufnr(session, frame)
+  if not bufnr then
+    utils.notify('Source not available, cannot jump to frame', vim.log.levels.INFO)
+    return
+  end
+  vim.fn.bufload(bufnr)
+  jump_to_location(bufnr, frame.line, frame.column)
+  if stopped and stopped.reason == 'exception' then
+    session:_show_exception_info(stopped.threadId, bufnr, frame)
   end
 end
 
 
 --- Request a source
--- @param source Source (https://microsoft.github.io/debug-adapter-protocol/specification#Types_Source)
+-- @param source dap.Source
 -- @param cb (function(err, buf)) - the buffer will have the contents of the source
 function Session:source(source, cb)
   assert(source, 'source is required')
@@ -495,8 +557,9 @@ function Session:source(source, cb)
     sourceReference = source.sourceReference
   }
   self:request('source', params, function(err, response)
-    if signal_err(err, cb) then return end
-
+    if signal_err(err, cb) then
+      return
+    end
     local buf = api.nvim_create_buf(false, true)
     api.nvim_buf_set_var(buf, 'dap_source_buf', true)
     local adapter_options = self.adapter.options or {}
@@ -554,6 +617,7 @@ local function get_top_frame(frames)
 end
 
 
+---@param stopped dap.StoppedEvent
 function Session:event_stopped(stopped)
   if self.dirty.threads or (stopped.threadId and self.threads[stopped.threadId] == nil) then
     self:update_threads(function(err)
@@ -599,16 +663,14 @@ function Session:event_stopped(stopped)
     utils.notify('Stopped event received, but no threadId or allThreadsStopped', vim.log.levels.WARN)
   end
 
-  if stopped.reason == 'exception' then
-    self:_show_exception_info(stopped.threadId)
-  end
   if not stopped.threadId then
     return
   end
-
   local thread = self.threads[stopped.threadId]
   assert(thread, 'Thread not found: ' .. stopped.threadId)
-  self:request('stackTrace', { threadId = stopped.threadId; }, function(err, response)
+
+  coroutine.wrap(function()
+    local err, response = self:request('stackTrace', { threadId = stopped.threadId; })
     if err then
       utils.notify('Error retrieving stack traces: ' .. utils.fmt_error(err), vim.log.levels.ERROR)
       return
@@ -622,10 +684,13 @@ function Session:event_stopped(stopped)
     end
     if should_jump then
       self.current_frame = current_frame
-      jump_to_frame(self, current_frame, stopped.preserveFocusHint)
+      jump_to_frame(self, current_frame, stopped.preserveFocusHint, stopped)
       self:_request_scopes(current_frame)
+    elseif stopped.reason == "exception" then
+      local bufnr = frame_to_bufnr(self, current_frame)
+      self:_show_exception_info(stopped.threadId, bufnr, current_frame)
     end
-  end)
+  end)()
 end
 
 
@@ -1326,6 +1391,7 @@ function Session:close()
     self.handlers.after = nil
   end
   self.client.close()
+  vim.diagnostic.reset(ns)
 end
 
 
@@ -1503,8 +1569,10 @@ function Session:_frame_set(frame)
     return
   end
   self.current_frame = frame
-  jump_to_frame(self, frame, false)
-  self:_request_scopes(frame)
+  coroutine.wrap(function()
+    jump_to_frame(self, frame, false)
+    self:_request_scopes(frame)
+  end)()
 end
 
 
