@@ -562,10 +562,11 @@ function Session:event_stopped(stopped)
 
   local should_jump = stopped.reason ~= 'pause' or stopped.allThreadsStopped
   if self.stopped_thread_id and should_jump then
-    local thread = self.threads[self.stopped_thread_id]
     if defaults(self).auto_continue_if_many_stopped then
+      local thread = self.threads[self.stopped_thread_id]
+      local thread_name = thread and thread.name or self.stopped_thread_id
       log.debug(
-        'Received stopped event, but ' .. thread.name .. ' is already stopped. ' ..
+        'Received stopped event, but ' .. thread_name .. ' is already stopped. ' ..
         'Resuming newly stopped thread. ' ..
         'To disable this set the `auto_continue_if_many_stopped` option to false.')
       self:request('continue', { threadId = stopped.threadId })
