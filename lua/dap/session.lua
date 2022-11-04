@@ -26,7 +26,8 @@ local mime_to_filetype = {
 ---@field current_frame StackFrame|nil
 ---@field initialized boolean
 ---@field stopped_thread_id number|nil
----@field id number
+---@field id number id of the session
+---@field ns number namespace
 ---@field closed boolean
 
 
@@ -353,32 +354,49 @@ function Session:event_initialized()
 end
 
 
-function Session:_show_exception_info(thread_id)
-  if not self.capabilities.supportsExceptionInfoRequest then return end
+function Session:_show_exception_info(thread_id, bufnr, frame)
+  if not self.capabilities.supportsExceptionInfoRequest
+    then return
+  end
 
   self:request('exceptionInfo', {threadId = thread_id}, function(err, response)
     if err then
       utils.notify('Error getting exception info: ' .. utils.fmt_error(err), vim.log.levels.ERROR)
     end
-    if not response then return end
+    if not response then
+      return
+    end
 
+    local msg_parts = {}
     local exception_type = response.details and response.details.typeName
     local of_type = exception_type and ' of type '..exception_type or ''
-    repl.append('Thread stopped due to exception'..of_type..' ('..response.breakMode..')')
+    table.insert(msg_parts, ('Thread stopped due to exception'..of_type..' ('..response.breakMode..')'))
     if response.description then
-      repl.append('Description: '..response.description)
+      table.insert(msg_parts, ('Description: '..response.description))
     end
     local details = response.details or {}
     if details.stackTrace then
-      repl.append("Stack trace:")
-      repl.append(details.stackTrace)
+      table.insert(msg_parts, "Stack trace:")
+      table.insert(msg_parts, details.stackTrace)
     end
     if details.innerException then
-      repl.append("Inner Exceptions:")
+      table.insert(msg_parts, "Inner Exceptions:")
       for _, e in pairs(details.innerException) do
-        repl.append(vim.inspect(e))
+        table.insert(msg_parts, vim.inspect(e))
       end
     end
+    vim.diagnostic.set(self.ns, bufnr, {
+      {
+        bufnr = bufnr,
+        lnum = frame.line - 1,
+        end_lnum = frame.endLine and (frame.endLine - 1) or nil,
+        col = frame.col or 0,
+        end_col = frame.endColumn,
+        severity = vim.diagnostic.severity.ERROR,
+        message = table.concat(msg_parts, '\n'),
+        source = 'nvim-dap',
+      }
+    })
   end)
 end
 
@@ -445,7 +463,7 @@ local function jump_to_location(session_id, bufnr, line, column)
 end
 
 
-local function jump_to_frame(cur_session, frame, preserve_focus_hint)
+local function jump_to_frame(cur_session, frame, preserve_focus_hint, stopped)
   local source = frame.source
   if not source then
     utils.notify('Source not available, cannot jump to frame', vim.log.levels.INFO)
@@ -470,10 +488,16 @@ local function jump_to_frame(cur_session, frame, preserve_focus_hint)
     end
     vim.fn.bufload(bufnr)
     jump_to_location(cur_session.id, bufnr, frame.line, frame.column)
+    if stopped.reason == 'exception' then
+      cur_session:_show_exception_info(stopped.threadId, bufnr, frame)
+    end
   else
-    cur_session:source(source, function(err, buf)
+    cur_session:source(source, function(err, bufnr)
       assert(not err, vim.inspect(err))
-      jump_to_location(cur_session.id, buf, frame.line, frame.column)
+      jump_to_location(cur_session.id, bufnr, frame.line, frame.column)
+      if stopped.reason == 'exception' then
+        cur_session:_show_exception_info(stopped.threadId, bufnr, frame)
+      end
     end)
   end
 end
@@ -595,13 +619,9 @@ function Session:event_stopped(stopped)
     utils.notify('Stopped event received, but no threadId or allThreadsStopped', vim.log.levels.WARN)
   end
 
-  if stopped.reason == 'exception' then
-    self:_show_exception_info(stopped.threadId)
-  end
   if not stopped.threadId then
     return
   end
-
   local thread = self.threads[stopped.threadId]
   assert(thread, 'Thread not found: ' .. stopped.threadId)
   self:request('stackTrace', { threadId = stopped.threadId; }, function(err, response)
@@ -618,7 +638,7 @@ function Session:event_stopped(stopped)
     end
     if should_jump then
       self.current_frame = current_frame
-      jump_to_frame(self, current_frame, stopped.preserveFocusHint)
+      jump_to_frame(self, current_frame, stopped.preserveFocusHint, stopped)
       self:_request_scopes(current_frame)
     end
   end)
@@ -908,6 +928,8 @@ local default_reverse_request_handlers = {
   runInTerminal = run_in_terminal
 }
 
+local next_session_id = 1
+
 ---@return Session
 local function new_session(adapter, opts)
   local handlers = {}
@@ -917,9 +939,10 @@ local function new_session(adapter, opts)
     default_reverse_request_handlers,
     adapter.reverse_request_handlers or {}
   )
-  local id = api.nvim_create_namespace("")
+  local ns = api.nvim_create_namespace("nvim-dap-" .. tostring(next_session_id))
   local state = {
-    id = id,
+    id = next_session_id,
+    ns = ns,
     handlers = handlers;
     message_callbacks = {};
     message_requests = {};
@@ -933,6 +956,7 @@ local function new_session(adapter, opts)
     capabilities = {};
     closed = false;
   }
+  next_session_id = next_session_id + 1
   return setmetatable(state, { __index = Session })
 end
 
@@ -1293,6 +1317,7 @@ function Session:close()
   self.message_callbacks = {}
   self.message_requests = {}
   pcall(vim.fn.sign_unplace, 'dap-' .. tostring(self.id))
+  vim.diagnostic.reset(self.ns)
 end
 
 
