@@ -23,12 +23,17 @@ local mime_to_filetype = {
 ---@field message_callbacks table<number, fun(err: nil|ErrorResponse, body: nil|table)>
 ---@field message_requests table<number, any>
 ---@field client Client
----@field current_frame StackFrame|nil
+---@field current_frame dap.StackFrame|nil
 ---@field initialized boolean
 ---@field stopped_thread_id number|nil
 ---@field id number
---
---
+---@field threads table<number, dap.Thread>
+
+---@class dap.Thread
+---@field id number
+---@field name string
+---@field frames nil|dap.StackFrame[] not part of the spec; added by nvim-dap
+
 ---@class ErrorResponse
 ---@field message string
 ---@field body ErrorBody
@@ -43,9 +48,10 @@ local mime_to_filetype = {
 ---@field showUser nil|boolean
 
 
----@class StackFrame
+---@class dap.StackFrame
 ---@field id number
 ---@field source Source|nil
+---@field canRestart boolean|nil
 
 ---@class Source
 
@@ -1236,17 +1242,38 @@ function Session:restart_frame()
     utils.notify('Debug Adapter does not support restart frame', vim.log.levels.INFO)
     return
   end
-  if not self.current_frame then
+  local frame = self.current_frame
+  if not frame then
     local msg = 'Current frame not set. Debug adapter needs to be stopped at breakpoint to use restart frame'
     utils.notify(msg, vim.log.levels.INFO)
     return
   end
-  clear_running(self)
-  self:request('restartFrame', { frameId = self.current_frame.id }, function(err)
+  coroutine.wrap(function()
+    if frame.canRestart == false then
+      local thread = self.threads[self.stopped_thread_id] or {}
+      local frames = vim.tbl_filter(
+        function(f) return f.canRestart == nil or f.canRestart == true end,
+        thread.frames or {}
+      )
+      if not next(frames) then
+        utils.notify("No frame available that can be restarted", vim.log.levels.WARN)
+        return
+      end
+      frame = ui().pick_one(
+        frames,
+        "Can't restart current frame, pick another frame to restart: ",
+        require('dap.entity').frames.render_item
+      )
+      if not frame then
+        return
+      end
+    end
+    clear_running(self)
+    local err = self:request('restartFrame', { frameId = frame.id })
     if err then
       utils.notify('Error on restart_frame: ' .. utils.fmt_error(err), vim.log.levels.ERROR)
     end
-  end)
+  end)()
 end
 
 

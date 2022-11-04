@@ -679,4 +679,51 @@ describe('restart_frame', function()
     wait(function() return #server.spy.requests == 4 end)
     assert.are.same('restartFrame', server.spy.requests[4].command)
   end)
+
+  it('Asks for frame to restart, if current frame cannot', function()
+    local session = run_and_wait_until_initialized(config, server)
+    server.spy.clear()
+    server.client.threads = function(self, request)
+      self:send_response(request, {
+        threads = { { id = 1, name = 'thread1' }, }
+      })
+    end
+    server.client.stackTrace = function(self, request)
+      self:send_response(request, {
+        stackFrames = {
+          {
+            id = 1,
+            name = 'stackFrame1',
+            canRestart = false,
+            line = 2,
+          },
+          {
+            id = 2,
+            name = 'stackFrame2',
+            canRestart = true,
+            line = 1,
+          },
+        },
+      })
+    end
+    assert(session)
+    session:event_stopped({
+      allThreadsStopped = false,
+      threadId = 1,
+      reason = 'breakpoint',
+    })
+    session.capabilities.supportsRestartFrame = true
+    local asked = false
+    vim.ui.select = function(items, _, cb)
+      asked = true
+      cb(items[1])
+    end
+
+    wait(function() return #server.spy.requests == 3 end)
+    dap.restart_frame()
+    wait(function() return asked end)
+    assert.are.same(true, asked)
+    wait(function() return #server.spy.requests == 4 end)
+    assert.are.same('restartFrame', server.spy.requests[4].command)
+  end)
 end)
