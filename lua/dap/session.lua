@@ -27,8 +27,9 @@ local mime_to_filetype = {
 ---@field initialized boolean
 ---@field stopped_thread_id number|nil
 ---@field id number
---
---
+---@field closed boolean
+
+
 ---@class ErrorResponse
 ---@field message string
 ---@field body ErrorBody
@@ -118,7 +119,6 @@ local mime_to_filetype = {
 ---@class Session
 local Session = {}
 
-local ns_pos = 'dap_pos'
 local terminal_buf, terminal_width, terminal_height
 
 local NIL = vim.NIL
@@ -403,8 +403,9 @@ local function set_cursor(win, line, column)
 end
 
 
-local function jump_to_location(bufnr, line, column)
-  local ok, failure = pcall(vim.fn.sign_place, 0, ns_pos, 'DapStopped', bufnr, { lnum = line; priority = 12 })
+local function jump_to_location(session_id, bufnr, line, column)
+  local group = 'dap-' .. tostring(session_id)
+  local ok, failure = pcall(vim.fn.sign_place, 0, group, 'DapStopped', bufnr, { lnum = line; priority = 12 })
   if not ok then
     utils.notify(failure, vim.log.levels.ERROR)
   end
@@ -450,7 +451,8 @@ local function jump_to_frame(cur_session, frame, preserve_focus_hint)
     utils.notify('Source not available, cannot jump to frame', vim.log.levels.INFO)
     return
   end
-  vim.fn.sign_unplace(ns_pos)
+  local group = 'dap-' .. tostring(cur_session.id)
+  vim.fn.sign_unplace(group)
   if preserve_focus_hint or frame.line < 0 then
     return
   end
@@ -467,11 +469,11 @@ local function jump_to_frame(cur_session, frame, preserve_focus_hint)
       bufnr = vim.uri_to_bufnr(vim.uri_from_fname(source.path))
     end
     vim.fn.bufload(bufnr)
-    jump_to_location(bufnr, frame.line, frame.column)
+    jump_to_location(cur_session.id, bufnr, frame.line, frame.column)
   else
     cur_session:source(source, function(err, buf)
       assert(not err, vim.inspect(err))
-      jump_to_location(buf, frame.line, frame.column)
+      jump_to_location(cur_session.id, buf, frame.line, frame.column)
     end)
   end
 end
@@ -906,8 +908,6 @@ local default_reverse_request_handlers = {
   runInTerminal = run_in_terminal
 }
 
-local next_session_id = 1
-
 ---@return Session
 local function new_session(adapter, opts)
   local handlers = {}
@@ -917,8 +917,9 @@ local function new_session(adapter, opts)
     default_reverse_request_handlers,
     adapter.reverse_request_handlers or {}
   )
+  local id = api.nvim_create_namespace("")
   local state = {
-    id = next_session_id,
+    id = id,
     handlers = handlers;
     message_callbacks = {};
     message_requests = {};
@@ -930,8 +931,8 @@ local function new_session(adapter, opts)
     adapter = adapter;
     dirty = {};
     capabilities = {};
+    closed = false;
   }
-  next_session_id = next_session_id + 1
   return setmetatable(state, { __index = Session })
 end
 
@@ -1003,19 +1004,11 @@ end
 
 function Session.connect(_, adapter, opts, on_connect)
   local session = new_session(adapter, opts or {})
-  local closed = false
   local client = uv.new_tcp()
 
   local function close()
-    if closed then
-      return
-    end
-    closed = true
     client:shutdown()
     client:close()
-    session.threads = {}
-    session.message_callbacks = {}
-    session.message_requests = {}
   end
 
   session.client = {
@@ -1071,11 +1064,7 @@ function Session.connect(_, adapter, opts, on_connect)
         session:handle_body(body)
       end)
       client:read_start(rpc.create_read_loop(handle_body, function()
-        if not closed then
-          closed = true
-          client:shutdown()
-          client:close()
-        end
+        session:close()
         local s = dap().session()
         if s == session then
           vim.schedule(function()
@@ -1123,9 +1112,6 @@ function Session.spawn(_, adapter, opts)
     stdin:shutdown(function()
       stdout:close()
       stderr:close()
-      session.threads = {}
-      session.message_callbacks = {}
-      session.message_requests = {}
       log.info('Closed all handles')
       if handle and not handle:is_closing() then
         handle:close(function()
@@ -1135,6 +1121,10 @@ function Session.spawn(_, adapter, opts)
       end
     end)
   end
+  session.client = {
+    write = function(line) stdin:write(line) end;
+    close = onexit,
+  }
   local options = adapter.options or {}
   local spawn_opts = {
     args = adapter.args;
@@ -1145,17 +1135,13 @@ function Session.spawn(_, adapter, opts)
   }
   handle, pid_or_err = uv.spawn(adapter.command, spawn_opts, onexit)
   if not handle then
-    onexit()
+    session:close()
     if adapter.command == "" then
       error("adapter.command must not be empty. Got: " .. vim.inspect(adapter))
     else
       error('Error running ' .. adapter.command .. ': ' .. pid_or_err)
     end
   end
-  session.client = {
-    write = function(line) stdin:write(line) end;
-    close = onexit,
-  }
   stdout:read_start(rpc.create_read_loop(vim.schedule_wrap(function(body)
     session:handle_body(body)
   end)))
@@ -1221,7 +1207,7 @@ end
 
 
 local function clear_running(session, thread_id)
-  vim.fn.sign_unplace(ns_pos)
+  vim.fn.sign_unplace('dap-' .. tostring(session.id))
   thread_id = thread_id or session.stopped_thread_id
   session.stopped_thread_id = nil
   local thread = session.threads[thread_id]
@@ -1294,11 +1280,19 @@ end
 
 
 function Session:close()
+  if self.closed then
+    return
+  end
+  self.closed = true
   if self.handlers.after then
     self.handlers.after()
     self.handlers.after = nil
   end
   self.client.close()
+  self.threads = {}
+  self.message_callbacks = {}
+  self.message_requests = {}
+  pcall(vim.fn.sign_unplace, 'dap-' .. tostring(self.id))
 end
 
 

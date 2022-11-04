@@ -848,9 +848,6 @@ end
 
 ---@param s Session|nil
 function M.set_session(s)
-  if not s then
-    pcall(vim.fn.sign_unplace, 'dap_pos')
-  end
   session = s
 end
 
