@@ -815,6 +815,7 @@ do
         api.nvim_buf_attach(bufnr, false, { on_detach = remove_breakpoints })
       end
       local path = api.nvim_buf_get_name(bufnr)
+      path = utils.local_to_remote_path(path, self.config['remoteDirectoryMapping'])
       local payload = {
         source = {
           path = path;
@@ -908,6 +909,13 @@ end
 function Session:handle_body(body)
   local decoded = json_decode(body)
   log.debug(decoded)
+  if decoded and decoded.StackFrames then
+    for _, frame in ipairs(decoded.StackFrames) do
+      if frame.source and frame.source.path then
+        frame.source.path = utils.remote_to_local_path(path, self.config['remoteDirectoryMapping'])
+      end
+    end
+  end
   local listeners = dap().listeners
   if decoded.request_seq then
     local callback = self.message_callbacks[decoded.request_seq]

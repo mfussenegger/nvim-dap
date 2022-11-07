@@ -128,5 +128,33 @@ function M.if_nil(x, default)
   return x == nil and default or x
 end
 
+function string.starts(String,Start)
+   return string.sub(String,1,string.len(Start))==Start
+end
+
+function M.local_to_remote_path(path, mapping)
+  if not mapping then return path end
+
+  for local_path, remote_path in pairs(mapping) do
+    if string.starts(path, local_path) then
+      return string.gsub(path, local_path, remote_path)
+    end
+  end
+
+  return path
+end
+
+function M.remote_to_local_path(path, mapping)
+  if not mapping then return path end
+
+  for local_path, remote_path in pairs(mapping) do
+    if string.starts(path, remote_path) then
+      return string.gsub(path, remote_path, local_path)
+    end
+  end
+
+  return path
+end
+
 
 return M

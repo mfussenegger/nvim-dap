@@ -206,6 +206,15 @@ This is controlled via a `Configuration`, which has 3 required fields:
     name: string        -- A user-readable name for the configuration.
 <
 
+There is one optional field `remoteDirectoryMapping` that can be used when debugging remotely.
+If set, it will translate between local and remote paths. for example, when your workspace is at
+"/home/abc/work/app", but you are debugging in a container where the code is located at "/app",
+you can add this to the `Configuration`:
+
+>
+    remoteDirectoryMapping = { ["${workspaceFolder}"] = "/app", },
+<
+
 In addition, a `Configuration` accepts an arbitrary number of further options
 which are debug-adapter-specific.
 
