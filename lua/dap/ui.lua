@@ -372,8 +372,8 @@ function M.trigger_actions(opts)
   if not layer then return end
   local lnum, col = unpack(api.nvim_win_get_cursor(0))
   lnum = lnum - 1
-  local info = layer.get(lnum, 0, col)
-  local context = info and info.context or {}
+  local info = layer.get(lnum, 0, col) or {}
+  local context = info.context
   local actions = {}
   vim.list_extend(actions, context.actions or {})
   if context.compute_actions then
@@ -408,18 +408,28 @@ function M.trigger_actions(opts)
 end
 
 
+---@type table<number, dap.ui.Layer>
 local layers = {}
 
+---@return nil|dap.ui.Layer
 function M.get_layer(buf)
   return layers[buf]
 end
 
+---@class dap.ui.LineInfo
+---@field mark_id number
+---@field item any
+---@field context table
+
+---@return dap.ui.Layer
 function M.layer(buf)
   assert(buf, 'Need a buffer to operate on')
   local layer = layers[buf]
   if layer then
     return layer
   end
+
+  ---@type table<number, dap.ui.LineInfo>
   local marks = {}
   local ns = api.nvim_create_namespace('dap.ui_layer_' .. buf)
   local nshl = api.nvim_create_namespace('dap.ui_layer_hl_' .. buf)
@@ -431,18 +441,24 @@ function M.layer(buf)
     end
   end
 
+  ---@class dap.ui.Layer
   layer = {
     buf = buf,
     __marks = marks,
+
     --- Render the items and associate each item to the rendered line
-    -- The item and context can then be retrieved using `.get(lnum)`
-    --
-    -- lines between start and end_ are replaced
-    -- If start == end_, new lines are inserted at the given position
-    -- If start == nil, appends to the end of the buffer
-    --
-    -- start is 0-indexed
-    -- end_ is 0-indexed exclusive
+    ---  The item and context can then be retrieved using `.get(lnum)`
+    ---
+    ---  lines between start and end_ are replaced
+    ---  If start == end_, new lines are inserted at the given position
+    ---  If start == nil, appends to the end of the buffer
+    ---
+    ---@generic T
+    ---@param xs T[]
+    ---@param render_fn fun(T):string
+    ---@param context table
+    ---@param start nil|number 0-indexed
+    ---@param end_ nil|number 0-indexed exclusive
     render = function(xs, render_fn, context, start, end_)
       if not api.nvim_buf_is_valid(buf) then
         return
@@ -506,8 +522,11 @@ function M.layer(buf)
     end,
 
     --- Get the information associated with a line
-    --
-    -- lnum is 0-indexed
+    ---
+    ---@param lnum number 0-indexed line number
+    ---@param start_col nil|number
+    ---@param end_col nil|number
+    ---@return nil|dap.ui.LineInfo
     get = function(lnum, start_col, end_col)
       local line = api.nvim_buf_get_lines(buf, lnum, lnum + 1, true)[1]
       start_col = start_col or 0
