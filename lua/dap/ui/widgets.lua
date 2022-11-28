@@ -217,7 +217,16 @@ M.frames = {
   end,
   render = function(view)
     local session = require('dap').session()
-    local frames = (session and session.threads[session.stopped_thread_id] or {}).frames or {}
+    local layer = view.layer()
+    if not session then
+      layer.render({'No active session'})
+      return
+    end
+    if not session.stopped_thread_id then
+      layer.render({'Not stopped at any breakpoint. No frames available'})
+      return
+    end
+    local frames = (session.threads[session.stopped_thread_id] or {}).frames or {}
     local context = {}
     context.actions = {
       {
@@ -234,7 +243,6 @@ M.frames = {
         end
       },
     }
-    local layer = view.layer()
     local render_frame = require('dap.entity').frames.render_item
     layer.render(frames, render_frame, context)
   end
