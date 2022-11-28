@@ -350,6 +350,7 @@ function M.run(config, opts)
     local mt = getmetatable(config)
     if mt and type(mt.__call) == "function" then
       config = config()
+      assert(config and type(config) == "table", "config metatable __call must return a config table")
     end
     config = vim.tbl_map(expand_config_variables, config)
     local adapter = M.adapters[config.type]
