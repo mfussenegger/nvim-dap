@@ -293,6 +293,21 @@ describe('dap with fake server', function()
     wait(function() return captured_msg ~= nil end)
     assert.are.same('Error on launch: Failed: Dummy', captured_msg)
   end)
+
+  it('evaluates callable config', function()
+    local callable_config = setmetatable(config, {
+      __call = function(conf)
+        local result = {}
+        for k, v in pairs(conf) do
+          result[k] = v
+        end
+        result.x = 1
+        return result
+      end,
+    })
+    local session = run_and_wait_until_initialized(callable_config, server)
+    assert.are.same(session.config.x, 1)
+  end)
 end)
 
 describe('session disconnect', function()
