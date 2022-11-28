@@ -347,6 +347,10 @@ function M.run(config, opts)
     config = opts.before(config)
   end
   local trigger_run = coroutine.wrap(function()
+    local mt = getmetatable(config)
+    if mt and type(mt.__call) == "function" then
+      config = config()
+    end
     config = vim.tbl_map(expand_config_variables, config)
     local adapter = M.adapters[config.type]
     if type(adapter) == 'table' then

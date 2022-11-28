@@ -258,6 +258,10 @@ Things to note:
     end,
 <
 
+- The configuration can have an optional metatable with `__call`
+  implementation. The function will get called when the configuration is used
+  and it must return a new configuration table. This can be used to
+  dynamically add multiple properties at once.
 
 - Some variables are supported:
   - `${file}`: Active filename
