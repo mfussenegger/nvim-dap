@@ -373,7 +373,7 @@ function M.trigger_actions(opts)
   local lnum, col = unpack(api.nvim_win_get_cursor(0))
   lnum = lnum - 1
   local info = layer.get(lnum, 0, col) or {}
-  local context = info.context
+  local context = info.context or {}
   local actions = {}
   vim.list_extend(actions, context.actions or {})
   if context.compute_actions then
