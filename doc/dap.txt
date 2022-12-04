@@ -620,13 +620,13 @@ attach({adapter}, {config})                                       *dap.attach()*
         |dap.continue()| or |dap.run()|
 
 
-set_breakpoint({condition}, {hit_condition}, {log_message})
+set_breakpoint({condition}, {hit_condition}, {log_message}, {column})
                                                           *dap.set_breakpoint()*
 
         Same as |toggle_breakpoint|, but is guaranteed to overwrite previous 
         breakpoint.
 
-toggle_breakpoint({condition}, {hit_condition}, {log_message})
+toggle_breakpoint({condition}, {hit_condition}, {log_message}, {column})
                                                        *dap.toggle_breakpoint()*
 
         Creates or removes a breakpoint at the current line.
@@ -640,6 +640,15 @@ toggle_breakpoint({condition}, {hit_condition}, {log_message})
             {log_message}   Optional log message. This transforms the breakpoint 
                             into a log point. Variable interpolation with {foo} is
                             supported within the message.
+            {column}        Optional column number. If set, then the
+                            breakpoint will be also set at the column.
+
+toggle_breakpoint_column({condition}, {hit_condition}, {log_message})
+                                                *dap.toggle_breakpoint_column()*
+
+        Same as |toggle_breakpoint|, but also takes into consideration the
+        column number.
+
 
 list_breakpoints()                                     *dap.list_breakpoints()*
 
