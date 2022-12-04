@@ -196,8 +196,4 @@ do
   end
 end
 
-function M.tmp()
-  return bp_by_sign
-end
-
 return M
