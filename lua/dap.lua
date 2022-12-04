@@ -577,16 +577,21 @@ function M.list_breakpoints(open_quickfix)
   end
 end
 
-function M.set_breakpoint(condition, hit_condition, log_message)
-  M.toggle_breakpoint(condition, hit_condition, log_message, true)
+function M.set_breakpoint(condition, hit_condition, log_message, column)
+  M.toggle_breakpoint(condition, hit_condition, log_message, column, true)
 end
 
-function M.toggle_breakpoint(condition, hit_condition, log_message, replace_old)
+function M.toggle_breakpoint_column(condition, hit_condition, log_message, replace_old)
+  M.toggle_breakpoint(condition, hit_condition, log_message, vim.fn.col('.'), replace_old)
+end
+
+function M.toggle_breakpoint(condition, hit_condition, log_message, column, replace_old)
   lazy.breakpoints.toggle({
     condition = condition,
     hit_condition = hit_condition,
     log_message = log_message,
-    replace = replace_old
+    replace = replace_old,
+    column = column,
   })
   if session and session.initialized then
     local bufnr = api.nvim_get_current_buf()
