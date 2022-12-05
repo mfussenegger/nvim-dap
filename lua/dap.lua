@@ -174,9 +174,9 @@ for name in pairs(signs) do
   sign_try_define(name)
 end
 
-local function eval_option(option)
+local function eval_option(option, raw_config)
   if type(option) == 'function' then
-    option = option()
+    option = option(raw_config)
   end
   if type(option) == "thread" then
     assert(coroutine.status(option) == "suspended", "If option is a thread it must be suspended")
@@ -193,7 +193,8 @@ local function eval_option(option)
 end
 
 local var_placeholders_once = {
-  ['${command:pickProcess}'] = utils.pick_process
+  ['${command:pickProcess}'] = utils.pick_process,
+  ['${command:pickRemoteProcess}'] = utils.pick_remote_process
 }
 
 local var_placeholders = {
@@ -229,13 +230,13 @@ local var_placeholders = {
   end,
 }
 
-local function expand_config_variables(option)
-  option = eval_option(option)
+local function expand_config_variables(option, raw_config)
+  option = eval_option(option, raw_config)
   if type(option) == "table" then
     local mt = getmetatable(option)
     local result = {}
     for k, v in pairs(option) do
-      result[expand_config_variables(k)] = expand_config_variables(v)
+      result[expand_config_variables(k, raw_config)] = expand_config_variables(v, raw_config)
     end
     return setmetatable(result, mt)
   end
@@ -248,7 +249,7 @@ local function expand_config_variables(option)
   end
   for key, fn in pairs(var_placeholders_once) do
     if ret:find(key) then
-      local val = eval_option(fn)
+      local val = eval_option(fn, raw_config)
       ret = ret:gsub(key, val)
     end
   end
@@ -352,7 +353,11 @@ function M.run(config, opts)
       config = config()
       assert(config and type(config) == "table", "config metatable __call must return a config table")
     end
-    config = vim.tbl_map(expand_config_variables, config)
+    local raw_config = config
+    local expand_config_variables_with_context = function(option)
+      return expand_config_variables(option, raw_config)
+    end
+    config = vim.tbl_map(expand_config_variables_with_context, config)
     local adapter = M.adapters[config.type]
     if type(adapter) == 'table' then
       lazy.progress.report('Launching debug adapter')

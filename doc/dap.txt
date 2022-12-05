@@ -274,6 +274,7 @@ Things to note:
   - `${workspaceFolder}`: The current working directory of Neovim
   - `${workspaceFolderBasename}`: The name of the folder opened in Neovim
   - `${command:pickProcess}`: Open dialog to pick process using |vim.ui.select|
+  - `${command:pickRemoteProcess}`: Open dialog to pick a remote process using |vim.ui.select|
   - `${env:Name}`: Environment variable named `Name`, for example: `${env:HOME}`.
 
 ==============================================================================

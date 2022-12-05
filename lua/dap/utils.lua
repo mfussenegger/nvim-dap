@@ -48,10 +48,17 @@ end
 
 
 --- Return running processes as a list with { pid, name } tables.
-function M.get_processes()
+function M.get_processes(prefix)
   local is_windows = vim.fn.has('win32') == 1
   local separator = is_windows and ',' or ' \\+'
   local command = is_windows and {'tasklist', '/nh', '/fo', 'csv'} or {'ps', 'ah'}
+  local full_command
+  if prefix then
+    full_command = prefix
+    table.insert(full_command, table.concat(command, " "))
+  else
+    full_command = command
+  end
   -- output format for `tasklist /nh /fo` csv
   --    '"smss.exe","600","Services","0","1,036 K"'
   -- output format for `ps ah`
@@ -72,7 +79,7 @@ function M.get_processes()
     end
   end
 
-  local output = vim.fn.system(command)
+  local output = vim.fn.system(full_command)
   local lines = vim.split(output, '\n')
   local procs = {}
 
@@ -108,6 +115,30 @@ function M.pick_process()
   else
     local procs = M.get_processes()
     local result = require('dap.ui').pick_one_sync(procs, "Select process", label_fn)
+    return result and result.pid or nil
+  end
+end
+
+--- Show a prompt to select a process pid through pipe transport
+function M.pick_remote_process(raw_config)
+  local prefix = {unpack(raw_config.pipeTransport.pipeArgs)}
+  table.insert(prefix, 1, raw_config.pipeTransport.pipeProgram)
+
+  local label_fn = function(proc)
+    return string.format("id=%d name=%s", proc.pid, proc.name)
+  end
+
+  local co = coroutine.running()
+  if co then
+    return coroutine.create(function()
+      local procs = M.get_processes(prefix)
+      require('dap.ui').pick_one(procs, "Select remote process", label_fn, function(choice)
+        coroutine.resume(co, choice and choice.pid or nil)
+      end)
+    end)
+  else
+    local procs = M.get_processes(prefix)
+    local result = require('dap.ui').pick_one_sync(procs, "Select remote process", label_fn)
     return result and result.pid or nil
   end
 end
