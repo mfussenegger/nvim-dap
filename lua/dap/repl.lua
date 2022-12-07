@@ -16,7 +16,28 @@ local function get_session()
   return require('dap').session()
 end
 
+local repl
 local execute  -- required for forward reference
+local function execute_current(opts)
+  local current_text = api.nvim_buf_get_lines(repl.buf, -2, -1, false)[1]
+  local prompt_length = #vim.fn.prompt_getprompt(repl.buf)
+  execute(string.sub(current_text, prompt_length + 1), opts)
+end
+
+
+local REGULAR_PROMPT = 1
+local FOLLOWUP_PROMPT = 2
+local PROMPT_STATE = 'PROMPT_STATE'
+
+local function get_prompt(buf)
+  buf = buf or repl.buf
+  local prompt_state = vim.b[buf][PROMPT_STATE]
+  if prompt_state == REGULAR_PROMPT then
+    return 'dap> '
+  else
+    return '...> '
+  end
+end
 
 
 local function new_buf()
@@ -34,7 +55,12 @@ local function new_buf()
   api.nvim_buf_set_keymap(buf, 'n', 'o', "<Cmd>lua require('dap.ui').trigger_actions()<CR>", {})
   api.nvim_buf_set_keymap(buf, 'i', '<up>', "<Cmd>lua require('dap.repl').on_up()<CR>", {})
   api.nvim_buf_set_keymap(buf, 'i', '<down>', "<Cmd>lua require('dap.repl').on_down()<CR>", {})
-  vim.fn.prompt_setprompt(buf, 'dap> ')
+
+  -- CR keybindings may require additional configuration for some terminals, see https://stackoverflow.com/a/42461580
+  vim.keymap.set('i', '<S-CR>', function() execute_current({force_followup = true}) end, {buffer = buf})
+  vim.keymap.set('i', '<C-CR>', function() execute_current({force_finish =  true}) end, {buffer = buf})
+  vim.b[buf][PROMPT_STATE] = REGULAR_PROMPT
+  vim.fn.prompt_setprompt(buf, get_prompt(buf))
   vim.fn.prompt_setcallback(buf, execute)
   if vim.fn.has('nvim-0.7') == 1 then
     vim.keymap.set('n', 'G', function()
@@ -67,7 +93,7 @@ local function new_win(buf, winopts, wincmd)
   return win
 end
 
-local repl = ui.new_view(
+repl = ui.new_view(
   new_buf,
   new_win, {
     before_open = function()
@@ -212,7 +238,48 @@ local function print_threads(threads)
 end
 
 
-function execute(text)
+---- Handle multiline inputs
+--
+-- Returns nil if input is not complete, otherwise returns the full user input
+local function handle_followup_input(curr_text, force_followup, force_finish)
+  local session = get_session()
+  if not session then
+    return curr_text
+  end
+  local is_multiline = session.adapter.is_multiline
+  if not force_followup and not is_multiline then
+    return curr_text
+  end
+  local buf_state = vim.b[repl.buf]
+  local prompt_state = buf_state[PROMPT_STATE]
+  if prompt_state == REGULAR_PROMPT and (force_followup or is_multiline(curr_text)) then
+    buf_state[PROMPT_STATE] = FOLLOWUP_PROMPT
+    buf_state['curr_text'] = { curr_text }
+    vim.fn.prompt_setprompt(repl.buf, get_prompt())
+    return nil
+  elseif prompt_state == FOLLOWUP_PROMPT then
+    local all_text = buf_state['curr_text']
+    if curr_text == '' or force_finish then
+      buf_state[PROMPT_STATE] = REGULAR_PROMPT
+      vim.fn.prompt_setprompt(repl.buf, get_prompt())
+      table.insert(all_text, curr_text)
+      return table.concat(all_text, '\n')
+    else
+      table.insert(all_text, curr_text)
+      vim.b[repl.buf]['curr_text'] = all_text
+      return nil
+    end
+  end
+  return curr_text
+end
+
+function execute(text, opts)
+  opts = opts or {}
+  text = handle_followup_input(text, opts.force_followup, opts.force_finish)
+  if text == nil then
+    return
+  end
+
   if text == '' then
     if history.last then
       text = history.last
@@ -339,7 +406,7 @@ local function select_history(delta)
   local text = history.entries[history.idx]
   if text then
     local lnum = vim.fn.line('$')
-    api.nvim_buf_set_lines(repl.buf, lnum - 1, lnum, true, {'dap> ' .. text })
+    api.nvim_buf_set_lines(repl.buf, lnum - 1, lnum, true, {get_prompt() .. text })
     vim.fn.setcursorcharpos({ lnum, vim.fn.col('$') })  -- move cursor to the end of line
   end
 end
@@ -439,7 +506,7 @@ do
     local session = get_session()
     local col = api.nvim_win_get_cursor(0)[2]
     local line = api.nvim_get_current_line()
-    local offset = vim.startswith(line, 'dap> ') and 5 or 0
+    local offset = vim.startswith(line, get_prompt()) and 5 or 0
     local line_to_cursor = line:sub(offset + 1, col)
     local text_match = vim.fn.match(line_to_cursor, '\\k*$')
     if vim.startswith(line_to_cursor, '.') or base ~= '' then
