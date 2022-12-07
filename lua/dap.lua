@@ -166,6 +166,7 @@ local DAP_QUICKFIX_CONTEXT = DAP_QUICKFIX_TITLE
 ---@field options nil|AdapterOptions
 ---@field enrich_config? fun(config: Configuration, on_config: fun(config: Configuration))
 ---@field reverse_request_handlers? table<string, fun(session: Session, request: dap.Request)>
+---@field is_multiline? fun(current_inputs: string[]): boolean
 
 ---@class AdapterOptions
 ---@field initialize_timeout_sec nil|number
