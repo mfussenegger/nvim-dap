@@ -440,9 +440,50 @@ Some example mappings you could configure:
     nnoremap <silent> <Leader>dr <Cmd>lua require'dap'.repl.open()<CR>
     nnoremap <silent> <Leader>dl <Cmd>lua require'dap'.run_last()<CR>
 
+==============================================================================
+CLIENT CONFIGURATION                                             *dap.defaults*
+
+nvim-dap has a few client configuration options which you can either set
+globally, or scoped to a specific "type" (from |dap-configuration|).
+
+The configuration values are set via `dap.defaults.fallback` (for global) or
+`dap.defaults.<type>`. The configuration options are:
+
+- `stepping_granularity`: (string) The default stepping granularity to use when
+  stepping. Defaults to `statement`, can be `statement`, `line` or
+  `instructions`.
+
+- `terminal_win_cmd`: (string|fun) The command used to create the window for
+  the integrated terminal. (See |dap-terminal|). Either a string or a function
+  that must return a buffer number and a window number of the buffer/window
+  for the terminal.
+
+  Note that extensions like `nvim-dap-ui` use this to control the UI.
+  If you customize it, you may break their behavior.
+
+- `focus_terminal`: (boolean) If the integrated terminal should get focus when
+  its created. Defaults to false
+
+- `auto_continue_if_many_stopped`. (boolean). Controls if a thread should
+  automatically resume on a stopped event if another thread is already
+  stopped. If your application uses multi-threading and you want multiple
+  threads to be able to stop, you may want to set this to false.
+  Defaults to true.
+
+
+Some examples:
+>lua
+  local dap = require('dap')
+  -- Use "tabnew" for all debug adapters
+  dap.defaults.fallback.terminal_win_cmd = 'tabnew'
+  -- Except for python
+  dap.defaults.python.terminal_win_cmd = 'belowright new'
+
+  dap.defaults.java.auto_continue_if_many_stopped = false
+<
 
 ==============================================================================
-TERMINAL CONFIGURATION                               *dap-terminal*
+TERMINAL CONFIGURATION                                          *dap-terminal*
 
 
 Some debug adapters support launching the debugee in an integrated or external
