@@ -56,16 +56,14 @@ a |dap-configuration|.
 For example, to register the `debugpy` debug adapter under the type `python` you
 can add the following entry:
 
->
-    lua << EOF
-    local dap = require('dap')
-    dap.adapters.python = {
-      type = 'executable';
-      command = os.getenv('HOME') .. '/.virtualenvs/tools/bin/python';
-      args = { '-m', 'debugpy.adapter' };
-    }
-    EOF
-
+>lua
+  local dap = require('dap')
+  dap.adapters.python = {
+    type = 'executable';
+    command = os.getenv('HOME') .. '/.virtualenvs/tools/bin/python';
+    args = { '-m', 'debugpy.adapter' };
+  }
+<
 
 `dap.adapters.<name>` is set to a `Adapter`.
 
@@ -150,17 +148,16 @@ This first argument is a callback which must be called with the adapter table.
 The second argument is the |dap-configuration| which the user wants to use.
 
 This can be used to defer the resolving of the values to when a configuration
-is used. An example use is java with eclipse.jdt.ls and java-debug, where the
-debug adapter is spawned via a LSP command:
+is used. A use-case for this is starting an adapter asynchronous. For example,
+for java-debug:
 >
-
-    dap.adapters.java = function(callback, config)
-      M.execute_command({command = 'vscode.java.startDebugSession'}, function(err0, port)
-        assert(not err0, vim.inspect(err0))
-
-        callback({ type = 'server'; host = '127.0.0.1'; port = port; })
-      end)
-    end
+>lua
+  dap.adapters.java = function(callback, config)
+    M.execute_command({command = 'vscode.java.startDebugSession'}, function(err0, port)
+      assert(not err0, vim.inspect(err0))
+      callback({ type = 'server'; host = '127.0.0.1'; port = port; })
+    end)
+  end
 <
 
 There is an additional `enrich_config` property available for both adapter
@@ -172,20 +169,17 @@ second argument.
 An example use-case of this is the Java Debug Adapter, which can resolve
 classPaths or modulePaths dynamically, so that users don't have to do that.
 
->
-
-
-    local adapter = {
-      type = 'server';
-      host = '127.0.0.1';
-      port = 8080;
-      enrich_config = function(config, on_config)
-        local final_config = vim.deepcopy(config)
-        final_config.extra_property = 'This got injected by the adapter'
-        on_config(final_config)
-      end;
-    }
-
+>lua
+  local adapter = {
+    type = 'server';
+    host = '127.0.0.1';
+    port = 8080;
+    enrich_config = function(config, on_config)
+      local final_config = vim.deepcopy(config)
+      final_config.extra_property = 'This got injected by the adapter'
+      on_config(final_config)
+    end;
+  }
 <
 
 ==============================================================================
@@ -215,8 +209,7 @@ current filetype.
 
 For example:
 
->
-    lua << EOF
+>lua
     local dap = require('dap')
     dap.configurations.python = {
       {
@@ -229,8 +222,7 @@ For example:
         end;
       },
     }
-    EOF
-
+<
 
 Things to note:
 
@@ -248,6 +240,7 @@ Things to note:
 
   An example:
 
+>lua
     foo = function()
       return coroutine.create(function(dap_run_co)
         local items = {'one', 'two'}
@@ -315,7 +308,7 @@ load_launchjs({path}, {type_to_filetypes})        *dap.ext.vscode.load_launchjs*
 
 An example `launch.json` might look like this:
 
->
+>json
   {
       "version": "0.2.0",
       "configurations": [
@@ -331,7 +324,6 @@ An example `launch.json` might look like this:
           }
       ]
   }
-
 <
 
 For the above configuration, calling `load_launchjs` adds the first entry to
@@ -339,9 +331,9 @@ For the above configuration, calling `load_launchjs` adds the first entry to
 If you wanted to add the second entry to the `c` or `cpp` configurations you
 could call `load_launchjs` like this instead:
 >
+>lua
   require('dap.ext.vscode').load_launchjs(nil, { cppdbg = {'c', 'cpp'} })
 <
-
 
 load_launchjs supports `inputs`. Inputs can be used to define custom input prompts.
 They are declared in an "inputs" array and each input must have the following properties:
@@ -356,7 +348,7 @@ These are shown to the user as options.
 
 Inputs can be referenced with `${input:<id>}` placeholders.
 
->
+>json
   {
       "version": "0.2.0",
       "configurations": [
@@ -378,8 +370,6 @@ Inputs can be referenced with `${input:<id>}` placeholders.
   }
 <
 
-
-
 ==============================================================================
 SIGNS CONFIGURATION
 
@@ -397,9 +387,8 @@ You can customize the signs by setting them with the |sign_define()| function.
 For example:
 
 >
-    lua << EOF
-    vim.fn.sign_define('DapBreakpoint', {text='🛑', texthl='', linehl='', numhl=''})
-    EOF
+>lua
+  vim.fn.sign_define('DapBreakpoint', {text='🛑', texthl='', linehl='', numhl=''})
 <
 
 ==============================================================================
@@ -414,7 +403,7 @@ to trigger completion within the REPL.
 
 You can also configure completion to trigger automatically:
 
->
+>vim
   au FileType dap-repl lua require('dap.ext.autocompl').attach()
 <
 
@@ -429,7 +418,7 @@ nvim-dap does not configure any mappings by default.
 
 Some example mappings you could configure:
 
->
+>vim
     nnoremap <silent> <F5> <Cmd>lua require'dap'.continue()<CR>
     nnoremap <silent> <F10> <Cmd>lua require'dap'.step_over()<CR>
     nnoremap <silent> <F11> <Cmd>lua require'dap'.step_into()<CR>
@@ -439,6 +428,7 @@ Some example mappings you could configure:
     nnoremap <silent> <Leader>lp <Cmd>lua require'dap'.set_breakpoint(nil, nil, vim.fn.input('Log point message: '))<CR>
     nnoremap <silent> <Leader>dr <Cmd>lua require'dap'.repl.open()<CR>
     nnoremap <silent> <Leader>dl <Cmd>lua require'dap'.run_last()<CR>
+<
 
 ==============================================================================
 CLIENT CONFIGURATION                                             *dap.defaults*
@@ -498,41 +488,29 @@ adapter documentation to figure out the concrete property name and values.
 If you want to use the `externalTerminal` you need to setup the terminal which
 should be launched by nvim-dap:
 
->
-
-  lua << EOF
+>lua
   local dap = require('dap')
   dap.defaults.fallback.external_terminal = {
     command = '/usr/bin/alacritty';
     args = {'-e'};
   }
-  EOF
-
 <
 
 Some debug adapters support launching the debugee in a terminal, but don't
 provide an option to choose between integrated terminal or external terminal.
 `nvim-dap` provides an option to force the external terminal.
 
->
-
-  lua << EOF
+>lua
   local dap = require('dap')
   dap.defaults.fallback.force_external_terminal = true
-  EOF
-
 <
 
 If you're using the integrated terminal, you can configure the command
 that is used to create a split window:
 
->
-
-  lua << EOF
+>lua
   local dap = require('dap')
   dap.defaults.fallback.terminal_win_cmd = '50vsplit new'
-  EOF
-
 <
 
 The `terminal_win_cmd` defaults to `belowright new`. The value can also be a
@@ -542,13 +520,9 @@ Be default `dap` opens the integrated terminal but keeps focus on the current
 buffer. If you rather have focus to be shifted to the terminal when it opens
 you can configure:
 
->
-
-  lua << EOF
+>lua
   local dap = require('dap')
   dap.defaults.fallback.focus_terminal = true
-  EOF
-
 <
 
 `fallback` can be replaced with the |dap-adapter| type to have type
@@ -710,8 +684,8 @@ set_exception_breakpoints({filters}, {exceptionOptions})
                            used.
         {exceptionOptions} ExceptionOptions[]?
                            (https://microsoft.github.io/debug-adapter-protocol/specification#Types_ExceptionOptions)
-         
-    >
+
+    >lua
         -- Ask user to stop on which kinds of exceptions
         require'dap'.set_exception_breakpoints()
         -- don't stop on exceptions
@@ -721,19 +695,19 @@ set_exception_breakpoints({filters}, {exceptionOptions})
         require'dap'.set_exception_breakpoints({"raised", "uncaught"})
         -- use default settings of debug adapter
         require'dap'.set_exception_breakpoints("default")
-    <
+<
 
     You can also set the default value via a `defaults.fallback` table:
 
-    >
+>lua
         require('dap').defaults.fallback.exception_breakpoints = {'raised'}
-    <
+<
 
     Or per config/adapter type:
 
-    >
+>lua
         require('dap').defaults.python.exception_breakpoints = {'raised'}
-    <
+<
 
     In this example `python` is the type. This is the same type used in
     |dap-configuration| or the |dap-adapter| definition.
@@ -854,7 +828,8 @@ repl.open({winopts}, {wincmd})                                 *dap.repl.open()*
 
         You can customize the builtin command names or define your own
         custom commands by extending `dap.repl.commands`:
-        >
+
+        >lua
           local repl = require 'dap.repl'
           repl.commands = vim.tbl_extend('force', repl.commands, {
             -- Add a new alias for the existing .exit command
@@ -930,7 +905,7 @@ Some examples:
 
 View the current scopes in a sidebar:
 
->
+>lua
   local widgets = require('dap.ui.widgets')
   local my_sidebar = widgets.sidebar(widgets.scopes)
   my_sidebar.open()
@@ -938,7 +913,7 @@ View the current scopes in a sidebar:
 
 View the current frames in a sidebar:
 
->
+>lua
   local widgets = require('dap.ui.widgets')
   local my_sidebar = widgets.sidebar(widgets.frames)
   my_sidebar.open()
@@ -947,7 +922,7 @@ View the current frames in a sidebar:
 
 View the current scopes in a centered floating window:
 
->
+>lua
   local widgets = require('dap.ui.widgets')
   widgets.centered_float(widgets.scopes)
 <
@@ -955,7 +930,7 @@ View the current scopes in a centered floating window:
 
 View the value for the expression under the cursor in a floating window:
 
->
+>lua
   require('dap.ui.widgets').hover()
 <
 
@@ -1006,7 +981,7 @@ All widget builder functions return a `view`. A view has the following methods:
 
 You could also customize the buffer and window creation using a low-level builder:
 
->
+>lua
   local widgets = require('dap.ui.widgets')
   widgets.builder(widgets.scopes)
     .new_buf(function_that_creates_and_returns_a_buffer)
@@ -1045,7 +1020,7 @@ events or requests and their response formats:
 
 For example:
 
->
+>lua
   local dap = require('dap')
   dap.listeners.before['event_terminated']['my-plugin'] = function(session, body)
     print('Session terminated', vim.inspect(session), vim.inspect(body))
