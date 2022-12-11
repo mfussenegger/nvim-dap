@@ -859,6 +859,25 @@ function M.set_session(s)
   session = s
 end
 
+-- Send hot reload action
+function M.hot_reload()
+  if session then
+    session:hot_reload()
+  else
+    utils.notify('Cannot hot reload: No active session!', vim.log.levels.INFO)
+  end
+end
+
+-- ealflm
+-- Send hot reload action
+function M.hot_restart()
+  if session then
+    session:hot_restart()
+  else
+    utils.notify('Cannot hot restart: No active session!', vim.log.levels.INFO)
+  end
+end
+
 
 api.nvim_command("autocmd ExitPre * lua require('dap')._vim_exit_handler()")
 return M

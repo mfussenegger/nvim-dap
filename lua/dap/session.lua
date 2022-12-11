@@ -1664,4 +1664,29 @@ function Session:event_capabilities(body)
   self.capabilities = vim.tbl_extend('force', self.capabilities, body.capabilities)
 end
 
+-- Send hot reload action
+function Session:hot_reload()
+  self:request(
+    'hotReload',
+    {},
+    function(err, _)
+      if err then
+        utils.notify('Error hot reload: ' .. utils.fmt_error(err), vim.log.levels.ERROR)
+      end
+    end)
+end
+
+-- ealflm
+-- Send hot restart action
+function Session:hot_restart()
+  self:request(
+    'hotRestart',
+    {},
+    function(err, _)
+      if err then
+        utils.notify('Error hot reload: ' .. utils.fmt_error(err), vim.log.levels.ERROR)
+      end
+    end)
+end
+
 return Session
