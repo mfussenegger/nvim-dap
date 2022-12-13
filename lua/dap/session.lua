@@ -1395,8 +1395,8 @@ function Session:close()
     self.handlers.after()
     self.handlers.after = nil
   end
-  self.client.close()
   vim.diagnostic.reset(ns)
+  self.client.close()
 end
 
 
