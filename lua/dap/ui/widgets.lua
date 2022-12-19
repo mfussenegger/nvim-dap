@@ -114,7 +114,9 @@ local function resizing_layer(win, buf)
   local orig_render = layer.render
   layer.render = function(...)
     orig_render(...)
-    resize_window(win, buf)
+    if api.nvim_win_get_config(win).relative ~= '' then
+      resize_window(win, buf)
+    end
   end
   return layer
 end
