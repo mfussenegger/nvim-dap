@@ -469,12 +469,19 @@ local function jump_to_location(bufnr, line, column)
     -- Don't move the cursor to the beginning of the line if it's in the right place
     return
   end
-  for _, win in pairs(api.nvim_tabpage_list_wins(0)) do
-    if api.nvim_win_get_buf(win) == bufnr then
-      set_cursor(win, line, column)
-      return
+
+  local tabs = {0,}
+  vim.list_extend(tabs, api.nvim_list_tabpages())
+  for _, tabpage in pairs(tabs) do
+    for _, win in pairs(api.nvim_tabpage_list_wins(tabpage)) do
+      if api.nvim_win_get_buf(win) == bufnr then
+        api.nvim_set_current_tabpage(tabpage)
+        set_cursor(win, line, column)
+        return
+      end
     end
   end
+
   -- Buffer isn't active in any window; use the first window that is not special
   -- (Don't want to move to code in the REPL...)
   for _, win in pairs(api.nvim_tabpage_list_wins(0)) do
@@ -488,7 +495,9 @@ local function jump_to_location(bufnr, line, column)
       end
     end
   end
-  utils.notify('Stopped at line ' .. line .. ' but could not jump to location', vim.log.levels.WARN)
+
+  api.nvim_win_set_buf(0, bufnr)
+  set_cursor(0, line, column)
 end
 
 
