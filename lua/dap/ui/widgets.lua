@@ -136,7 +136,7 @@ M.scopes = {
         dap.listeners.after['event_exited'][view] = nil
       end
     })
-    api.nvim_buf_set_name(buf, 'dap-scopes')
+    api.nvim_buf_set_name(buf, 'dap-scopes-' .. tostring(buf))
     return buf
   end,
   render = function(view)
@@ -212,7 +212,7 @@ M.frames = {
   refresh_listener = 'scopes',
   new_buf = function()
     local buf = new_buf()
-    api.nvim_buf_set_name(buf, 'dap-frames')
+    api.nvim_buf_set_name(buf, 'dap-frames-' .. tostring(buf))
     return buf
   end,
   render = function(view)
