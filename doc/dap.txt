@@ -539,9 +539,9 @@ The API is currently unstable.
 (Incomplete)
 
 continue()                                                      *dap.continue()*
-        `continue()` resumes the execution of an application if a debug session
-        is active and a thread was stopped.  Threads are usually stopped when a
-        breakpoint is hit or an exception occurred.
+        `continue()` resumes the execution of an application [count] times if a
+        debug session is active and a thread was stopped. Threads are usually
+        stopped when a breakpoint is hit or an exception occurred.
 
         If no debug session is active, `continue()` will start a new debug session by:
 
@@ -714,7 +714,7 @@ set_exception_breakpoints({filters}, {exceptionOptions})
 
 
 step_over([{opts}])                                            *dap.step_over()*
-        Requests the debugee to run again for one step.
+        Requests the debugee to run again for [count] steps.
 
         For {opts} see |step_into|.
 
