@@ -370,6 +370,52 @@ Inputs can be referenced with `${input:<id>}` placeholders.
   }
 <
 
+You can define system specific properties by placing them into a `linux`, `osx` or
+`windows` sub-object. An example:
+>json
+  {
+    "type": "cppdbg",
+    "request": "launch",
+    "name": "Launch CPP",
+    "linux": {
+      "MIMode": "gdb",
+      "miDebuggerPath": "/usr/bin/gdb"
+    },
+    "osx": {
+      "MIMode": "lldb",
+      "miDebuggerPath": "/usr/local/bin/lldb-mi"
+    },
+    "windows": {
+      "MIMode": "gdb",
+      "miDebuggerPath": "C:\\MinGw\\bin\\gdb.exe"
+    }
+  }
+<
+
+On `linux`, the final configuration will look like this:
+
+>json
+  {
+    "type": "cppdbg",
+    "request": "launch",
+    "name": "Launch CPP",
+    "MIMode": "gdb",
+    "miDebuggerPath": "/usr/bin/gdb"
+  }
+<
+
+And on `windows` it will look like this:
+
+>json
+  {
+    "type": "cppdbg",
+    "request": "launch",
+    "name": "Launch CPP",
+    "MIMode": "gdb",
+    "miDebuggerPath": "C:\\MinGw\\bin\\gdb.exe"
+  }
+<
+
 ==============================================================================
 SIGNS CONFIGURATION
 
