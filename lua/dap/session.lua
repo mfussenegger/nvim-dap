@@ -1359,7 +1359,26 @@ end
 ---@param step "next"|"stepIn"|"stepOut"|"stepBack"|"continue"|"reverseContinue"
 ---@param params table|nil
 function Session:_step(step, params)
+  local count = vim.v.count1 - 1
   local function step_thread(thread_id)
+    if count > 0 then
+      local listeners = dap().listeners
+      local clear_listeners = function()
+        listeners.after.event_stopped['dap.step'] = nil
+        listeners.after.event_terminated['dap.step'] = nil
+        listeners.after.disconnect['dap.step'] = nil
+      end
+      listeners.after.event_stopped['dap.step'] = function()
+        if count > 0 then
+          count = count - 1
+          step_thread(thread_id)
+        else
+          clear_listeners()
+        end
+      end
+      listeners.after.event_terminated['dap.step'] = clear_listeners
+      listeners.after.disconnect['dap.step'] = clear_listeners
+    end
     params = params or {}
     params.threadId = thread_id
     if not params.granularity then

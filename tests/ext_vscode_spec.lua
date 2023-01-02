@@ -168,4 +168,25 @@ describe('dap.ext.vscode', function()
     vim.wait(1000, function() return ok end)
     assert.are.same("one-two", result)
   end)
+
+  it('supports OS specific properties which are lifted to top-level', function()
+    if vim.loop.os_uname().sysname == 'Linux' then
+      local jsonstr = [[
+      {
+        "configurations": [
+          {
+            "type": "dummy",
+            "request": "launch",
+            "name": "Dummy",
+            "linux": {
+              "foo": "bar"
+            }
+          }
+        ]
+      }
+      ]]
+    local config = vscode._load_json(jsonstr)[1]
+    assert.are.same("bar", config.foo)
+    end
+  end)
 end)

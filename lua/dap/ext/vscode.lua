@@ -103,20 +103,37 @@ local function apply_inputs(config, inputs)
 end
 
 
+--- Lift properties of a child table to top-level
+local function lift(tbl, key)
+  local child = tbl[key]
+  if child then
+    tbl[key] = nil
+    return vim.tbl_extend('force', tbl, child)
+  end
+  return tbl
+end
+
+
 function M._load_json(jsonstr)
   local data = M.json_decode(jsonstr)
   local inputs = create_inputs(data.inputs or {})
   local has_inputs = next(inputs) ~= nil
 
-  if has_inputs and data.configurations then
-    local configs = {}
-    for _, config in ipairs(data.configurations) do
-      table.insert(configs, apply_inputs(config, inputs))
-    end
-    return configs
+  local sysname
+  if vim.fn.has('linux') == 1 then
+    sysname = 'linux'
+  elseif vim.fn.has('mac') == 1 then
+    sysname = 'osx'
+  elseif vim.fn.has('win32') == 1 then
+    sysname = 'windows'
   end
 
-  return data.configurations
+  local configs = {}
+  for _, config in ipairs(data.configurations or {}) do
+    config = lift(config, sysname)
+    table.insert(configs, has_inputs and apply_inputs(config, inputs) or config)
+  end
+  return configs
 end
 
 

@@ -370,6 +370,52 @@ Inputs can be referenced with `${input:<id>}` placeholders.
   }
 <
 
+You can define system specific properties by placing them into a `linux`, `osx` or
+`windows` sub-object. An example:
+>json
+  {
+    "type": "cppdbg",
+    "request": "launch",
+    "name": "Launch CPP",
+    "linux": {
+      "MIMode": "gdb",
+      "miDebuggerPath": "/usr/bin/gdb"
+    },
+    "osx": {
+      "MIMode": "lldb",
+      "miDebuggerPath": "/usr/local/bin/lldb-mi"
+    },
+    "windows": {
+      "MIMode": "gdb",
+      "miDebuggerPath": "C:\\MinGw\\bin\\gdb.exe"
+    }
+  }
+<
+
+On `linux`, the final configuration will look like this:
+
+>json
+  {
+    "type": "cppdbg",
+    "request": "launch",
+    "name": "Launch CPP",
+    "MIMode": "gdb",
+    "miDebuggerPath": "/usr/bin/gdb"
+  }
+<
+
+And on `windows` it will look like this:
+
+>json
+  {
+    "type": "cppdbg",
+    "request": "launch",
+    "name": "Launch CPP",
+    "MIMode": "gdb",
+    "miDebuggerPath": "C:\\MinGw\\bin\\gdb.exe"
+  }
+<
+
 ==============================================================================
 SIGNS CONFIGURATION
 
@@ -539,9 +585,9 @@ The API is currently unstable.
 (Incomplete)
 
 continue()                                                      *dap.continue()*
-        `continue()` resumes the execution of an application if a debug session
-        is active and a thread was stopped.  Threads are usually stopped when a
-        breakpoint is hit or an exception occurred.
+        `continue()` resumes the execution of an application [count] times if a
+        debug session is active and a thread was stopped. Threads are usually
+        stopped when a breakpoint is hit or an exception occurred.
 
         If no debug session is active, `continue()` will start a new debug session by:
 
@@ -714,7 +760,7 @@ set_exception_breakpoints({filters}, {exceptionOptions})
 
 
 step_over([{opts}])                                            *dap.step_over()*
-        Requests the debugee to run again for one step.
+        Requests the debugee to run again for [count] steps.
 
         For {opts} see |step_into|.
 
