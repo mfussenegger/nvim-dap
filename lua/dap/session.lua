@@ -21,7 +21,7 @@ local ns = api.nvim_create_namespace('dap')
 ---@field adapter Adapter
 ---@field dirty table<string, boolean>
 ---@field handlers table<string, fun(self: Session, payload: table)|fun()>
----@field message_callbacks table<number, fun(err: nil|ErrorResponse, body: nil|table)>
+---@field message_callbacks table<number, fun(err: nil|ErrorResponse, body: nil|table, seq: number)>
 ---@field message_requests table<number, any>
 ---@field client Client
 ---@field current_frame dap.StackFrame|nil
@@ -29,6 +29,7 @@ local ns = api.nvim_create_namespace('dap')
 ---@field stopped_thread_id number|nil
 ---@field id number
 ---@field threads table<number, dap.Thread>
+---@field filetype string filetype of the buffer where the session was started
 
 ---@class dap.Thread
 ---@field id number
@@ -451,7 +452,12 @@ local function set_cursor(win, line, column)
 end
 
 
-local function jump_to_location(bufnr, line, column)
+---@param bufnr number
+---@param line number
+---@param column number
+---@param switchbuf string
+---@param filetype string
+local function jump_to_location(bufnr, line, column, switchbuf, filetype)
   local ok, failure = pcall(vim.fn.sign_place, 0, ns_pos, 'DapStopped', bufnr, { lnum = line; priority = 12 })
   if not ok then
     utils.notify(failure, vim.log.levels.ERROR)
@@ -470,34 +476,84 @@ local function jump_to_location(bufnr, line, column)
     return
   end
 
-  local tabs = {0,}
-  vim.list_extend(tabs, api.nvim_list_tabpages())
-  for _, tabpage in pairs(tabs) do
-    for _, win in pairs(api.nvim_tabpage_list_wins(tabpage)) do
+  local cur_win = api.nvim_get_current_win()
+  local switchbuf_fn = {}
+
+  function switchbuf_fn.uselast()
+    if vim.bo[cur_buf].buftype == '' or vim.bo[cur_buf].filetype == filetype then
+      api.nvim_win_set_buf(cur_win, bufnr)
+      set_cursor(cur_win, line, column)
+    else
+      local win = vim.fn.win_getid(vim.fn.winnr('#'))
+      api.nvim_win_set_buf(win, bufnr)
+      set_cursor(win, line, column)
+    end
+    return true
+  end
+
+  function switchbuf_fn.useopen()
+    for _, win in pairs(api.nvim_tabpage_list_wins(0)) do
       if api.nvim_win_get_buf(win) == bufnr then
-        api.nvim_set_current_tabpage(tabpage)
         set_cursor(win, line, column)
-        return
+        return true
       end
     end
+    return false
   end
 
-  -- Buffer isn't active in any window; use the first window that is not special
-  -- (Don't want to move to code in the REPL...)
-  for _, win in pairs(api.nvim_tabpage_list_wins(0)) do
-    local winbuf = api.nvim_win_get_buf(win)
-    local buftype = api.nvim_buf_get_option(winbuf, 'buftype')
-    if buftype == '' or vim.b[winbuf].dap_source_buf == true then
-      local bufchanged, _ = pcall(api.nvim_win_set_buf, win, bufnr)
-      if bufchanged then
-        set_cursor(win, line, column)
-        return
+  function switchbuf_fn.usetab()
+    local tabs = {0,}
+    vim.list_extend(tabs, api.nvim_list_tabpages())
+    for _, tabpage in pairs(tabs) do
+      for _, win in pairs(api.nvim_tabpage_list_wins(tabpage)) do
+        if api.nvim_win_get_buf(win) == bufnr then
+          api.nvim_set_current_tabpage(tabpage)
+          set_cursor(win, line, column)
+          return true
+        end
       end
     end
+    return false
   end
 
-  api.nvim_win_set_buf(0, bufnr)
-  set_cursor(0, line, column)
+  function switchbuf_fn.split()
+    vim.cmd('split ' .. api.nvim_buf_get_name(bufnr))
+    set_cursor(0, line, column)
+    return true
+  end
+
+  function switchbuf_fn.vsplit()
+    vim.cmd('vsplit ' .. api.nvim_buf_get_name(bufnr))
+    set_cursor(0, line, column)
+    return true
+  end
+
+  function switchbuf_fn.newtab()
+    vim.cmd('tabnew ' .. api.nvim_buf_get_name(bufnr))
+    set_cursor(0, line, column)
+    return true
+  end
+
+  if switchbuf:find('usetab') then
+    switchbuf_fn.useopen = switchbuf_fn.usetab
+  end
+
+  if switchbuf:find('newtab') then
+    switchbuf_fn.vsplit = switchbuf_fn.newtab
+    switchbuf_fn.split = switchbuf_fn.newtab
+  end
+
+  local opts = vim.split(switchbuf, ',', { plain = true })
+  for _, opt in pairs(opts) do
+    local fn = switchbuf_fn[opt]
+    if fn and fn() then
+      return
+    end
+  end
+  utils.notify(
+    'Stopped at line ' .. line .. ' but `switchbuf` setting prevented jump to location. Target buffer ' .. bufnr .. ' not open in any window?',
+    vim.log.levels.WARN
+  )
 end
 
 
@@ -552,7 +608,8 @@ local function jump_to_frame(session, frame, preserve_focus_hint, stopped)
     return
   end
   vim.fn.bufload(bufnr)
-  jump_to_location(bufnr, frame.line, frame.column)
+  local switchbuf = defaults(session).switchbuf or vim.g.switchbuf or 'uselast'
+  jump_to_location(bufnr, frame.line, frame.column, switchbuf, session.filetype)
   if stopped and stopped.reason == 'exception' then
     session:_show_exception_info(stopped.threadId, bufnr, frame)
   end
@@ -1015,6 +1072,7 @@ local function new_session(adapter, opts)
     adapter = adapter;
     dirty = {};
     capabilities = {};
+    filetype = opts.filetype or vim.bo.filetype
   }
   next_session_id = next_session_id + 1
   return setmetatable(state, { __index = Session })
@@ -1041,7 +1099,7 @@ local function spawn_server_executable(adapter)
     adapter = vim.deepcopy(adapter)
     adapter.port = port
     if adapter.executable.args then
-      local args = adapter.executable.args
+      local args = assert(adapter.executable.args)
       for idx, arg in pairs(args) do
         args[idx] = arg:gsub('${port}', tostring(port))
       end

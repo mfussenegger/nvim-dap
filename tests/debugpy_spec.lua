@@ -57,7 +57,7 @@ describe('dap with debugpy', function()
     end
 
     local launch = spy.on(dap, 'launch')
-    dap.run(config)
+    dap.run(config, { filetype = 'python' })
     vim.wait(1000, function() return dap.session() == nil end, 100)
     assert.are.same({
       initialized = true,
@@ -87,7 +87,7 @@ describe('dap with debugpy', function()
     config.dummy_payload = dummy_payload
 
     it('passed cwd to adapter process', function()
-      luassert.spy(launch).was.called_with(dap.adapters.python, config, { cwd = venv_dir })
+      luassert.spy(launch).was.called_with(dap.adapters.python, config, { cwd = venv_dir, filetype = 'python' })
     end)
   end)
 end)

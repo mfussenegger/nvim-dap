@@ -506,6 +506,10 @@ The configuration values are set via `dap.defaults.fallback` (for global) or
   threads to be able to stop, you may want to set this to false.
   Defaults to true.
 
+- switchbuf. (string). Controls the behavior when jumping to a breakpoint.
+                       See |'switchbuf'|. Defaults to the global `'switchbuf'`
+                       setting.
+
 
 Some examples:
 >lua

@@ -60,6 +60,9 @@ M.defaults = setmetatable(
       terminal_win_cmd = 'belowright new';
       focus_terminal = false;
       auto_continue_if_many_stopped = true;
+
+      ---@type string|nil
+      switchbuf = nil
     },
   },
   {
@@ -319,7 +322,7 @@ local function select_config_and_run()
     function(i) return i.name end,
     function(configuration)
       if configuration then
-        M.run(configuration)
+        M.run(configuration, { filetype = filetype })
       else
         notify('No configuration selected', vim.log.levels.INFO)
       end
@@ -342,6 +345,7 @@ function M.run(config, opts)
     return
   end
   opts = opts or {}
+  opts.filetype = opts.filetype or vim.bo.filetype
   last_run = {
     config = config,
     opts = opts,
