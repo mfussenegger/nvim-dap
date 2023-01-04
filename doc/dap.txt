@@ -1076,12 +1076,13 @@ For example:
 Listeners registered in the `before` table are called *before* the internal `nvim-dap` handlers are called. The listeners registered in the `after` table are called *after* internal `nvim-dap` handlers.
 
 
-For commands (request responses), the listeners are called with four arguments:
+For commands (request responses), the listeners are called with five arguments:
 
 1. The session
 2. An error: A optional table with `message` and `body` properties.
 3. A table with the response. `nil` if an error occurred.
 4. The original payload of the request
+5. The sequence number for the request (also known as message ID)
 
 For events, the listeners are called with two arguments:
 

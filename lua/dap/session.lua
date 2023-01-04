@@ -935,22 +935,22 @@ function Session:handle_body(body)
     if decoded.success then
       vim.schedule(function()
         for _, c in pairs(listeners.before[decoded.command]) do
-          c(self, nil, decoded.body, request)
+          c(self, nil, decoded.body, request, decoded.request_seq)
         end
-        callback(nil, decoded.body)
+        callback(nil, decoded.body, decoded.request_seq)
         for _, c in pairs(listeners.after[decoded.command]) do
-          c(self, nil, decoded.body, request)
+          c(self, nil, decoded.body, request, decoded.request_seq)
         end
       end)
     else
       vim.schedule(function()
         local err = { message = decoded.message; body = decoded.body; }
         for _, c in pairs(listeners.before[decoded.command]) do
-          c(self, err, nil, request)
+          c(self, err, nil, request, decoded.request_seq)
         end
-        callback(err, nil)
+        callback(err, nil, decoded.request_seq)
         for _, c in pairs(listeners.after[decoded.command]) do
-          c(self, err, nil, request)
+          c(self, err, nil, request, decoded.request_seq)
         end
       end)
     end
