@@ -840,7 +840,7 @@ function Session:_goto(line, source, col)
     self.stopped_thread_id = nil
     local goto_err = self:request('goto', params)
     if goto_err then
-      utils.notify('Error executing goto: ' .. goto_err.message, vim.log.levels.ERROR)
+      utils.notify('Error executing goto: ' .. utils.fmt_error(goto_err), vim.log.levels.ERROR)
     end
   end)()
 end
