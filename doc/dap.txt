@@ -827,6 +827,20 @@ goto_({line})                                                      *dap.goto_()*
         Parameters: ~
             {line}  Line number or line under cursor if nil.
 
+focus_frame()                                                 *dap.focus_frame()*
+        Jump/focus the current frame.
+
+        Which window to use depends on the `switchbuf` setting. See
+        |dap.defaults|.
+
+        A current frame is set when breakpoints are hit or when traversing
+        the stack using |dap.up()|, |dap.down()| or the threads and frames
+        widgets. See |dap-widgets|.
+
+        This is a no-op if there is no active session.
+        If there is a session active but no current frame it opens the threads
+        widget to allow pausing threads and picking a frame to focus.
+
 
 restart_frame()                                            *dap.restart_frame()*
         Restart execution of the current frame

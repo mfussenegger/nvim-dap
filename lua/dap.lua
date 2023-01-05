@@ -410,6 +410,20 @@ function M.step_over(opts)
 end
 
 
+function M.focus_frame()
+  if session then
+    if session.current_frame then
+      session:_frame_set(session.current_frame)
+    else
+      local w = require('dap.ui.widgets')
+      w.centered_float(w.threads).open()
+    end
+  else
+    notify('No active session', vim.log.levels.INFO)
+  end
+end
+
+
 function M.restart_frame()
   if session then
     session:restart_frame()
