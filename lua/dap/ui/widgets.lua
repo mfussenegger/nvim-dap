@@ -171,7 +171,7 @@ M.threads = {
   refresh_listener = 'event_thread',
   new_buf = function()
     local buf = new_buf()
-    api.nvim_buf_set_name(buf, 'dap-threads')
+    api.nvim_buf_set_name(buf, 'dap-threads-' .. tostring(buf))
     return buf
   end,
   render = function(view)
@@ -411,7 +411,7 @@ function M.hover(expr, winopts)
     .new_win(M.with_resize(with_winopts(M.new_cursor_anchored_float_win, winopts)))
     .build()
   local buf = view.open(value)
-  api.nvim_buf_set_name(buf, 'dap-hover: ' .. value)
+  api.nvim_buf_set_name(buf, 'dap-hover-' .. tostring(buf) .. ': ' .. value)
   api.nvim_win_set_cursor(view.win, {1, 0})
   return view
 end
