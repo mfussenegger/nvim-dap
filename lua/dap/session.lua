@@ -608,7 +608,7 @@ local function jump_to_frame(session, frame, preserve_focus_hint, stopped)
     return
   end
   vim.fn.bufload(bufnr)
-  local switchbuf = defaults(session).switchbuf or vim.g.switchbuf or 'uselast'
+  local switchbuf = defaults(session).switchbuf or vim.o.switchbuf or 'uselast'
   jump_to_location(bufnr, frame.line, frame.column, switchbuf, session.filetype)
   if stopped and stopped.reason == 'exception' then
     session:_show_exception_info(stopped.threadId, bufnr, frame)
