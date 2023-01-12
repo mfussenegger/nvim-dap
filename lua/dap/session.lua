@@ -550,10 +550,7 @@ local function jump_to_location(bufnr, line, column, switchbuf, filetype)
       return
     end
   end
-  utils.notify(
-    'Stopped at line ' .. line .. ' but `switchbuf` setting prevented jump to location. Target buffer ' .. bufnr .. ' not open in any window?',
-    vim.log.levels.WARN
-  )
+  switchbuf_fn.uselast()
 end
 
 
