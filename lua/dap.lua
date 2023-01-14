@@ -865,12 +865,6 @@ function M.disconnect(opts, cb)
 end
 
 
-function M.omnifunc(findstart, base)
-  vim.notify("dap.omnifunc is deprecated. Use require('dap.repl').omnifunc instead.", vim.log.levels.WARN)
-  return lazy.repl.omnifunc(findstart, base)
-end
-
-
 local function add_reset_session_hook(s)
   s.on_close['dap.session'] = function(s_)
     if s.id == s_.id then
