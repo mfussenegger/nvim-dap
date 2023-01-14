@@ -572,25 +572,33 @@ end
 
 function M.terminate(terminate_opts, disconnect_opts, cb)
   cb = cb or function() end
-  if session then
-    if session.closed then
-      log.warn('User called terminate and session set but closed. Clearing it now')
+  local cur_session = session
+  if cur_session then
+    if cur_session.closed then
+      log.warn('User called terminate and cur_session set but closed. Clearing it now')
       session = nil
       cb()
       return
     end
-    local capabilities = session.capabilities or {}
+    local capabilities = cur_session.capabilities or {}
     if capabilities.supportsTerminateRequest then
       capabilities.supportsTerminateRequest = false
       local opts = terminate_opts or vim.empty_dict()
-      session:request('terminate', opts, function(err)
-        assert(not err, vim.inspect(err))
+      local timeout_sec = (cur_session.adapter.options or {}).disconnect_timeout_sec or 3
+      local timeout_ms = timeout_sec * 1000
+      cur_session:request_with_timeout('terminate', opts, timeout_ms, function(err)
+        if err then
+          log().warn(lazy.utils.fmt_error(err))
+        end
+        if not cur_session.closed then
+          cur_session:close()
+        end
         notify('Session terminated')
         cb()
       end)
     else
       local opts = disconnect_opts or { terminateDebuggee = true }
-      M.disconnect(opts, cb)
+      cur_session:disconnect(opts, cb)
     end
   else
     notify('No active session')

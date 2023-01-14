@@ -1439,9 +1439,7 @@ function Session:request_with_timeout(command, arguments, timeout_ms, callback)
           callback(err, nil)
         end)
       else
-        vim.schedule(function()
-          utils.notify(err.message, vim.log.levels.INFO)
-        end)
+        utils.notify(err.message, vim.log.levels.INFO)
       end
     end
   end)
