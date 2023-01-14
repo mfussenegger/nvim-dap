@@ -252,7 +252,12 @@ M.frames = {
 
 
 M.sessions = {
-  refresh_listener = {'event_initialized', 'event_terminated', 'disconnected'},
+  refresh_listener = {
+    'event_initialized',
+    'event_terminated',
+    'disconnect',
+    'event_stopped'
+  },
   new_buf = function()
     local buf = new_buf()
     api.nvim_buf_set_name(buf, 'dap-sessions-' .. tostring(buf))
@@ -262,6 +267,18 @@ M.sessions = {
     local dap = require('dap')
     local sessions = dap.sessions()
     local layer = view.layer()
+    local lsessions = {}
+
+    local add
+    add = function(s)
+      table.insert(lsessions, s)
+      for _, child in pairs(s.children) do
+        add(child)
+      end
+    end
+    for _, s in pairs(sessions) do
+      add(s)
+    end
     local context = {}
     context.actions = {
       {
@@ -277,16 +294,25 @@ M.sessions = {
         end
       }
     }
+    local focused = dap.session()
     local render_session = function(s)
-      local focused = dap.session()
       local text = s.id .. ': ' .. s.config.name
-      if s.id == focused.id then
-        return '→ ' .. text
-      else
-        return '  ' .. text
+      local parent = s.parent
+      local num_parents = 0
+      while parent ~= nil do
+        parent = parent.parent
+        num_parents = num_parents + 1
       end
+      local prefix
+      if focused and s.id == focused.id then
+        prefix = "→ "
+      else
+        prefix = "  "
+      end
+      return prefix .. string.rep("  ", num_parents) .. text
     end
-    layer.render(vim.tbl_values(sessions), render_session, context)
+    layer.render({}, tostring, nil, 0, -1)
+    layer.render(lsessions, render_session, context)
   end,
 }
 

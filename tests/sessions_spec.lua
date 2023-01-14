@@ -62,4 +62,26 @@ describe('sessions', function()
     wait(function() return #dap.sessions() == 0 end, function() return dap.sessions() end)
     assert.are.same(nil, dap.session())
   end)
+
+  it("startDebugging starts a child session", function()
+    local conf1 = {
+      type = 'dummy1',
+      request = 'launch',
+      name = 'Launch file 1',
+    }
+    run_and_wait_until_initialized(conf1, srv1)
+    srv1.client:send_request("startDebugging", {
+      request = "laucnh",
+      configuration = {
+        type = "dummy2",
+        name = "Subprocess"
+      }
+    })
+    wait(
+      function() return vim.tbl_count(dap.session().children) == 1 end,
+      function() return dap.session() end
+    )
+    local _, child = next(dap.session().children)
+    assert.are.same("Subprocess", child.config.name)
+  end)
 end)

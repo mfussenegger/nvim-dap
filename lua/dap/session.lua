@@ -57,6 +57,8 @@ end
 ---@field sign_group string
 ---@field closed boolean
 ---@field on_close table<string, fun(session: Session)> Handler per plugin-id. Invoked when a session closes (due to terminated event, disconnect or error cases like initialize errors, debug adapter process exit, ...). Session is assumed non-functional at this point and handler can be invoked within luv event loop (not API safe, may require vim.schedule)
+---@field children table<number, Session>
+---@field parent Session|nil
 
 
 ---@class Client
@@ -87,6 +89,22 @@ end
 
 local function defaults(session)
   return dap().defaults[session.config.type]
+end
+
+local function co_resume_schedule(co)
+  return function(...)
+    local args = {...}
+    vim.schedule(function()
+      coroutine.resume(co, unpack(args))
+    end)
+  end
+end
+
+
+local function co_resume(co)
+  return function(...)
+    coroutine.resume(co, ...)
+  end
 end
 
 
@@ -489,9 +507,7 @@ local function frame_to_bufnr(session, frame)
   end
   local co = coroutine.running()
   assert(co, 'Must run in coroutine')
-  session:source(source, function(err, bufnr)
-    coroutine.resume(co, err, bufnr)
-  end)
+  session:source(source, co_resume(co))
   local _, bufnr = coroutine.yield()
   return bufnr
 end
@@ -897,7 +913,7 @@ end
 
 function Session:handle_body(body)
   local decoded = json_decode(body)
-  log.debug(decoded)
+  log.debug(self.id, decoded)
   local listeners = dap().listeners
   if decoded.request_seq then
     local callback = self.message_callbacks[decoded.request_seq]
@@ -963,8 +979,60 @@ function Session:handle_body(body)
 end
 
 
+---@param self Session
+local function start_debugging(self, request)
+  local body = request.arguments --[[@as dap.StartDebuggingRequestArguments]]
+  coroutine.wrap(function()
+    local co = coroutine.running()
+    local opts = {
+      filetype = self.filetype
+    }
+    local config = body.configuration
+    local adapter = dap().adapters[config.type or self.config.type]
+    config.request = body.request
+
+    if type(adapter) == "function" then
+      adapter(co_resume_schedule(co), config)
+      adapter = coroutine.yield()
+    end
+
+    local expected_types = {"executable", "server"}
+    if type(adapter) ~= "table" or not vim.tbl_contains(expected_types, adapter.type) then
+      local msg = "Invalid adapter definition. Expected a table with type `executable` or `server`: "
+      utils.notify(msg .. vim.inspect(adapter), vim.log.levels.ERROR)
+      return
+    end
+
+    if adapter.type == "executable" then
+      local session = Session:spawn(adapter, opts)
+      self.children[session.id] = session
+      session:initialize(config)
+      self:response(request, {success = true})
+    elseif adapter.type == "server" then
+      local session
+      session = Session:connect(adapter, opts, function(err)
+        if err then
+          utils.notify(string.format(
+            "Could not connect startDebugging child session %s:%s: %s",
+            adapter.host or '127.0.0.1',
+            adapter.port,
+            err
+          ), vim.log.levels.WARN)
+        elseif session then
+          session.parent = self
+          self.children[session.id] = session
+          session:initialize(config)
+          self:response(request, {success = true})
+        end
+      end)
+    end
+  end)()
+end
+
+
 local default_reverse_request_handlers = {
-  runInTerminal = run_in_terminal
+  runInTerminal = run_in_terminal,
+  startDebugging = start_debugging,
 }
 
 local next_session_id = 1
@@ -997,6 +1065,7 @@ local function new_session(adapter, opts)
     sign_group = 'dap-' .. tostring(ns),
     closed = false,
     on_close = {},
+    children = {},
   }
   next_session_id = next_session_id + 1
   return setmetatable(state, { __index = Session })
@@ -1480,9 +1549,7 @@ function Session:request(command, arguments, callback)
   if not callback then
     co = coroutine.running()
     if co then
-      callback = function(err, result)
-        coroutine.resume(co, err, result)
-      end
+      callback = co_resume(co)
     else
       -- Assume missing callback is intentional.
       -- Prevent error logging in Session:handle_body
@@ -1525,7 +1592,8 @@ function Session:initialize(config)
     linesStartAt1 = true;
     supportsRunInTerminalRequest = true;
     supportsVariableType = true;
-    supportsProgressReporting = true;
+    supportsProgressReporting = true,
+    supportsStartDebuggingRequest = true,
     locale = os.getenv('LANG') or 'en_US';
   }, function(err0, result)
     if err0 then
