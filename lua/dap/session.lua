@@ -44,8 +44,8 @@ end
 ---@field adapter Adapter
 ---@field dirty table<string, boolean>
 ---@field handlers table<string, fun(self: Session, payload: table)|fun()>
----@field message_callbacks table<number, fun(err: nil|dap.ErrorResponse, body: nil|table, seq: number)>
----@field message_requests table<number, any>
+---@field private message_callbacks table<number, fun(err: nil|dap.ErrorResponse, body: nil|table, seq: number)>
+---@field private message_requests table<number, any>
 ---@field client Client
 ---@field current_frame dap.StackFrame|nil
 ---@field initialized boolean
@@ -1183,9 +1183,6 @@ function Session.connect(_, adapter, opts, on_connect)
     closed = true
     client:shutdown()
     client:close()
-    session.threads = {}
-    session.message_callbacks = {}
-    session.message_requests = {}
   end
 
   session.client = {
@@ -1293,9 +1290,6 @@ function Session.spawn(_, adapter, opts)
     stdin:shutdown(function()
       stdout:close()
       stderr:close()
-      session.threads = {}
-      session.message_callbacks = {}
-      session.message_requests = {}
       log.info('Closed all handles')
       if handle and not handle:is_closing() then
         handle:close(function()
@@ -1509,6 +1503,9 @@ function Session:close()
     self.handlers.after()
     self.handlers.after = nil
   end
+  self.threads = {}
+  self.message_callbacks = {}
+  self.message_requests = {}
   pcall(vim.fn.sign_unplace, self.sign_group)
   vim.diagnostic.reset(self.ns)
   ns_pool.release(self.ns)
