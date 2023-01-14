@@ -1,7 +1,7 @@
 local M = {}
 
 
----@param err ErrorResponse
+---@param err dap.ErrorResponse
 ---@return string?
 function M.fmt_error(err)
   local body = err.body or {}

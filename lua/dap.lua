@@ -860,6 +860,15 @@ function M.omnifunc(findstart, base)
 end
 
 
+local function add_reset_session_hook(s)
+  s.on_close['dap.session'] = function(s_)
+    if s.id == s_.id then
+      M.set_session(nil)
+    end
+  end
+end
+
+
 --- Connect to a debug adapter via TCP
 ---@param adapter ServerAdapter
 ---@param config Configuration
@@ -882,25 +891,22 @@ function M.attach(adapter, config, opts, bwc_dummy)
     return
   end
   assert(adapter.port, 'Adapter used with attach must have a port property')
-  session = require('dap.session'):connect(adapter, opts, function(err)
+  local s
+  s = require('dap.session'):connect(adapter, opts, function(err)
     if err then
-      vim.schedule(function()
-        notify(
-          string.format("Couldn't connect to %s:%s: %s", adapter.host or '127.0.0.1', adapter.port, err),
-          vim.log.levels.ERROR
-        )
-        if session then
-          session:close()
-          M.set_session(nil)
-        end
-      end)
+      notify(
+        string.format("Couldn't connect to %s:%s: %s", adapter.host or '127.0.0.1', adapter.port, err),
+        vim.log.levels.ERROR
+      )
     else
-      if session then
-        session:initialize(config)
+      if s then
+        s:initialize(config)
       end
     end
   end)
-  return session
+  session = s
+  add_reset_session_hook(s)
+  return s
 end
 
 
@@ -912,6 +918,7 @@ end
 function M.launch(adapter, config, opts)
   local s = require('dap.session'):spawn(adapter, opts)
   session = s
+  add_reset_session_hook(s)
   s:initialize(config)
   return s
 end
