@@ -584,9 +584,6 @@ API                                                  *dap-api*
 
 Lua module: dap
 
-The API is currently unstable.
-
-(Incomplete)
 
 continue()                                                      *dap.continue()*
         `continue()` resumes the execution of an application [count] times if a
@@ -632,19 +629,6 @@ restart({config})                                                *dap.restart()*
           configuration used to start the current session.
 
 
-launch({adapter}, {config})                                       *dap.launch()*
-        Launch a new debug adapter and then initialize it with the given
-        |dap-configuration|
-
-        You typically do not want to call this directly but use
-        |dap.continue()| or |dap.run()|
-
-        Parameters: ~
-            {adapter}   `Adapter` to launch, see |dap-adapter|, the `type` is
-                        not required in this case.
-            {config}    |dap-configuration|
-
-
 terminate(terminate_opts, disconnect_opts, cb),                                           *dap.terminate()*
         Terminates the debug session.
 
@@ -663,39 +647,6 @@ terminate(terminate_opts, disconnect_opts, cb),                                 
             {cb}                  Callback that is invoked once the session
                                   terminated or immediately if no session is
                                   active.
-
-disconnect(opts, cb)                                              *dap.disconnect()*
-
-        disconnect asks the debug adapter to disconnect from the debuggee and
-        to terminate the debug adapter.
-
-        The client session may remain open if the debug adapter does not
-        terminate. To ensure the session gets closed, also call |dap.close()|.
-
-        Requires an active session.
-
-        Parameters: ~
-            {opts}    Table with options for the disconnect request.
-                      Defaults to `{ restart = false, terminateDebuggee = null }`
-
-            {cb}      Callback that is invoked once the session
-                      disconnected or immediately if no session is active.
-
-
-close()                                                            *dap.close()*
-        Closes the current session.
-
-        This does NOT terminate the debug adapter or debugee.
-        You usually want to use either |dap.terminate()| or |dap.disconnect()|
-        instead.
-
-
-attach({adapter}, {config})                                       *dap.attach()*
-        Attach to a running debug adapter and then initialize it with the
-        given |dap-configuration|
-
-        You typically do not want to call this directly but use
-        |dap.continue()| or |dap.run()|
 
 
 set_breakpoint({condition}, {hit_condition}, {log_message})
@@ -962,6 +913,55 @@ status()
         This is intended to be used within the statusline
 
         If no debug session is active the result is empty.
+
+
+disconnect(opts, cb)                                              *dap.disconnect()*
+
+        disconnect asks the debug adapter to disconnect from the debuggee and
+        to terminate the debug adapter.
+
+        The client session may remain open if the debug adapter does not
+        terminate. To ensure the session gets closed, also call |dap.close()|.
+
+        Requires an active session.
+
+        Parameters: ~
+            {opts}    Table with options for the disconnect request.
+                      Defaults to `{ restart = false, terminateDebuggee = null }`
+
+            {cb}      Callback that is invoked once the session
+                      disconnected or immediately if no session is active.
+
+
+close()                                                            *dap.close()*
+        Closes the current session.
+
+        This does NOT terminate the debug adapter or debugee.
+        You usually want to use either |dap.terminate()| or |dap.disconnect()|
+        instead.
+
+
+launch({adapter}, {config})                                       *dap.launch()*
+        Launch a new debug adapter and then initialize it with the given
+        |dap-configuration|
+
+        You typically do not want to call this directly but use
+        |dap.continue()| or |dap.run()|
+
+        Parameters: ~
+            {adapter}   `Adapter` to launch, see |dap-adapter|, the `type` is
+                        not required in this case.
+            {config}    |dap-configuration|
+
+
+attach({adapter}, {config})                                       *dap.attach()*
+        Attach to a running debug adapter and then initialize it with the
+        given |dap-configuration|
+
+        You typically do not want to call this directly but use
+        |dap.continue()| or |dap.run()|
+
+
 
 ==============================================================================
 WIDGET API                                                    *dap-widgets*
