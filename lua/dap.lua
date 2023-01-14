@@ -404,9 +404,7 @@ function M.run(config, opts)
     type(config) == 'table',
     'dap.run() must be called with a valid configuration, got ' .. vim.inspect(config))
   if session then
-    M.terminate(nil, nil, vim.schedule_wrap(function()
-      M.run(config, opts)
-    end))
+    M.restart(config, opts)
     return
   end
   opts = opts or {}
@@ -642,10 +640,14 @@ function M.goto_(line)
 end
 
 
-function M.restart()
-  if not session then return end
+function M.restart(config, opts)
+  if not session then
+    notify('No active session', vim.log.levels.INFO)
+    return
+  end
+  config = config or session.config
   if session.capabilities.supportsRestartRequest then
-    session:request('restart', nil, function(err0, _)
+    session:request('restart', config, function(err0, _)
       if err0 then
         notify('Error restarting debug adapter: ' .. lazy.utils.fmt_error(err0), vim.log.levels.ERROR)
       else
@@ -653,7 +655,9 @@ function M.restart()
       end
     end)
   else
-    notify('Restart not supported', vim.log.levels.ERROR)
+    M.terminate(nil, nil, vim.schedule_wrap(function()
+      M.run(config, opts)
+    end))
   end
 end
 
