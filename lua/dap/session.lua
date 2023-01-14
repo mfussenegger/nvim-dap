@@ -60,7 +60,7 @@ end
 
 
 ---@class Client
----@field close function
+---@field close fun(cb: function)
 ---@field write function
 
 ---@class Session
@@ -1043,13 +1043,17 @@ function Session.connect(_, adapter, opts, on_connect)
   local closed = false
   local client = uv.new_tcp()
 
-  local function close()
+  local function close(cb)
     if closed then
       return
     end
     closed = true
-    client:shutdown()
-    client:close()
+    client:shutdown(function()
+      client:close()
+      if cb then
+        cb()
+      end
+    end)
   end
 
   session.client = {
@@ -1143,21 +1147,27 @@ function Session.spawn(_, adapter, opts)
   local handle
   local pid_or_err
   local closed = false
-  local function onexit()
+  local function onexit(cb)
     if closed then
       return
     end
+    cb = cb or function() end
     closed = true
     stdin:shutdown(function()
-      stdout:close()
-      stderr:close()
-      log.info('Closed all handles')
-      if handle and not handle:is_closing() then
-        handle:close(function()
-          log.info('Process closed', pid_or_err, handle:is_active())
-          handle = nil
-        end)
-      end
+      stdin:close()
+      stdout:shutdown(function()
+        stdout:close()
+        stderr:close()
+        if handle and not handle:is_closing() then
+          handle:close(function()
+            log.info('Process closed', pid_or_err, handle:is_active())
+            handle = nil
+            cb()
+          end)
+        else
+          cb()
+        end
+      end)
     end)
   end
   local options = adapter.options or {}
@@ -1375,15 +1385,16 @@ function Session:close()
     self.handlers.after = nil
   end
   self.closed = true
-  self.threads = {}
-  self.message_callbacks = {}
-  self.message_requests = {}
   vim.schedule(function()
     pcall(vim.fn.sign_unplace, self.sign_group)
     vim.diagnostic.reset(self.ns)
     ns_pool.release(self.ns)
   end)
-  self.client.close()
+  self.client.close(function()
+    self.threads = {}
+    self.message_callbacks = {}
+    self.message_requests = {}
+  end)
 end
 
 

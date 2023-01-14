@@ -60,7 +60,10 @@ end
 
 
 function M.set_state(bufnr, lnum, state)
-  local placements = vim.fn.sign_getplaced(bufnr, { group = ns; lnum = lnum; })
+  local ok, placements = pcall(vim.fn.sign_getplaced, bufnr, { group = ns; lnum = lnum; })
+  if not ok then
+    return
+  end
   local signs = placements[1].signs
   if not signs or next(signs) == nil then
     return
