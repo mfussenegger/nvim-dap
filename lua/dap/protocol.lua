@@ -132,3 +132,8 @@
 ---@class dap.ProgressEndEvent
 ---@field progressId string
 ---@field message? string
+
+
+---@class dap.StartDebuggingRequestArguments
+---@field configuration table<string, any>
+---@field request 'launch'|'attach'

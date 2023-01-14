@@ -744,6 +744,17 @@ function M.set_breakpoint(condition, hit_condition, log_message)
   M.toggle_breakpoint(condition, hit_condition, log_message, true)
 end
 
+
+---@param lsessions table<integer, Session>
+---@param fn fun(lsession: Session)
+local function broadcast(lsessions, fn)
+  for _, lsession in pairs(lsessions) do
+    fn(lsession)
+    broadcast(lsession.children, fn)
+  end
+end
+
+
 function M.toggle_breakpoint(condition, hit_condition, log_message, replace_old)
   lazy.breakpoints.toggle({
     condition = condition,
@@ -753,11 +764,9 @@ function M.toggle_breakpoint(condition, hit_condition, log_message, replace_old)
   })
   local bufnr = api.nvim_get_current_buf()
   local bps = lazy.breakpoints.get(bufnr)
-  for _, lsession in pairs(sessions) do
-    if lsession.initialized then
-      lsession:set_breakpoints(bps)
-    end
-  end
+  broadcast(sessions, function(s)
+    s:set_breakpoints(bps)
+  end)
   if vim.fn.getqflist({context = DAP_QUICKFIX_CONTEXT}).context == DAP_QUICKFIX_CONTEXT then
     M.list_breakpoints(false)
   end
@@ -770,9 +779,9 @@ function M.clear_breakpoints()
     bps[bufnr] = {}
   end
   lazy.breakpoints.clear()
-  for _, lsession in pairs(sessions) do
+  broadcast(sessions, function(lsession)
     lsession:set_breakpoints(bps)
-  end
+  end)
 end
 
 
@@ -1023,7 +1032,9 @@ end
 ---@param new_session Session|nil
 function M.set_session(new_session)
   if new_session then
-    sessions[new_session.id] = new_session
+    if new_session.parent == nil then
+      sessions[new_session.id] = new_session
+    end
     session = new_session
   else
     local _, lsession = next(sessions)

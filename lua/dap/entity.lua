@@ -378,6 +378,7 @@ function threads_spec.compute_actions(info)
         fn = function()
           if session.stopped_thread_id == thread.id then
             session:_step('continue')
+            context.refresh()
           else
             thread.stopped = false
             session:request('continue', { threadId = thread.id }, function(err)

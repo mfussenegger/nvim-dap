@@ -58,6 +58,20 @@ function Client:send_event(event, body)
 end
 
 
+---@param command string
+---@param arguments any
+function Client:send_request(command, arguments)
+  self.seq = self.seq + 1
+  local payload = {
+    seq = self.seq,
+    type = "request",
+    command = command,
+    arguments = arguments,
+  }
+  self.socket:write(rpc.msg_with_content_length(json_encode(payload)))
+end
+
+
 function Client:handle_input(body)
   local request = json_decode(body)
   table.insert(self.spy.requests, request)
