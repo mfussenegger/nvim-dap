@@ -655,8 +655,15 @@ function Session:event_stopped(stopped)
 end
 
 
-function Session:event_terminated()
+---@param body dap.TerminatedEvent
+function Session:event_terminated(body)
   self:close()
+  if body and body.restart ~= nil and body.restart ~= false then
+    local config = vim.deepcopy(self.config)
+    config.__restart = body.restart
+    -- This will set global session, is this still okay once startDebugging is implemented?
+    dap().run(config, { filetype = self.filetype })
+  end
 end
 
 

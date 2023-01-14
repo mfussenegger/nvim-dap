@@ -809,3 +809,40 @@ describe('restart_frame', function()
     assert.are.same('restartFrame', server.spy.requests[4].command)
   end)
 end)
+
+
+describe('event_terminated', function()
+  local server
+  before_each(function()
+    server = require('tests.server').spawn()
+    dap.adapters.dummy = server.adapter
+  end)
+  after_each(function()
+    server.stop()
+    dap.terminate()
+  end)
+  it('can restart session', function()
+    local session = run_and_wait_until_initialized(config, server)
+
+    server.spy.clear()
+    server.client:send_event('terminated', {
+      restart = 'dummy_value'
+    })
+
+    -- should start new session
+    -- wait for initialize and launch
+    wait(function() return #server.spy.requests == 2 end)
+    local request = server.spy.requests[2]
+    assert.are.same('launch', request.command, 'launch')
+    local expected_args = vim.deepcopy(session.config)
+    expected_args.__restart = 'dummy_value'
+    assert.are.same(expected_args, request.arguments)
+    local new_session = dap.session()
+    assert.are.not_same(nil, new_session)
+    assert.are.not_same(session.id, new_session.id)
+
+    server.client:send_event('terminated')
+    dap.terminate()
+    wait(function() return dap.session() == nil end)
+  end)
+end)
