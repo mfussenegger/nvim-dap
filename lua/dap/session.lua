@@ -42,8 +42,8 @@ end
 ---@class Session
 ---@field capabilities dap.Capabilities
 ---@field adapter Adapter
----@field dirty table<string, boolean>
----@field handlers table<string, fun(self: Session, payload: table)|fun()>
+---@field private dirty table<string, boolean>
+---@field private handlers table<string, fun(self: Session, payload: table)|fun()>
 ---@field private message_callbacks table<number, fun(err: nil|dap.ErrorResponse, body: nil|table, seq: number)>
 ---@field private message_requests table<number, any>
 ---@field client Client
@@ -55,6 +55,8 @@ end
 ---@field filetype string filetype of the buffer where the session was started
 ---@field ns number Namespace id. Valid during lifecycle of a session
 ---@field sign_group string
+---@field closed boolean
+---@field on_close table<string, fun(session: Session)> Handler per plugin-id. Invoked when a session closes (due to terminated event, disconnect or error cases like initialize errors, debug adapter process exit, ...). Session is assumed non-functional at this point and handler can be invoked within luv event loop (not API safe, may require vim.schedule)
 
 
 ---@class Client
@@ -682,7 +684,6 @@ end
 
 function Session:event_terminated()
   self:close()
-  dap().set_session(nil)
 end
 
 
@@ -990,7 +991,9 @@ local function new_session(adapter, opts)
     capabilities = {};
     filetype = opts.filetype or vim.bo.filetype,
     ns = ns,
-    sign_group = 'dap-' .. tostring(ns)
+    sign_group = 'dap-' .. tostring(ns),
+    closed = false,
+    on_close = {},
   }
   next_session_id = next_session_id + 1
   return setmetatable(state, { __index = Session })
@@ -1102,6 +1105,7 @@ function Session.connect(_, adapter, opts, on_connect)
   on_addresses = function(err, addresses, retry_count)
     if err or #addresses == 0 then
       err = err or ('Could not resolve ' .. host)
+      session:close()
       on_connect(err)
       return
     end
@@ -1121,6 +1125,7 @@ function Session.connect(_, adapter, opts, on_connect)
             on_addresses(nil, addresses, retry_count + 1)
           end)
         else
+          session:close()
           on_connect(conn_err)
         end
         return
@@ -1129,17 +1134,9 @@ function Session.connect(_, adapter, opts, on_connect)
         session:handle_body(body)
       end)
       client:read_start(rpc.create_read_loop(handle_body, function()
-        if not closed then
-          closed = true
-          client:shutdown()
-          client:close()
-        end
-        local s = dap().session()
-        if s == session then
-          vim.schedule(function()
-            utils.notify('Debug adapter disconnected', vim.log.levels.INFO)
-          end)
-          dap().set_session(nil)
+        if not session.closed then
+          session:close()
+          utils.notify('Debug adapter disconnected', vim.log.levels.INFO)
         end
       end))
       on_connect(nil)
@@ -1390,16 +1387,29 @@ end
 
 
 function Session:close()
+  for _, on_close in pairs(self.on_close) do
+    local ok, err = pcall(on_close, self)
+    if not ok then
+      log.warn(err)
+    end
+  end
+  self.on_close = {}
   if self.handlers.after then
-    self.handlers.after()
+    local ok, err = pcall(self.handlers.after)
+    if not ok then
+      log.warn(err)
+    end
     self.handlers.after = nil
   end
+  self.closed = true
   self.threads = {}
   self.message_callbacks = {}
   self.message_requests = {}
-  pcall(vim.fn.sign_unplace, self.sign_group)
-  vim.diagnostic.reset(self.ns)
-  ns_pool.release(self.ns)
+  vim.schedule(function()
+    pcall(vim.fn.sign_unplace, self.sign_group)
+    vim.diagnostic.reset(self.ns)
+    ns_pool.release(self.ns)
+  end)
   self.client.close()
 end
 
@@ -1516,7 +1526,6 @@ function Session:initialize(config)
       if err then
         utils.notify(string.format('Error on %s: %s', config.request, utils.fmt_error(err)), vim.log.levels.ERROR)
         self:close()
-        dap().set_session(nil)
       end
     end)
   end)
@@ -1557,13 +1566,7 @@ function Session:disconnect(opts, cb)
     terminateDebuggee = nil;
   }, opts or {})
   local disconnect_timeout_sec = (self.adapter.options or {}).disconnect_timeout_sec or 3
-  local session = dap().session()
   self:request_with_timeout('disconnect', opts, disconnect_timeout_sec * sec_to_ms, function(err, resp)
-    -- If user already started a new session, don't clear it.
-    -- If user triggers disconnect multiple times, subsequent calls will timeout and still call the callback
-    if session == dap().session() then
-      dap().set_session(nil)
-    end
     self:close()
     log.info('Session closed due to disconnect')
     if cb then
