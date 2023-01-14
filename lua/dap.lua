@@ -44,9 +44,9 @@ M.repl = setmetatable({}, {
 ---@field event_module table<string, fun(session: Session, body: any)>
 ---@field event_output table<string, fun(session: Session, body: any)>
 ---@field event_process table<string, fun(session: Session, body: any)>
----@field event_progressEnd table<string, fun(session: Session, body: any)>
----@field event_progressStart table<string, fun(session: Session, body: any)>
----@field event_progressUpdate table<string, fun(session: Session, body: any)>
+---@field event_progressEnd table<string, fun(session: Session, body: dap.ProgressEndEvent)>
+---@field event_progressStart table<string, fun(session: Session, body: dap.ProgressStartEvent)>
+---@field event_progressUpdate table<string, fun(session: Session, body: dap.ProgressUpdateEvent)>
 ---@field event_stopped table<string, fun(session: Session, body: dap.StoppedEvent)>
 ---@field event_terminated table<string, fun(session: Session, body: dap.TerminatedEvent)>
 ---@field event_thread table<string, fun(session: Session, body: any)>

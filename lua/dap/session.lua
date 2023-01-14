@@ -1502,6 +1502,7 @@ function Session:initialize(config)
     linesStartAt1 = true;
     supportsRunInTerminalRequest = true;
     supportsVariableType = true;
+    supportsProgressReporting = true;
     locale = os.getenv('LANG') or 'en_US';
   }, function(err0, result)
     if err0 then
@@ -1659,5 +1660,32 @@ end
 function Session:event_capabilities(body)
   self.capabilities = vim.tbl_extend('force', self.capabilities, body.capabilities)
 end
+
+
+---@param body dap.ProgressStartEvent
+function Session.event_progressStart(_, body)
+  if body.message then
+    progress.report(body.title .. ': ' .. body.message)
+  else
+    progress.report(body.title)
+  end
+end
+
+---@param body dap.ProgressUpdateEvent
+function Session.event_progressUpdate(_, body)
+  if body.message then
+    progress.report(body.message)
+  end
+end
+
+---@param body dap.ProgressEndEvent
+function Session:event_progressEnd(body)
+  if body.message then
+    progress.report(body.message)
+  else
+    progress.report('Running: ' .. (self.config.name or '[No Name]'))
+  end
+end
+
 
 return Session
