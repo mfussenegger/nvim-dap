@@ -13,15 +13,38 @@ local index_of = utils.index_of
 local mime_to_filetype = {
   ['text/javascript'] = 'javascript'
 }
-local ns = api.nvim_create_namespace('dap')
+
+
+local ns_pool = {}
+do
+  local next_id = 1
+  local pool = {}
+
+  ---@return number
+  function ns_pool.acquire()
+    local ns = next(pool)
+    if ns then
+      pool[ns] = nil
+      return ns
+    end
+    ns = api.nvim_create_namespace('dap-' .. tostring(next_id))
+    next_id = next_id + 1
+    return ns
+  end
+
+  ---@param ns number
+  function ns_pool.release(ns)
+    pool[ns] = true
+  end
+end
 
 
 ---@class Session
----@field capabilities Capabilities
+---@field capabilities dap.Capabilities
 ---@field adapter Adapter
 ---@field dirty table<string, boolean>
 ---@field handlers table<string, fun(self: Session, payload: table)|fun()>
----@field message_callbacks table<number, fun(err: nil|ErrorResponse, body: nil|table, seq: number)>
+---@field message_callbacks table<number, fun(err: nil|dap.ErrorResponse, body: nil|table, seq: number)>
 ---@field message_requests table<number, any>
 ---@field client Client
 ---@field current_frame dap.StackFrame|nil
@@ -30,6 +53,8 @@ local ns = api.nvim_create_namespace('dap')
 ---@field id number
 ---@field threads table<number, dap.Thread>
 ---@field filetype string filetype of the buffer where the session was started
+---@field ns number Namespace id. Valid during lifecycle of a session
+---@field sign_group string
 
 ---@class dap.Thread
 ---@field id number
@@ -37,14 +62,14 @@ local ns = api.nvim_create_namespace('dap')
 ---@field frames nil|dap.StackFrame[] not part of the spec; added by nvim-dap
 ---@field stopped nil|boolean not part of the spec; added by nvim-dap
 
----@class ErrorResponse
+---@class dap.ErrorResponse
 ---@field message string
----@field body ErrorBody
+---@field body dap.ErrorBody
 
----@class ErrorBody
----@field error nil|Message
+---@class dap.ErrorBody
+---@field error nil|dap.Message
 
----@class Message
+---@class dap.Message
 ---@field id number
 ---@field format string
 ---@field variables nil|table
@@ -74,13 +99,13 @@ local ns = api.nvim_create_namespace('dap')
 ---@field close function
 ---@field write function
 
----@class Capabilities
+---@class dap.Capabilities
 ---@field supportsConfigurationDoneRequest boolean|nil
 ---@field supportsFunctionBreakpoints boolean|nil
 ---@field supportsConditionalBreakpoints boolean|nil
 ---@field supportsHitConditionalBreakpoints boolean|nil
 ---@field supportsEvaluateForHovers boolean|nil
----@field exceptionBreakpointFilters ExceptionBreakpointsFilter[]|nil
+---@field exceptionBreakpointFilters dap.ExceptionBreakpointsFilter[]|nil
 ---@field supportsStepBack boolean|nil
 ---@field supportsSetVariable boolean|nil
 ---@field supportsRestartFrame boolean|nil
@@ -89,8 +114,8 @@ local ns = api.nvim_create_namespace('dap')
 ---@field supportsCompletionsRequest boolean|nil
 ---@field completionTriggerCharacters string[]|nil
 ---@field supportsModulesRequest boolean|nil
----@field additionalModuleColumns ColumnDescriptor[]|nil
----@field supportedChecksumAlgorithms ChecksumAlgorithm[]|nil
+---@field additionalModuleColumns dap.ColumnDescriptor[]|nil
+---@field supportedChecksumAlgorithms dap.ChecksumAlgorithm[]|nil
 ---@field supportsRestartRequest boolean|nil
 ---@field supportsExceptionOptions boolean|nil
 ---@field supportsValueFormattingOptions boolean|nil
@@ -116,7 +141,7 @@ local ns = api.nvim_create_namespace('dap')
 ---@field supportsSingleThreadExecutionRequests boolean|nil
 
 
----@class ExceptionBreakpointsFilter
+---@class dap.ExceptionBreakpointsFilter
 ---@field filter string
 ---@field label string
 ---@field description string|nil
@@ -124,7 +149,7 @@ local ns = api.nvim_create_namespace('dap')
 ---@field supportsCondition boolean|nil
 ---@field conditionDescription string|nil
 
----@class ColumnDescriptor
+---@class dap.ColumnDescriptor
 ---@field attributeName string
 ---@field label string
 ---@field format string|nil
@@ -132,7 +157,7 @@ local ns = api.nvim_create_namespace('dap')
 ---@field width number|nil
 
 
----@class ChecksumAlgorithm
+---@class dap.ChecksumAlgorithm
 ---@field algorithm "MD5"|"SHA1"|"SHA256"|"timestamp"
 ---@field checksum string
 
@@ -148,7 +173,6 @@ local ns = api.nvim_create_namespace('dap')
 ---@class Session
 local Session = {}
 
-local ns_pos = 'dap_pos'
 local terminal_buf, terminal_width, terminal_height
 
 local NIL = vim.NIL
@@ -417,7 +441,7 @@ function Session:_show_exception_info(thread_id, bufnr, frame)
       table.insert(msg_parts, vim.inspect(e))
     end
   end
-  vim.diagnostic.set(ns, bufnr, {
+  vim.diagnostic.set(self.ns, bufnr, {
     {
       bufnr = bufnr,
       lnum = frame.line - 1,
@@ -458,10 +482,6 @@ end
 ---@param switchbuf string
 ---@param filetype string
 local function jump_to_location(bufnr, line, column, switchbuf, filetype)
-  local ok, failure = pcall(vim.fn.sign_place, 0, ns_pos, 'DapStopped', bufnr, { lnum = line; priority = 12 })
-  if not ok then
-    utils.notify(failure, vim.log.levels.ERROR)
-  end
   progress.report('Stopped at line ' .. line)
   -- vscode-go sends columns with 0
   -- That would cause a "Column value outside range" error calling nvim_win_set_cursor
@@ -598,7 +618,7 @@ local function jump_to_frame(session, frame, preserve_focus_hint, stopped)
     utils.notify('Source not available, cannot jump to frame', vim.log.levels.INFO)
     return
   end
-  vim.fn.sign_unplace(ns_pos)
+  vim.fn.sign_unplace(session.sign_group)
   if preserve_focus_hint or frame.line < 0 then
     return
   end
@@ -608,6 +628,10 @@ local function jump_to_frame(session, frame, preserve_focus_hint, stopped)
     return
   end
   vim.fn.bufload(bufnr)
+  local ok, failure = pcall(vim.fn.sign_place, 0, session.sign_group, 'DapStopped', bufnr, { lnum = frame.line; priority = 12 })
+  if not ok then
+    utils.notify(failure, vim.log.levels.ERROR)
+  end
   local switchbuf = defaults(session).switchbuf or vim.o.switchbuf or 'uselast'
   jump_to_location(bufnr, frame.line, frame.column, switchbuf, session.filetype)
   if stopped and stopped.reason == 'exception' then
@@ -1059,6 +1083,7 @@ local function new_session(adapter, opts)
     default_reverse_request_handlers,
     adapter.reverse_request_handlers or {}
   )
+  local ns = ns_pool.acquire()
   local state = {
     id = next_session_id,
     handlers = handlers;
@@ -1072,7 +1097,9 @@ local function new_session(adapter, opts)
     adapter = adapter;
     dirty = {};
     capabilities = {};
-    filetype = opts.filetype or vim.bo.filetype
+    filetype = opts.filetype or vim.bo.filetype,
+    ns = ns,
+    sign_group = 'dap-' .. tostring(ns)
   }
   next_session_id = next_session_id + 1
   return setmetatable(state, { __index = Session })
@@ -1363,8 +1390,9 @@ function Session:_pause(thread_id, cb)
 end
 
 
+---@param session Session
 local function clear_running(session, thread_id)
-  vim.fn.sign_unplace(ns_pos)
+  vim.fn.sign_unplace(session.sign_group)
   thread_id = thread_id or session.stopped_thread_id
   session.stopped_thread_id = nil
   local thread = session.threads[thread_id]
@@ -1481,7 +1509,9 @@ function Session:close()
     self.handlers.after()
     self.handlers.after = nil
   end
-  vim.diagnostic.reset(ns)
+  pcall(vim.fn.sign_unplace, self.sign_group)
+  vim.diagnostic.reset(self.ns)
+  ns_pool.release(self.ns)
   self.client.close()
 end
 
