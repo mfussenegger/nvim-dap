@@ -623,6 +623,15 @@ run_last()                                                      *dap.run_last()*
         |dap.run()|.
 
 
+restart({config})                                                *dap.restart()*
+        Restart the current session.
+        Does nothing if there is no active session.
+
+        Parameters:
+          {config}  |dap-configuration| to use. Defaults to the same
+          configuration used to start the current session.
+
+
 launch({adapter}, {config})                                       *dap.launch()*
         Launch a new debug adapter and then initialize it with the given
         |dap-configuration|
