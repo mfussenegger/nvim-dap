@@ -114,3 +114,21 @@
 
 ---@class dap.TerminatedEvent
 ---@field restart? any
+
+
+---@class dap.ProgressStartEvent
+---@field progressId string
+---@field title string
+---@field requestId? number
+---@field cancellable? boolean
+---@field message? string
+---@field percentage? number
+
+---@class dap.ProgressUpdateEvent
+---@field progressId string
+---@field message? string
+---@field percentage? number
+
+---@class dap.ProgressEndEvent
+---@field progressId string
+---@field message? string

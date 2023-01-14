@@ -846,3 +846,39 @@ describe('event_terminated', function()
     wait(function() return dap.session() == nil end)
   end)
 end)
+
+
+describe('progress support', function()
+  local server
+  before_each(function()
+    server = require('tests.server').spawn()
+    dap.adapters.dummy = server.adapter
+  end)
+  after_each(function()
+    server.stop()
+    dap.terminate()
+  end)
+
+  it('shows progress in status', function()
+    run_and_wait_until_initialized(config, server)
+    local progress = require('dap.progress')
+    wait(function() return #server.spy.events == 1 end)
+
+    progress.reset()
+    server.spy.clear()
+    server.client:send_event('progressStart', {
+      progressId = '1',
+      title = 'progress title',
+    })
+    wait(function() return #server.spy.events == 1 end)
+    assert.are.same('progressStart', server.spy.events[1].event)
+    wait(function() return progress.status() ~= '' end)
+    assert.are.same('progress title', progress.status())
+
+    server.client:send_event('progressEnd', {
+      progressId = '1',
+    })
+    wait(function() return progress.status() ~= 'progress title' end)
+    assert.are.same('Running: Launch file', progress.status())
+  end)
+end)
