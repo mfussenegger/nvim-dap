@@ -68,40 +68,13 @@ local Session = {}
 
 local terminal_buf, terminal_width, terminal_height
 
-local NIL = vim.NIL
-
-local function convert_nil(v)
-  if v == NIL then
-    return nil
-  elseif type(v) == 'table' then
-    return vim.tbl_map(convert_nil, v)
-  else
-    return v
-  end
+local function json_decode(payload)
+  return vim.json.decode(payload, { luanil = { object = true }})
 end
-
-local json_decode
-local json_encode = vim.fn.json_encode
-local send_payload
-if vim.json then
-  json_decode = function(payload)
-    return vim.json.decode(payload, { luanil = { object = true }})
-  end
-  json_encode = vim.json.encode
-  send_payload = function(client, payload)
-    local msg = rpc.msg_with_content_length(json_encode(payload))
-    client.write(msg)
-  end
-else
-  json_decode = function(payload)
-    return assert(convert_nil(vim.fn.json_decode(payload)), "json_decode must return a value")
-  end
-  send_payload = function(client, payload)
-    vim.schedule(function()
-      local msg = rpc.msg_with_content_length(json_encode(payload))
-      client.write(msg)
-    end)
-  end
+local json_encode = vim.json.encode
+local function send_payload(client, payload)
+  local msg = rpc.msg_with_content_length(json_encode(payload))
+  client.write(msg)
 end
 
 

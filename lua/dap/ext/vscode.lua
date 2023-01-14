@@ -2,7 +2,7 @@ local dap = require('dap')
 local notify = require('dap.utils').notify
 local M = {}
 
-M.json_decode = vim.json and vim.json.decode or vim.fn.json_decode
+M.json_decode = vim.json.decode
 M.type_to_filetypes = {}
 
 local function create_input(type_, input)
