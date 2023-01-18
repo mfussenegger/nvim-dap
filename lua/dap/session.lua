@@ -467,10 +467,12 @@ local function frame_to_bufnr(session, frame)
     end
   end
   local co = coroutine.running()
+  assert(co, 'Must run in coroutine')
   session:source(source, function(err, bufnr)
     coroutine.resume(co, err, bufnr)
   end)
-  return coroutine.yield()
+  local _, bufnr = coroutine.yield()
+  return bufnr
 end
 
 
