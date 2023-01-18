@@ -16,6 +16,18 @@ local function wait(predicate, msg)
 end
 
 
+local function wait_for_response(server, command)
+  wait(function()
+    for _, response in pairs(server.spy.responses) do
+      if response.command == command then
+        return true
+      end
+    end
+    return false
+  end)
+end
+
+
 local function run_and_wait_until_initialized(conf, server)
   dap.run(conf)
   vim.wait(1000, function()
@@ -408,6 +420,49 @@ describe('request source', function()
     dap.close()
     server.stop()
   end)
+
+  it('can jump to frame if source needs to be fetched', function()
+    server.client.source = function(self, request)
+      self:send_response(request, {
+        content = 'foobar',
+        mimeType = 'text/x-lldb.disassembly',
+      })
+    end
+    server.client.threads = function(self, request)
+      self:send_response(request, {
+        threads = { { id = 1, name = 'thread1' }, }
+      })
+    end
+    server.client.stackTrace = function(self, request)
+      self:send_response(request, {
+        stackFrames = {
+          {
+            id = 1,
+            name = 'stackFrame1',
+            line = 1,
+            source = {
+              sourceReference = 1
+            }
+          },
+        },
+      })
+    end
+    run_and_wait_until_initialized(config, server)
+    server.spy.clear()
+    server.client:send_event('stopped', {
+      threadId = 1,
+      reason = 'breakpoint',
+    })
+    wait_for_response(server, 'source')
+    assert.are.same('source', server.spy.responses[3].command)
+    assert.are.same('foobar', server.spy.responses[3].body.content)
+    wait(function()
+      return 'foobar' == api.nvim_buf_get_lines(0, 0, -1, false)[1]
+    end)
+    local lines = api.nvim_buf_get_lines(0, 0, -1, false)
+    assert.are.same({'foobar'}, lines)
+  end)
+
   it('sets filetype based on mimetype if available', function()
     server.client.source = function(self, request)
       self:send_response(request, {
