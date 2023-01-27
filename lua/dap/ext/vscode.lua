@@ -71,7 +71,7 @@ local function apply_input(inputs, value)
   if type(value) ~= "string" then
     return value
   end
-  local matches = string.gmatch(value, "${input:(%w+)}")
+  local matches = string.gmatch(value, "${input:([%w_]+)}")
   local input_functions = {}
   for input_id in matches do
     local input_key = "${input:" .. input_id .. "}"
