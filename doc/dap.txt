@@ -462,18 +462,7 @@ MAPPINGS                                             *dap-mappings*
 
 nvim-dap does not configure any mappings by default.
 
-Some example mappings you could configure, first in traditional VimL, then Lua:
->vim
-    nnoremap <silent> <F5> <Cmd>lua require'dap'.continue()<CR>
-    nnoremap <silent> <F10> <Cmd>lua require'dap'.step_over()<CR>
-    nnoremap <silent> <F11> <Cmd>lua require'dap'.step_into()<CR>
-    nnoremap <silent> <F12> <Cmd>lua require'dap'.step_out()<CR>
-    nnoremap <silent> <Leader>b <Cmd>lua require'dap'.toggle_breakpoint()<CR>
-    nnoremap <silent> <Leader>B <Cmd>lua require'dap'.set_breakpoint(vim.fn.input('Breakpoint condition: '))<CR>
-    nnoremap <silent> <Leader>lp <Cmd>lua require'dap'.set_breakpoint(nil, nil, vim.fn.input('Log point message: '))<CR>
-    nnoremap <silent> <Leader>dr <Cmd>lua require'dap'.repl.open()<CR>
-    nnoremap <silent> <Leader>dl <Cmd>lua require'dap'.run_last()<CR>
-<
+Some example mappings you could configure:
 >lua
     vim.keymap.set('n','<F5>',function() require('dap').continue() end)
     vim.keymap.set('n','<F10>',function() require('dap').step_over() end)
