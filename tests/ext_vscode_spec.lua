@@ -65,12 +65,12 @@ describe('dap.ext.vscode', function()
             "type": "dummy",
             "request": "launch",
             "name": "Dummy",
-            "program": "${workspaceFolder}/${input:myInput}"
+            "program": "${workspaceFolder}/${input:my_input}"
           }
         ],
         "inputs": [
           {
-            "id": "myInput",
+            "id": "my_input",
             "type": "pickString",
             "options": ["one", "two", "three"],
             "description": "Select input"
