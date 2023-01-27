@@ -23,7 +23,6 @@ local function new_buf()
   local buf = api.nvim_create_buf(true, true)
   api.nvim_buf_set_name(buf, '[dap-repl]')
   api.nvim_buf_set_option(buf, 'buftype', 'prompt')
-  api.nvim_buf_set_option(buf, 'filetype', 'dap-repl')
   api.nvim_buf_set_option(buf, 'omnifunc', "v:lua.require'dap.repl'.omnifunc")
   api.nvim_buf_set_option(buf, 'buflisted', false)
   local ok, path = pcall(api.nvim_buf_get_option, prev_buf, 'path')
@@ -53,6 +52,7 @@ local function new_buf()
       end
     })
   end
+  api.nvim_buf_set_option(buf, 'filetype', 'dap-repl')
   return buf
 end
 
