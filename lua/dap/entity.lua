@@ -316,34 +316,35 @@ function threads_spec.fetch_children(thread, cb)
   elseif thread.threads then
     cb(thread.threads)
   elseif session then
-    local is_stopped = thread.stopped
-    local params = { threadId = thread.id }
-    local on_frames = function(err, resp)
+    coroutine.wrap(function()
+      local co = coroutine.running()
+      local is_stopped = thread.stopped
+      if not is_stopped then
+        session:_pause(thread.id, function(err, result)
+          coroutine.resume(co, err, result)
+        end)
+        coroutine.yield()
+      end
+      local params = { threadId = thread.id }
+      local err, resp = session:request('stackTrace', params)
       if err then
-        utils.notify('Error fetching stackTrace: ' .. err.message, vim.log.levels.WARN)
+        utils.notify('Error fetching stackTrace: ' .. utils.fmt_error(err), vim.log.levels.WARN)
       else
         thread.frames = resp.stackFrames
-        if is_stopped then
-          cb(threads_spec.get_children(thread))
+      end
+      if not is_stopped then
+        local err0 = session:request('continue', params)
+        if err0 then
+          utils.notify('Error on continue: ' .. utils.fmt_error(err), vim.log.levels.WARN)
         else
           thread.stopped = false
-          session:request('continue', params, function(err0)
-            if err0 then
-              utils.notify('Error on continue: ' .. err.message, vim.log.levels.WARN)
-            end
-            cb(threads_spec.get_children(thread))
-          end)
+          local progress = require('dap.progress')
+          progress.report('Thread resumed: ' .. tostring(thread.id))
+          progress.report('Running: ' .. session.config.name)
         end
       end
-    end
-    local get_frames = function()
-      session:request('stackTrace', params, on_frames)
-    end
-    if is_stopped then
-      get_frames()
-    else
-      session:_pause(thread.id, get_frames)
-    end
+      cb(threads_spec.get_children(thread))
+    end)()
   else
     cb({})
   end
