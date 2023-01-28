@@ -66,7 +66,6 @@ end
 ---@class Session
 local Session = {}
 
-local terminal_buf, terminal_width, terminal_height
 
 local function json_decode(payload)
   return vim.json.decode(payload, { luanil = { object = true }})
@@ -139,6 +138,47 @@ local function create_terminal_buf(terminal_win_cmd)
 end
 
 
+local terminals = {}
+do
+  ---@type table<number, boolean>
+  local pool = {}
+
+  ---@return number, number|nil
+  function terminals.acquire(win_cmd, config)
+    local buf = next(pool)
+    if buf then
+      pool[buf] = nil
+      if api.nvim_buf_is_valid(buf) then
+        vim.bo[buf].modified = false
+        return buf
+      end
+    end
+    local terminal_win
+    buf, terminal_win = create_terminal_buf(win_cmd)
+    if terminal_win then
+      if vim.fn.has('nvim-0.8') == 1 then
+        -- older versions don't support the `win` key
+        api.nvim_set_option_value('number', false, { scope = 'local', win = terminal_win })
+        api.nvim_set_option_value('relativenumber', false, { scope = 'local', win = terminal_win })
+        api.nvim_set_option_value('signcolumn', 'no', { scope = 'local', win = terminal_win })
+      else
+        -- this is like `:set` so new windows will inherit the values :/
+        vim.wo[terminal_win].number = false
+        vim.wo[terminal_win].relativenumber = false
+        vim.wo[terminal_win].signcolumn = "no"
+      end
+    end
+    vim.b[buf]['dap-type'] = config.type
+    return buf, terminal_win
+  end
+
+  ---@param b number
+  function terminals.release(b)
+    pool[b] = true
+  end
+end
+
+
 local function run_in_terminal(self, request)
   local body = request.arguments
   log.debug('run_in_terminal', body)
@@ -160,28 +200,7 @@ local function run_in_terminal(self, request)
     end
   end
   local cur_buf = api.nvim_get_current_buf()
-  if terminal_buf and api.nvim_buf_is_valid(terminal_buf) then
-    api.nvim_buf_set_option(terminal_buf, 'modified', false)
-  else
-    local terminal_win
-    terminal_buf, terminal_win = create_terminal_buf(settings.terminal_win_cmd)
-    if terminal_win then
-      if vim.fn.has('nvim-0.8') == 1 then
-        -- older versions don't support the `win` key
-        api.nvim_set_option_value('number', false, { scope = 'local', win = terminal_win })
-        api.nvim_set_option_value('relativenumber', false, { scope = 'local', win = terminal_win })
-        api.nvim_set_option_value('signcolumn', 'no', { scope = 'local', win = terminal_win })
-      else
-        -- this is like `:set` so new windows will inherit the values :/
-        vim.wo[terminal_win].number = false
-        vim.wo[terminal_win].relativenumber = false
-        vim.wo[terminal_win].signcolumn = "no"
-      end
-    end
-    vim.b[terminal_buf]['dap-type'] = self.config.type
-    terminal_width = terminal_win and api.nvim_win_get_width(terminal_win) or 80
-    terminal_height = terminal_win and api.nvim_win_get_height(terminal_win) or 40
-  end
+  local terminal_buf, terminal_win = terminals.acquire(settings.terminal_win_cmd, self.config)
   local terminal_buf_name = '[dap-terminal] ' .. (self.config.name or body.args[1])
   local terminal_name_ok = pcall(api.nvim_buf_set_name, terminal_buf, terminal_buf_name)
   if not terminal_name_ok then
@@ -203,8 +222,8 @@ local function run_in_terminal(self, request)
   local opts = {
     env = next(body.env or {}) and body.env or vim.empty_dict(),
     cwd = (body.cwd and body.cwd ~= '') and body.cwd or nil,
-    height = terminal_height,
-    width = terminal_width,
+    height = terminal_win and api.nvim_win_get_height(terminal_win) or 40,
+    width = terminal_win and api.nvim_win_get_width(terminal_win) or 80,
     pty = true,
     on_stdout = function(_, data)
       local count = #data
@@ -225,6 +244,7 @@ local function run_in_terminal(self, request)
     on_exit = function(_, exit_code)
       pcall(api.nvim_chan_send, chan, '\r\n[Process exited ' .. tostring(exit_code) .. ']')
       pcall(api.nvim_buf_set_keymap, terminal_buf, "t", "<CR>", "<cmd>bd!<CR>", { noremap = true, silent = true})
+      terminals.release(terminal_buf)
     end,
   }
   jobid = vim.fn.jobstart(body.args, opts)
