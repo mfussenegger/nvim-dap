@@ -22,7 +22,14 @@ function M.report(msg)
   if idx_write == idx_read then
     idx_read = (idx_read + 1) % max_size
   end
-  vim.cmd('doautocmd <nomodeline> User DapProgressUpdate')
+
+  if vim.in_fast_event() then
+    vim.schedule(function()
+      vim.cmd('doautocmd <nomodeline> User DapProgressUpdate')
+    end)
+  else
+    vim.cmd('doautocmd <nomodeline> User DapProgressUpdate')
+  end
 end
 
 

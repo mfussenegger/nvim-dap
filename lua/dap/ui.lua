@@ -419,7 +419,7 @@ end
 ---@class dap.ui.LineInfo
 ---@field mark_id number
 ---@field item any
----@field context table
+---@field context table|nil
 
 ---@return dap.ui.Layer
 function M.layer(buf)
@@ -456,7 +456,7 @@ function M.layer(buf)
     ---@generic T
     ---@param xs T[]
     ---@param render_fn fun(T):string
-    ---@param context table
+    ---@param context table|nil
     ---@param start nil|number 0-indexed
     ---@param end_ nil|number 0-indexed exclusive
     render = function(xs, render_fn, context, start, end_)
