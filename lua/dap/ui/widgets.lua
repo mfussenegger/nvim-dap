@@ -251,6 +251,46 @@ M.frames = {
 }
 
 
+M.sessions = {
+  refresh_listener = {'event_initialized', 'event_terminated', 'disconnected'},
+  new_buf = function()
+    local buf = new_buf()
+    api.nvim_buf_set_name(buf, 'dap-sessions-' .. tostring(buf))
+    return buf
+  end,
+  render = function(view)
+    local dap = require('dap')
+    local sessions = dap.sessions()
+    local layer = view.layer()
+    local context = {}
+    context.actions = {
+      {
+        label = "Focus session",
+        fn = function(_, s)
+          if s then
+            dap.set_session(s)
+            view.refresh()
+          end
+          if vim.bo.bufhidden == 'wipe' then
+            view.close()
+          end
+        end
+      }
+    }
+    local render_session = function(s)
+      local focused = dap.session()
+      local text = s.id .. ': ' .. s.config.name
+      if s.id == focused.id then
+        return '→ ' .. text
+      else
+        return '  ' .. text
+      end
+    end
+    layer.render(vim.tbl_values(sessions), render_session, context)
+  end,
+}
+
+
 M.expression = {
   new_buf = new_buf,
   before_open = function(view)

@@ -179,10 +179,11 @@ do
 end
 
 
-local function run_in_terminal(self, request)
+---@param lsession Session
+local function run_in_terminal(lsession, request)
   local body = request.arguments
   log.debug('run_in_terminal', body)
-  local settings = dap().defaults[self.config.type]
+  local settings = dap().defaults[lsession.config.type]
   if body.kind == 'external' or (settings.force_external_terminal and settings.external_terminal) then
     local terminal = settings.external_terminal
     if not terminal then
@@ -192,7 +193,7 @@ local function run_in_terminal(self, request)
       if not handle then
         utils.notify('Could not launch terminal ' .. terminal.command, vim.log.levels.ERROR)
       end
-      self:response(request, {
+      lsession:response(request, {
         success = handle ~= nil;
         body = { processId = pid; };
       })
@@ -200,12 +201,12 @@ local function run_in_terminal(self, request)
     end
   end
   local cur_buf = api.nvim_get_current_buf()
-  local terminal_buf, terminal_win = terminals.acquire(settings.terminal_win_cmd, self.config)
-  local terminal_buf_name = '[dap-terminal] ' .. (self.config.name or body.args[1])
+  local terminal_buf, terminal_win = terminals.acquire(settings.terminal_win_cmd, lsession.config)
+  local terminal_buf_name = '[dap-terminal] ' .. (lsession.config.name or body.args[1])
   local terminal_name_ok = pcall(api.nvim_buf_set_name, terminal_buf, terminal_buf_name)
   if not terminal_name_ok then
     log.warn(terminal_buf_name ..  ' is not a valid buffer name')
-    api.nvim_buf_set_name(terminal_buf, '[dap-terminal] <?>')
+    api.nvim_buf_set_name(terminal_buf, '[dap-terminal] dap-' .. tostring(lsession.id))
   end
   pcall(api.nvim_buf_del_keymap, terminal_buf, "t", "<CR>")
   local ok, path = pcall(api.nvim_buf_get_option, cur_buf, 'path')
@@ -258,12 +259,12 @@ local function run_in_terminal(self, request)
   end
   if jobid == 0 or jobid == -1 then
     log.error('Could not spawn terminal', jobid, request)
-    self:response(request, {
+    lsession:response(request, {
       success = false;
       message = 'Could not spawn terminal';
     })
   else
-    self:response(request, {
+    lsession:response(request, {
       success = true;
       body = {
         processId = vim.fn.jobpid(jobid);
@@ -684,7 +685,7 @@ function Session:event_terminated(body)
     local config = vim.deepcopy(self.config)
     config.__restart = body.restart
     -- This will set global session, is this still okay once startDebugging is implemented?
-    dap().run(config, { filetype = self.filetype })
+    dap().run(config, { filetype = self.filetype, new = true })
   end
 end
 
@@ -1399,6 +1400,7 @@ end
 
 
 function Session:close()
+  self.closed = true
   for _, on_close in pairs(self.on_close) do
     local ok, err = pcall(on_close, self)
     if not ok then
@@ -1413,7 +1415,6 @@ function Session:close()
     end
     self.handlers.after = nil
   end
-  self.closed = true
   vim.schedule(function()
     pcall(vim.fn.sign_unplace, self.sign_group)
     vim.diagnostic.reset(self.ns)

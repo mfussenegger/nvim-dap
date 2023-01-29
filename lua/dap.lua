@@ -1,6 +1,9 @@
 local api = vim.api
 local M = {}
 
+---@type table<number, Session>
+local sessions = {}
+
 ---@type Session|nil
 local session = nil
 local last_run = nil
@@ -366,7 +369,7 @@ local function maybe_enrich_config_and_run(adapter, configuration, opts)
 end
 
 
-local function select_config_and_run()
+local function select_config_and_run(opts)
   local filetype = api.nvim_buf_get_option(0, 'filetype')
   local configurations = M.configurations[filetype] or {}
   assert(
@@ -378,21 +381,35 @@ local function select_config_and_run()
     )
   )
   if #configurations == 0 then
-    notify(string.format('No configuration found for `%s`. You need to add configs to `dap.configurations.%s` (See `:h dap-configuration`)', filetype, filetype), vim.log.levels.INFO)
+    local msg = 'No configuration found for `%s`. You need to add configs to `dap.configurations.%s` (See `:h dap-configuration`)'
+    notify(string.format(msg, filetype, filetype), vim.log.levels.INFO)
     return
   end
+  opts = opts or {}
+  opts.filetype = opts.filetype or filetype
   lazy.ui.pick_if_many(
     configurations,
     "Configuration: ",
     function(i) return i.name end,
     function(configuration)
       if configuration then
-        M.run(configuration, { filetype = filetype })
+        M.run(configuration, opts)
       else
         notify('No configuration selected', vim.log.levels.INFO)
       end
     end
   )
+end
+
+
+---@return Session|nil
+local function first_stopped_session()
+  for _, s in pairs(sessions) do
+    if s.stopped_thread_id then
+      return s
+    end
+  end
+  return nil
 end
 
 
@@ -403,11 +420,12 @@ function M.run(config, opts)
   assert(
     type(config) == 'table',
     'dap.run() must be called with a valid configuration, got ' .. vim.inspect(config))
-  if session then
+
+  opts = opts or {}
+  if session and (opts.new == false or (opts.new == nil and session.config.name == config.name)) then
     M.restart(config, opts)
     return
   end
-  opts = opts or {}
   opts.filetype = opts.filetype or vim.bo.filetype
   last_run = {
     config = config,
@@ -468,7 +486,12 @@ end
 --- Step over the current line
 ---@param opts table|nil
 function M.step_over(opts)
-  if not session then return end
+  if not session then
+    session = first_stopped_session()
+    if not session then
+      return
+    end
+  end
   session:_step('next', opts)
 end
 
@@ -497,7 +520,12 @@ end
 
 
 function M.step_into(opts)
-  if not session then return end
+  if not session then
+    session = first_stopped_session()
+    if not session then
+      return
+    end
+  end
   opts = opts or {}
   local askForTargets = opts.askForTargets
   opts.askForTargets = nil
@@ -531,12 +559,22 @@ function M.step_into(opts)
 end
 
 function M.step_out(opts)
-  if not session then return end
+  if not session then
+    session = first_stopped_session()
+    if not session then
+      return
+    end
+  end
   session:_step('stepOut', opts)
 end
 
 function M.step_back(opts)
-  if not session then return end
+  if not session then
+    session = first_stopped_session()
+    if not session then
+      return
+    end
+  end
 
   if session.capabilities.supportsStepBack then
     session:_step('stepBack', opts)
@@ -568,40 +606,54 @@ function M.stop()
 end
 
 
-function M.terminate(terminate_opts, disconnect_opts, cb)
+local function terminate(lsession, terminate_opts, disconnect_opts, cb)
   cb = cb or function() end
-  local cur_session = session
-  if cur_session then
-    if cur_session.closed then
-      log.warn('User called terminate and cur_session set but closed. Clearing it now')
-      session = nil
-      cb()
-      return
-    end
-    local capabilities = cur_session.capabilities or {}
-    if capabilities.supportsTerminateRequest then
-      capabilities.supportsTerminateRequest = false
-      local opts = terminate_opts or vim.empty_dict()
-      local timeout_sec = (cur_session.adapter.options or {}).disconnect_timeout_sec or 3
-      local timeout_ms = timeout_sec * 1000
-      cur_session:request_with_timeout('terminate', opts, timeout_ms, function(err)
-        if err then
-          log().warn(lazy.utils.fmt_error(err))
-        end
-        if not cur_session.closed then
-          cur_session:close()
-        end
-        notify('Session terminated')
-        cb()
-      end)
-    else
-      local opts = disconnect_opts or { terminateDebuggee = true }
-      cur_session:disconnect(opts, cb)
-    end
-  else
+  if not lsession then
     notify('No active session')
     cb()
+    return
   end
+
+  if lsession.closed then
+    log().warn('User called terminate on already closed session that is still in use')
+    sessions[lsession.id] = nil
+    M.set_session(nil)
+    cb()
+    return
+  end
+  local capabilities = lsession.capabilities or {}
+  if capabilities.supportsTerminateRequest then
+    capabilities.supportsTerminateRequest = false
+    local opts = terminate_opts or vim.empty_dict()
+    local timeout_sec = (lsession.adapter.options or {}).disconnect_timeout_sec or 3
+    local timeout_ms = timeout_sec * 1000
+    lsession:request_with_timeout('terminate', opts, timeout_ms, function(err)
+      if err then
+        log().warn(lazy.utils.fmt_error(err))
+      end
+      if not lsession.closed then
+        lsession:close()
+      end
+      notify('Session terminated')
+      cb()
+    end)
+  else
+    local opts = disconnect_opts or { terminateDebuggee = true }
+    lsession:disconnect(opts, cb)
+  end
+end
+
+
+function M.terminate(terminate_opts, disconnect_opts, cb)
+  local lsession = session
+  if not lsession then
+    local _, s = next(sessions)
+    if s then
+      log().info("Terminate called without active session, switched to", s.id)
+    end
+    lsession = s
+  end
+  terminate(lsession, terminate_opts, disconnect_opts, cb)
 end
 
 
@@ -641,13 +693,14 @@ end
 
 
 function M.restart(config, opts)
-  if not session then
+  local lsession = opts.session or session
+  if not lsession then
     notify('No active session', vim.log.levels.INFO)
     return
   end
-  config = config or session.config
-  if session.capabilities.supportsRestartRequest then
-    session:request('restart', config, function(err0, _)
+  config = config or lsession.config
+  if lsession.capabilities.supportsRestartRequest then
+    lsession:request('restart', config, function(err0, _)
       if err0 then
         notify('Error restarting debug adapter: ' .. lazy.utils.fmt_error(err0), vim.log.levels.ERROR)
       else
@@ -655,8 +708,10 @@ function M.restart(config, opts)
       end
     end)
   else
-    M.terminate(nil, nil, vim.schedule_wrap(function()
-      M.run(config, opts)
+    terminate(lsession, nil, nil, vim.schedule_wrap(function()
+      local nopts = vim.deepcopy(opts)
+      nopts.new = true
+      M.run(config, nopts)
     end))
   end
 end
@@ -784,9 +839,15 @@ function M.run_to_cursor()
 end
 
 
-function M.continue()
+---@param opts table<string, any>
+function M.continue(opts)
   if not session then
-    select_config_and_run()
+    session = first_stopped_session()
+  end
+
+  opts = opts or {}
+  if not session or opts.new then
+    select_config_and_run(opts)
   elseif session.stopped_thread_id then
     session:_step('continue')
   else
@@ -822,6 +883,12 @@ function M.continue()
         label = "Disconnect (terminate = false)",
         action = function()
           M.disconnect({ terminateDebuggee = false })
+        end,
+      },
+      {
+        label = "Start additional session",
+        action = function()
+          M.continue({ new = true })
         end,
       },
       {
@@ -869,11 +936,12 @@ function M.disconnect(opts, cb)
 end
 
 
-local function add_reset_session_hook(s)
-  s.on_close['dap.session'] = function(s_)
-    if s.id == s_.id then
-      M.set_session(nil)
-    end
+local function add_reset_session_hook(lsession)
+  lsession.on_close['dap.session'] = function(s)
+    assert(s.id == lsession.id, "on_close must not be called with a foreign session")
+    lazy.progress.report('Closed session: ' .. tostring(s.id))
+    sessions[s.id] = nil
+    M.set_session(nil)
   end
 end
 
@@ -913,8 +981,8 @@ function M.attach(adapter, config, opts, bwc_dummy)
       end
     end
   end)
-  session = s
   add_reset_session_hook(s)
+  M.set_session(s)
   return s
 end
 
@@ -926,8 +994,8 @@ end
 ---@param opts table
 function M.launch(adapter, config, opts)
   local s = require('dap.session'):spawn(adapter, opts)
-  session = s
   add_reset_session_hook(s)
+  M.set_session(s)
   s:initialize(config)
   return s
 end
@@ -939,23 +1007,41 @@ end
 
 
 function M._vim_exit_handler()
-  if session then
-    M.terminate()
-    vim.wait(500, function() return session == nil end)
+  for _, s in pairs(sessions) do
+    terminate(s)
+    vim.wait(500, function()
+      return session == nil and next(sessions) == nil
+    end)
   end
   M.repl.close()
 end
 
 
+--- Currently focused session
 ---@return Session|nil
 function M.session()
   return session
 end
 
 
----@param s Session|nil
-function M.set_session(s)
-  session = s
+---@return table<number, Session>
+function M.sessions()
+  return sessions
+end
+
+
+---@param new_session Session|nil
+function M.set_session(new_session)
+  if new_session then
+    sessions[new_session.id] = new_session
+    session = new_session
+  else
+    local _, lsession = next(sessions)
+    if lsession then
+      lazy.progress.report('Running: ' .. lsession.config.name)
+    end
+    session = lsession
+  end
 end
 
 

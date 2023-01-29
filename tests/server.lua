@@ -1,8 +1,8 @@
 local uv = vim.loop
 local rpc = require('dap.rpc')
 
-local json_decode = vim.json and vim.json.decode or vim.fn.json_decode
-local json_encode = vim.json and vim.json.encode or vim.fn.json_encode
+local json_decode = vim.json.decode
+local json_encode = vim.json.encode
 
 local M = {}
 local Client = {}

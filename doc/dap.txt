@@ -615,7 +615,7 @@ continue()                                                      *dap.continue()*
         application.
 
 
-run({config})                                                        *dap.run()*
+run({config}, {opts})                                                *dap.run()*
         Looks up a debug adapter entry for the given configuration and runs it.
         This is implicitly called by |dap.continue()| if no debug session is
         active.
@@ -625,8 +625,13 @@ run({config})                                                        *dap.run()*
         create configurations dynamically, for example to debug individual test
         cases.
 
+        If a debug session with the same name is already active, it will
+        restart the session.
+
         Parameters:
             {config}  |dap-configuration| to run
+            {opts}    Optional table with:
+                      - `new: boolean` to force running an additional debug session
 
 
 run_last()                                                      *dap.run_last()*
@@ -919,8 +924,12 @@ set_log_level(level)                                       *dap.set_log_level()*
 
 
 session()                                                        *dap.session()*
-        Returns the current session or nil if no session exists.
+        Returns the currently focused session or nil if no session exists or
+        has focus.
 
+sessions()                                                      *dap.sessions()*
+        Returns a table with the active top-level debug sessions.
+        The keys are session ids and the values are the `Session` instances.
 
 status()
         Returns the status of the current debug session as text
@@ -1030,6 +1039,7 @@ The widgets may have the following custom mappings enabled:
 
 Available widgets entities:
 
+- sessions
 - scopes
 - frames
 - expression
