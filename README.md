@@ -12,6 +12,8 @@
 
 ## Installation
 
+[![LuaRocks](https://img.shields.io/luarocks/v/mfussenegger/nvim-dap?logo=lua&color=purple)](https://luarocks.org/modules/mfussenegger/nvim-dap)
+
 - Install nvim-dap like any other Neovim plugin:
   - `git clone https://github.com/mfussenegger/nvim-dap.git ~/.config/nvim/pack/plugins/start/nvim-dap`
   - Or with [vim-plug][11]: `Plug 'mfussenegger/nvim-dap'`
