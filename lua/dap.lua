@@ -114,6 +114,14 @@ M.listeners = {
 }
 
 
+M.listeners.after.event_stopped['dap.sessions'] = function(s)
+  local lsession = session
+  if not lsession or not lsession.stopped_thread_id then
+    M.set_session(s)
+  end
+end
+
+
 local function from_fallback(_, key)
   return M.defaults.fallback[key]
 end
@@ -404,6 +412,9 @@ end
 
 ---@return Session|nil
 local function first_stopped_session()
+  if session and session.stopped_thread_id then
+    return session
+  end
   for _, s in pairs(sessions) do
     if s.stopped_thread_id then
       return s
@@ -486,11 +497,9 @@ end
 --- Step over the current line
 ---@param opts table|nil
 function M.step_over(opts)
+  session = first_stopped_session()
   if not session then
-    session = first_stopped_session()
-    if not session then
-      return
-    end
+    return
   end
   session:_step('next', opts)
 end
@@ -520,11 +529,9 @@ end
 
 
 function M.step_into(opts)
+  session = first_stopped_session()
   if not session then
-    session = first_stopped_session()
-    if not session then
-      return
-    end
+    return
   end
   opts = opts or {}
   local askForTargets = opts.askForTargets
@@ -559,23 +566,18 @@ function M.step_into(opts)
 end
 
 function M.step_out(opts)
+  session = first_stopped_session()
   if not session then
-    session = first_stopped_session()
-    if not session then
-      return
-    end
+    return
   end
   session:_step('stepOut', opts)
 end
 
 function M.step_back(opts)
+  session = first_stopped_session()
   if not session then
-    session = first_stopped_session()
-    if not session then
-      return
-    end
+    return
   end
-
   if session.capabilities.supportsStepBack then
     session:_step('stepBack', opts)
   else
@@ -749,10 +751,12 @@ function M.toggle_breakpoint(condition, hit_condition, log_message, replace_old)
     log_message = log_message,
     replace = replace_old
   })
-  if session and session.initialized then
-    local bufnr = api.nvim_get_current_buf()
-    local bps = lazy.breakpoints.get(bufnr)
-    session:set_breakpoints(bps)
+  local bufnr = api.nvim_get_current_buf()
+  local bps = lazy.breakpoints.get(bufnr)
+  for _, lsession in pairs(sessions) do
+    if lsession.initialized then
+      lsession:set_breakpoints(bps)
+    end
   end
   if vim.fn.getqflist({context = DAP_QUICKFIX_CONTEXT}).context == DAP_QUICKFIX_CONTEXT then
     M.list_breakpoints(false)
@@ -761,15 +765,13 @@ end
 
 
 function M.clear_breakpoints()
-  if session then
-    local bps = lazy.breakpoints.get()
-    for bufnr, _ in pairs(bps) do
-      bps[bufnr] = {}
-    end
-    lazy.breakpoints.clear()
-    session:set_breakpoints(bps)
-  else
-    lazy.breakpoints.clear()
+  local bps = lazy.breakpoints.get()
+  for bufnr, _ in pairs(bps) do
+    bps[bufnr] = {}
+  end
+  lazy.breakpoints.clear()
+  for _, lsession in pairs(sessions) do
+    lsession:set_breakpoints(bps)
   end
 end
 
