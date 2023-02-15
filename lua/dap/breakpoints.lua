@@ -112,7 +112,8 @@ function M.toggle(opts, bufnr, lnum)
     buf = bufnr,
     condition = opts.condition,
     logMessage = opts.log_message,
-    hitCondition = opts.hit_condition
+    hitCondition = opts.hit_condition,
+    column = opts.column,
   }
   local sign_name = get_sign_name(bp)
   local sign_id = vim.fn.sign_place(
@@ -150,6 +151,7 @@ function M.get(bufexpr)
       local bp_entry = bp_by_sign[bp.id] or {}
       table.insert(breakpoints, {
         line = bp.lnum;
+        column = bp_entry.column;
         condition = bp_entry.condition;
         hitCondition = bp_entry.hitCondition;
         logMessage = bp_entry.logMessage;
@@ -196,6 +198,5 @@ do
     return qf_list
   end
 end
-
 
 return M
