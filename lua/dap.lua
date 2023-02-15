@@ -952,19 +952,7 @@ end
 ---@param adapter ServerAdapter
 ---@param config Configuration
 ---@param opts table
----@param bwc_dummy any
-function M.attach(adapter, config, opts, bwc_dummy)
-  if type(adapter) == 'string' then
-    notify(
-      'dap.launch signature changed from (host, port, config) to (adapter, config), please adjust',
-      vim.log.levels.WARN
-    )
-    local host = adapter
-    local port = config
-    config = opts
-    opts = bwc_dummy
-    adapter = { type = 'server', host = host, port = port, }
-  end
+function M.attach(adapter, config, opts)
   if not config.request then
     notify('Config needs the `request` property which must be one of `attach` or `launch`', vim.log.levels.ERROR)
     return
