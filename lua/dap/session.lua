@@ -1681,9 +1681,11 @@ function Session:_frame_delta(delta)
 
   current_frame_index = current_frame_index + delta
   if current_frame_index < 1 then
-    current_frame_index = #frames
-  elseif current_frame_index > #frames then
     current_frame_index = 1
+    utils.notify("Can't move past first frame", vim.log.levels.INFO)
+  elseif current_frame_index > #frames then
+    current_frame_index = #frames
+    utils.notify("Can't move past last frame", vim.log.levels.INFO)
   end
   self:_frame_set(frames[current_frame_index])
 end
