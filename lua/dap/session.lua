@@ -710,7 +710,7 @@ function Session.event_output(_, body)
   if body.category == 'telemetry' then
     log.info('Telemetry', body.output)
   else
-    repl.append(body.output, '$')
+    repl.append(body.output, '$', { newline = false })
   end
 end
 
