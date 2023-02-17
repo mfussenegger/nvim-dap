@@ -351,7 +351,9 @@ end
 
 ---@param line string
 ---@param lnum (integer|string)?
-function M.append(line, lnum)
+---@param opts? {newline: boolean}
+function M.append(line, lnum, opts)
+  opts = opts or {}
   local buf = repl._init_buf()
   if api.nvim_get_current_win() == repl.win and lnum == '$' then
     lnum = nil
@@ -360,12 +362,17 @@ function M.append(line, lnum)
     line = line:gsub('\r\n', '\n')
   end
   local lines = vim.split(line, '\n')
-  if #lines > 1 and lines[#lines] == '' then
-    table.remove(lines)
-  end
   if lnum == '$' or not lnum then
     lnum = api.nvim_buf_line_count(buf) - 1
-    api.nvim_buf_set_lines(buf, -1, -1, true, lines)
+    if opts.newline == false then
+      local last_line = api.nvim_buf_get_lines(buf, -2, -1, true)[1]
+      if vim.startswith(last_line, 'dap> ') then
+        table.insert(lines, 1, '')
+      end
+      api.nvim_buf_set_text(buf, lnum, #last_line, lnum, #last_line, lines)
+    else
+      api.nvim_buf_set_lines(buf, -1, -1, true, lines)
+    end
   else
     api.nvim_buf_set_lines(buf, lnum, lnum, true, lines)
   end
@@ -438,6 +445,7 @@ do
         return {}
       end
     end
+    assert(session, 'Session must exist if supportsCompletionsRequest is true')
     session:request('completions', {
       frameId = (session.current_frame or {}).id;
       text = line_to_cursor;
