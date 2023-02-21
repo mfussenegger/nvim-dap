@@ -186,7 +186,7 @@ local DAP_QUICKFIX_CONTEXT = DAP_QUICKFIX_TITLE
 ---@class ServerAdapter : Adapter
 ---@field type "server"
 ---@field host string|nil
----@field port number
+---@field port integer
 ---@field executable nil|ServerAdapterExecutable
 ---@field options nil|ServerOptions
 

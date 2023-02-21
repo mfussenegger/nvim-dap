@@ -886,6 +886,7 @@ function Session:set_exception_breakpoints(filters, exceptionOptions, on_done)
     for _, f in ipairs(self.capabilities.exceptionBreakpointFilters) do
       table.insert(possible_filters, f.filter)
     end
+    ---@diagnostic disable-next-line: redundant-parameter, param-type-mismatch
     filters = vim.split(vim.fn.input("Exception breakpoint filters: ", table.concat(possible_filters, ' ')), ' ')
   end
 
@@ -912,7 +913,7 @@ end
 
 
 function Session:handle_body(body)
-  local decoded = json_decode(body)
+  local decoded = assert(json_decode(body), "Debug adapter must send JSON objects")
   log.debug(self.id, decoded)
   local listeners = dap().listeners
   if decoded.request_seq then
@@ -1073,7 +1074,7 @@ end
 
 
 local function get_free_port()
-  local tcp = uv.new_tcp()
+  local tcp = assert(uv.new_tcp(), "Must be able to create tcp client")
   tcp:bind('127.0.0.1', 0)
   local port = tcp:getsockname().port
   tcp:shutdown()
@@ -1098,8 +1099,8 @@ local function spawn_server_executable(adapter)
       end
     end
   end
-  local stdout = uv.new_pipe(false)
-  local stderr = uv.new_pipe(false)
+  local stdout = assert(uv.new_pipe(false), "Must be able to create pipe")
+  local stderr = assert(uv.new_pipe(false), "Must be able to create pipe")
   local opts = {
     stdio = {nil, stdout, stderr},
     args = adapter.executable.args or {},
@@ -1140,7 +1141,7 @@ end
 function Session.connect(_, adapter, opts, on_connect)
   local session = new_session(adapter, opts or {})
   local closed = false
-  local client = uv.new_tcp()
+  local client = assert(uv.new_tcp(), "Must be able to create TCP client")
 
   local function close(cb)
     if closed then
@@ -1166,11 +1167,13 @@ function Session.connect(_, adapter, opts, on_connect)
     local handle
     handle, adapter = spawn_server_executable(adapter)
     session.client.close = function()
-      if handle and not handle:is_closing() then
-        handle:close()
+      close()
+      if handle then
+        if not handle:is_closing() then
+          handle:close()
+        end
         handle = nil
       end
-      close()
     end
   end
   log.debug('Connecting to debug adapter', adapter)
@@ -1186,15 +1189,16 @@ function Session.connect(_, adapter, opts, on_connect)
       return
     end
     local address = addresses[1]
-    client:connect(address.addr, tonumber(adapter.port), function(conn_err)
+    local port = assert(tonumber(adapter.port), "adapter.port is required for server adapter")
+    client:connect(address.addr, port, function(conn_err)
       if conn_err then
         retry_count = retry_count or 1
         if retry_count < max_retries then
           -- Possible luv bug? A second client:connect gets stuck
           -- Create new handle as workaround
           client:close()
-          client = uv.new_tcp()
-          local timer = uv.new_timer()
+          client = assert(uv.new_tcp(), "Must be able to create TCP client")
+          local timer = assert(uv.new_timer(), "Must be able to create timer")
           timer:start(250, 0, function()
             timer:stop()
             timer:close()
@@ -1220,7 +1224,7 @@ function Session.connect(_, adapter, opts, on_connect)
   end
   -- getaddrinfo fails for some users with `bad argument #3 to 'getaddrinfo' (Invalid protocol hint)`
   -- It should generally work with luv 1.42.0 but some still get errors
-  if vim.loop.version() >= 76288 then
+  if uv.version() >= 76288 then
     local ok, err = pcall(uv.getaddrinfo, host, nil, { protocol = 'tcp' }, on_addresses)
     if not ok then
       log.warn(err)
@@ -1240,9 +1244,9 @@ function Session.spawn(_, adapter, opts)
   log.debug('Spawning debug adapter', adapter)
   local session = new_session(adapter, opts or {})
 
-  local stdin = uv.new_pipe(false)
-  local stdout = uv.new_pipe(false)
-  local stderr = uv.new_pipe(false)
+  local stdin = assert(uv.new_pipe(false), "Must be able to create pipe")
+  local stdout = assert(uv.new_pipe(false), "Must be able to create pipe")
+  local stderr = assert(uv.new_pipe(false), "Must be able to create pipe")
   local handle
   local pid_or_err
   local closed = false
@@ -1510,7 +1514,7 @@ function Session:request_with_timeout(command, arguments, timeout_ms, callback)
     end
   end
   self:request(command, arguments, cb)
-  local timer = uv.new_timer()
+  local timer = assert(uv.new_timer(), "Must be able to create timer")
   timer:start(timeout_ms, 0, function()
     timer:stop()
     timer:close()
@@ -1612,7 +1616,7 @@ function Session:initialize(config)
   end)
   local adapter = self.adapter
   local sec_to_wait = (adapter.options or {}).initialize_timeout_sec or 4
-  local timer = vim.loop.new_timer()
+  local timer = assert(uv.new_timer(), "Must be able to create timer")
   timer:start(sec_to_wait * sec_to_ms, 0, function()
     timer:stop()
     timer:close()
