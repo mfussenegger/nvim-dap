@@ -1084,6 +1084,7 @@ end
 
 
 ---@param adapter ServerAdapter
+---@return ServerAdapter
 local function spawn_server_executable(adapter)
   local cmd = assert(adapter.executable.command, "executable of server adapter must have a `command` property")
   log.debug("Starting debug adapter server executable", adapter.executable)
@@ -1107,9 +1108,11 @@ local function spawn_server_executable(adapter)
     detached = utils.if_nil(adapter.executable.detached, true),
     cwd = adapter.executable.cwd,
   }
-  local handle, pid_or_err = uv.spawn(cmd, opts, function(code)
-    stdout:close()
-    stderr:close()
+  local handle, pid_or_err
+  handle, pid_or_err = uv.spawn(cmd, opts, function(code)
+    if handle then
+      handle:close()
+    end
     if code ~= 0 then
       utils.notify(cmd .. " exited with code " .. code, vim.log.levels.WARN)
     end
@@ -1122,19 +1125,21 @@ local function spawn_server_executable(adapter)
   log.debug(
     "Debug adapter server executable started (" .. pid_or_err .. "), listening on " .. adapter.port)
 
-  local read_output = function(stream)
+  local read_output = function(stream, pipe)
     return function(err, chunk)
       assert(not err, err)
       if chunk then
         vim.schedule(function()
           repl.append('[debug-adapter ' .. stream .. '] ' .. chunk)
         end)
+      else
+        pipe:close()
       end
     end
   end
-  stderr:read_start(read_output('stderr'))
-  stdout:read_start(read_output('stdout'))
-  return handle, adapter
+  stderr:read_start(read_output('stderr', stderr))
+  stdout:read_start(read_output('stdout', stdout))
+  return adapter
 end
 
 
@@ -1164,17 +1169,7 @@ function Session.connect(_, adapter, opts, on_connect)
   }
 
   if adapter.executable then
-    local handle
-    handle, adapter = spawn_server_executable(adapter)
-    session.client.close = function()
-      close()
-      if handle then
-        if not handle:is_closing() then
-          handle:close()
-        end
-        handle = nil
-      end
-    end
+    adapter = spawn_server_executable(adapter)
   end
   log.debug('Connecting to debug adapter', adapter)
   local max_retries = (adapter.options or {}).max_retries or 14
