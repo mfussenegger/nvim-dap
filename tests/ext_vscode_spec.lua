@@ -53,9 +53,11 @@ describe('dap.ext.vscode', function()
   it('supports pickString input', function()
     local options
     local opts
+    local label
     vim.ui.select = function(options_, opts_, on_choice)
       options = options_
       opts = opts_
+      label = opts_.format_item(options_[1])
       on_choice(options_[1])
     end
     local jsonstr = [[
@@ -87,6 +89,7 @@ describe('dap.ext.vscode', function()
     end)()
     vim.wait(1000, function() return ok end)
     assert.are.same(true, ok, "coroutine must finish")
+    assert.are.same("one", label)
     assert.are.same("${workspaceFolder}/one", result)
     assert.are.same("Select input", opts.prompt)
     assert.are.same({"one", "two", "three"}, options)
@@ -228,5 +231,90 @@ describe('dap.ext.vscode', function()
     assert.are.same("${workspaceFolder}/Fake input", result)
     assert.are.same("Your input: ", prompt)
     assert.are.same("", default)
+  end)
+
+  it('supports pickString with options', function()
+    local opts
+    local label
+    vim.ui.select = function(options_, opts_, on_choice)
+      opts = opts_
+      label = opts_.format_item(options_[1])
+      on_choice(options_[1])
+    end
+    local jsonstr = [[
+      {
+        "configurations": [
+          {
+            "type": "dummy",
+            "request": "launch",
+            "name": "Dummy",
+            "program": "${workspaceFolder}/${input:my_input}"
+          }
+        ],
+        "inputs": [
+          {
+            "id": "my_input",
+            "type": "pickString",
+            "options": [
+              { "label": "First value", "value": "one" },
+              { "label": "Second value", "value": "two" }
+            ],
+            "description": "Select input"
+          }
+        ]
+      }
+    ]]
+    local configs = vscode._load_json(jsonstr)
+    local ok = false
+    local result
+    coroutine.wrap(function()
+      result = configs[1].program()
+      ok = true
+    end)()
+    vim.wait(1000, function() return ok end)
+    assert.are.same(true, ok, "coroutine must finish")
+    assert.are.same("${workspaceFolder}/one", result)
+    assert.are.same("Select input", opts.prompt)
+    assert.are.same("First value", label)
+  end)
+
+  it('supports pickString with options, nothing selected', function()
+    vim.ui.select = function(_, _, on_choice)
+      on_choice(nil)
+    end
+    local jsonstr = [[
+      {
+        "configurations": [
+          {
+            "type": "dummy",
+            "request": "launch",
+            "name": "Dummy",
+            "program": "${workspaceFolder}/${input:my_input}"
+          }
+        ],
+        "inputs": [
+          {
+            "id": "my_input",
+            "type": "pickString",
+            "options": [
+              { "label": "First value", "value": "one" },
+              { "label": "Second value", "value": "two" }
+            ],
+            "description": "Select input"
+          }
+        ]
+      }
+    ]]
+    local configs = vscode._load_json(jsonstr)
+    local ok = false
+    local result
+    coroutine.wrap(function()
+      result = configs[1].program()
+      ok = true
+    end)()
+    vim.wait(1000, function() return ok end)
+    assert.are.same(true, ok, "coroutine must finish")
+    -- input defaults to ''
+    assert.are.same("${workspaceFolder}/", result)
   end)
 end)

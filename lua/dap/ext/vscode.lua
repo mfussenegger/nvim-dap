@@ -18,12 +18,16 @@ local function create_input(type_, input)
     return function()
       local options = assert(input.options, "input of type pickString must have an `options` property")
       local opts = {
-        prompt = input.description
+        prompt = input.description,
+        format_item = function(x)
+          return x.label and x.label or x
+        end,
       }
       local co = coroutine.running()
       vim.ui.select(options, opts, function(option)
         vim.schedule(function()
-          coroutine.resume(co, option or input.default or '')
+          local value = option and option.value or option
+          coroutine.resume(co, value or (input.default or ''))
         end)
       end)
       return coroutine.yield()
