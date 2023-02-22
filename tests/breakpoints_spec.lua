@@ -71,5 +71,25 @@ describe('breakpoints', function()
       },
       breakpoints.to_qf_list(breakpoints.get())
     )
+
+    local bps = {
+      [buf] = {
+        {
+          line = 1,
+          condition = ""
+        },
+      }
+    }
+    assert.are.same(
+      {
+        {
+          bufnr = buf,
+          col = 0,
+          lnum = 1,
+          text = "Hello breakpoint"
+        }
+      },
+      breakpoints.to_qf_list(bps)
+    )
   end)
 end)

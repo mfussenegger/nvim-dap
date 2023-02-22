@@ -30,11 +30,13 @@ function M.to_dict(values, get_key, get_value)
 end
 
 
+---@param object? table|string
+---@return boolean
 function M.non_empty(object)
   if type(object) == "table" then
     return next(object) ~= nil
   end
-  return object and #object > 0
+  return object and #object > 0 or false
 end
 
 
