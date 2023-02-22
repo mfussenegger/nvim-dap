@@ -341,7 +341,7 @@ They are declared in an "inputs" array and each input must have the following pr
 - "id": the identifier of an input
 - "type": Either `pickString` or `promptString`
 - "description": Descriptive text shown to the user
-- "default": Default value
+- "default": Default value (Defaults to '' if not provided)
 
 `pickString` has an additional "options" property, which is an array of strings.
 These are shown to the user as options.

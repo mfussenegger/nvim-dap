@@ -189,4 +189,44 @@ describe('dap.ext.vscode', function()
     assert.are.same("bar", config.foo)
     end
   end)
+
+  it('supports promptString without default value', function()
+    local prompt
+    local default
+    vim.fn.input = function(prompt_, default_, _)
+      prompt = prompt_
+      default = default_
+      return 'Fake input'
+    end
+    local jsonstr = [[
+      {
+        "configurations": [
+          {
+            "type": "dummy",
+            "request": "launch",
+            "name": "Dummy",
+            "program": "${workspaceFolder}/${input:myInput}"
+          }
+        ],
+        "inputs": [
+          {
+            "id": "myInput",
+            "type": "promptString",
+            "description": "Your input"
+          }
+        ]
+      }
+    ]]
+    local configs = vscode._load_json(jsonstr)
+    local ok = false
+    local result
+    coroutine.wrap(function()
+      result = configs[1].program()
+      ok = true
+    end)()
+    vim.wait(1000, function() return ok end)
+    assert.are.same("${workspaceFolder}/Fake input", result)
+    assert.are.same("Your input: ", prompt)
+    assert.are.same("", default)
+  end)
 end)
