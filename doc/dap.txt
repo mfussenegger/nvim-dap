@@ -341,9 +341,14 @@ They are declared in an "inputs" array and each input must have the following pr
 - "id": the identifier of an input
 - "type": Either `pickString` or `promptString`
 - "description": Descriptive text shown to the user
-- "default": Default value
+- "default": Default value (if not provided, defaults to '')
 
-`pickString` has an additional "options" property, which is an array of strings.
+`pickString` has an additional "options" property, which is an array of strings
+or an array of option objects with label and value:
+
+- [ "my value 1", "my value 2", "my value 3" ]
+- [ { "label": "my label", "value", "my value"} ]
+
 These are shown to the user as options.
 
 Inputs can be referenced with `${input:<id>}` placeholders.

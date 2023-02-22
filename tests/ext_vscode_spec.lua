@@ -129,6 +129,7 @@ describe('dap.ext.vscode', function()
     vim.wait(1000, function() return ok end)
     assert.are.same("the default value", result)
   end)
+
   it('can use two inputs within one property', function()
     vim.fn.input = function(_, default_value, _)
       return default_value
@@ -188,5 +189,128 @@ describe('dap.ext.vscode', function()
     local config = vscode._load_json(jsonstr)[1]
     assert.are.same("bar", config.foo)
     end
+  end)
+
+  it('supports promptString without default value', function()
+    local prompt
+    local default
+    vim.fn.input = function(prompt_, default_, _)
+      prompt = prompt_
+      default = default_
+      return 'Fake input'
+    end
+    local jsonstr = [[
+      {
+        "configurations": [
+          {
+            "type": "dummy",
+            "request": "launch",
+            "name": "Dummy",
+            "program": "${workspaceFolder}/${input:myInput}"
+          }
+        ],
+        "inputs": [
+          {
+            "id": "myInput",
+            "type": "promptString",
+            "description": "Your input"
+          }
+        ]
+      }
+    ]]
+    local configs = vscode._load_json(jsonstr)
+    local ok = false
+    local result
+    coroutine.wrap(function()
+      result = configs[1].program()
+      ok = true
+    end)()
+    vim.wait(1000, function() return ok end)
+    assert.are.same("${workspaceFolder}/Fake input", result)
+    assert.are.same("Your input: ", prompt)
+    assert.are.same("", default)
+  end)
+
+  it('supports pickString with options', function()
+    local options
+    local opts
+    local label
+    vim.ui.select = function(options_, opts_, on_choice)
+      options = options_
+      opts = opts_
+      label = opts_.format_item(options_[1])
+      on_choice(options_[1])
+    end
+    local jsonstr = [[
+      {
+        "configurations": [
+          {
+            "type": "dummy",
+            "request": "launch",
+            "name": "Dummy",
+            "program": "${workspaceFolder}/${input:my_input}"
+          }
+        ],
+        "inputs": [
+          {
+            "id": "my_input",
+            "type": "pickString",
+            "options": [
+              { "label": "First value", "value": "one" },
+              { "label": "Second value", "value": "two" }
+            ],
+            "description": "Select input"
+          }
+        ]
+      }
+    ]]
+    local configs = vscode._load_json(jsonstr)
+    local ok = false
+    local result
+    coroutine.wrap(function()
+      result = configs[1].program()
+      ok = true
+    end)()
+    vim.wait(1000, function() return ok end)
+    assert.are.same(true, ok, "coroutine must finish")
+    assert.are.same("${workspaceFolder}/one", result)
+    assert.are.same("Select input", opts.prompt)
+    assert.are.same("First value", label)
+  end)
+
+  it('repeated input only prompts once', function()
+    local count = 0
+    vim.fn.input = function(_, default_value, _)
+      count = count + 1
+      return "repeat"
+    end
+    local jsonstr = [[
+      {
+        "configurations": [
+          {
+            "type": "dummy",
+            "request": "launch",
+            "name": "Dummy",
+            "program": "${input:input1}-${input:input1}-${input:input1}"
+          }
+        ],
+        "inputs": [
+          {
+            "id": "input1",
+            "type": "promptString",
+            "description": "repeated input"
+          }
+        ]
+      }
+    ]]
+    local config = vscode._load_json(jsonstr)[1]
+    local ok = false
+    local result
+    coroutine.wrap(function()
+      ok, result = true, config.program()
+    end)()
+    vim.wait(1000, function() return ok end)
+    assert.are.same("repeat-repeat-repeat", result)
+    assert.are.same(1, count)
   end)
 end)
