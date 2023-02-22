@@ -936,14 +936,14 @@ sessions()                                                      *dap.sessions()*
         Returns a table with the active top-level debug sessions.
         The keys are session ids and the values are the `Session` instances.
 
-status()
+status()                                                          *dap.status()*
         Returns the status of the current debug session as text
         This is intended to be used within the statusline
 
         If no debug session is active the result is empty.
 
 
-disconnect(opts, cb)                                              *dap.disconnect()*
+disconnect(opts, cb)                                          *dap.disconnect()*
 
         disconnect asks the debug adapter to disconnect from the debuggee and
         to terminate the debug adapter.
