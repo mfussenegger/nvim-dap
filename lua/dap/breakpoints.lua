@@ -35,6 +35,7 @@ local function get_sign_name(bp)
 end
 
 
+---@param breakpoint dap.Breakpoint
 function M.update(breakpoint)
   assert(breakpoint.id, "To update a breakpoint it must have an id property")
   for sign_id, bp in pairs(bp_by_sign) do
