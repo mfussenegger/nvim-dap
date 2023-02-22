@@ -180,9 +180,9 @@ do
         local text_parts = {
           unpack(api.nvim_buf_get_lines(bufnr, bp.line - 1, bp.line, false), 1),
           state.verified == false and (state.message and 'Rejected: ' .. state.message or 'Rejected') or nil,
-          non_empty(bp.logMessage) and "Log message: " .. bp.logMessage,
-          non_empty(bp.condition) and "Condition: " .. bp.condition,
-          non_empty(bp.hitCondition) and "Hit condition: " .. bp.hitCondition,
+          non_empty(bp.logMessage) and "Log message: " .. bp.logMessage or nil,
+          non_empty(bp.condition) and "Condition: " .. bp.condition or nil,
+          non_empty(bp.hitCondition) and "Hit condition: " .. bp.hitCondition or nil,
         }
         local text = table.concat(vim.tbl_filter(not_nil, text_parts), ', ')
         table.insert(qf_list, {
