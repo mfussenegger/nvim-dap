@@ -119,7 +119,7 @@ end
 
 
 function M._load_json(jsonstr)
-  local data = M.json_decode(jsonstr)
+  local data = assert(M.json_decode(jsonstr), "launch.json must contain a JSON object")
   local inputs = create_inputs(data.inputs or {})
   local has_inputs = next(inputs) ~= nil
 

@@ -141,6 +141,8 @@ local function launch_external_terminal(terminal, args)
 end
 
 
+---@param terminal_win_cmd string|fun():integer, integer?
+---@return integer bufnr, integer? winnr
 local function create_terminal_buf(terminal_win_cmd)
   local cur_win = api.nvim_get_current_win()
   if type(terminal_win_cmd) == "string" then
@@ -158,10 +160,10 @@ end
 
 local terminals = {}
 do
-  ---@type table<number, boolean>
+  ---@type table<integer, boolean>
   local pool = {}
 
-  ---@return number, number|nil
+  ---@return integer, integer|nil
   function terminals.acquire(win_cmd, config)
     local buf = next(pool)
     if buf then
@@ -317,6 +319,9 @@ function Session:event_initialized()
 end
 
 
+---@param thread_id number
+---@param bufnr integer
+---@param frame dap.StackFrame
 function Session:_show_exception_info(thread_id, bufnr, frame)
   if not self.capabilities.supportsExceptionInfoRequest then
     return
@@ -351,7 +356,7 @@ function Session:_show_exception_info(thread_id, bufnr, frame)
       bufnr = bufnr,
       lnum = frame.line - 1,
       end_lnum = frame.endLine and (frame.endLine - 1) or nil,
-      col = frame.col or 0,
+      col = frame.column and (frame.column - 1) or 0,
       end_col = frame.endColumn,
       severity = vim.diagnostic.severity.ERROR,
       message = table.concat(msg_parts, '\n'),
@@ -362,6 +367,9 @@ end
 
 
 
+---@param win integer
+---@param line integer
+---@param column integer
 local function set_cursor(win, line, column)
   local ok, err = pcall(api.nvim_win_set_cursor, win, { line, column - 1 })
   if ok then
@@ -546,8 +554,8 @@ end
 
 
 --- Request a source
--- @param source dap.Source
--- @param cb (function(err, buf)) - the buffer will have the contents of the source
+---@param source dap.Source
+---@param cb fun(err, buf) the buffer will have the contents of the source
 function Session:source(source, cb)
   assert(source, 'source is required')
   assert(source.sourceReference, 'sourceReference is required')
@@ -606,6 +614,7 @@ function Session:update_threads(cb)
 end
 
 
+---@param frames dap.StackFrame[]
 local function get_top_frame(frames)
   for _, frame in pairs(frames) do
     if frame.source and frame.source.path then
@@ -675,7 +684,7 @@ function Session:event_stopped(stopped)
       utils.notify('Error retrieving stack traces: ' .. utils.fmt_error(err), vim.log.levels.ERROR)
       return
     end
-    local frames = response.stackFrames
+    local frames = response.stackFrames --[=[@as dap.StackFrame[]]=]
     thread.frames = frames
     local current_frame = get_top_frame(frames)
     if not current_frame then
@@ -688,7 +697,9 @@ function Session:event_stopped(stopped)
       self:_request_scopes(current_frame)
     elseif stopped.reason == "exception" then
       local bufnr = frame_to_bufnr(self, current_frame)
-      self:_show_exception_info(stopped.threadId, bufnr, current_frame)
+      if bufnr then
+        self:_show_exception_info(stopped.threadId, bufnr, current_frame)
+      end
     end
   end)()
 end
@@ -715,18 +726,21 @@ function Session.event_output(_, body)
 end
 
 
+---@param current_frame dap.StackFrame
 function Session:_request_scopes(current_frame)
   self:request('scopes', { frameId = current_frame.id }, function(_, scopes_resp)
-    if not scopes_resp or not scopes_resp.scopes then return end
-
+    if not scopes_resp or not scopes_resp.scopes then
+      return
+    end
     current_frame.scopes = {}
     for _, scope in pairs(scopes_resp.scopes) do
-
       table.insert(current_frame.scopes, scope)
       if not scope.expensive then
-        self:request('variables', { variablesReference = scope.variablesReference }, function(_, variables_resp)
-          if not variables_resp then return end
-
+        local params = { variablesReference = scope.variablesReference }
+        self:request('variables', params, function(_, variables_resp)
+          if not variables_resp then
+            return
+          end
           scope.variables = utils.to_dict(
             variables_resp.variables,
             function(v) return v.name end
@@ -1656,6 +1670,7 @@ function Session:disconnect(opts, cb)
 end
 
 
+---@param frame? dap.StackFrame
 function Session:_frame_set(frame)
   if not frame then
     return
@@ -1704,6 +1719,7 @@ function Session.event_loadedSource()
 end
 
 
+---@param event dap.ThreadEvent
 function Session:event_thread(event)
   if event.reason == 'exited' then
     self.threads[event.threadId] = nil
@@ -1725,6 +1741,7 @@ function Session:event_thread(event)
 end
 
 
+---@param event dap.ContinuedEvent
 function Session:event_continued(event)
   if event.allThreadsContinued then
     for _, t in pairs(self.threads) do
@@ -1739,6 +1756,7 @@ function Session:event_continued(event)
 end
 
 
+---@param event dap.BreakpointEvent
 function Session.event_breakpoint(_, event)
   if event.reason == 'changed' then
     local bp = event.breakpoint
