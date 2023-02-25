@@ -1018,11 +1018,16 @@ local function start_debugging(self, request)
       return
     end
 
-    if adapter.type == "executable" then
-      local session = Session:spawn(adapter, opts)
+    local function on_child_session(session)
+      session.parent = self
       self.children[session.id] = session
       session:initialize(config)
       self:response(request, {success = true})
+    end
+
+    if adapter.type == "executable" then
+      local session = Session:spawn(adapter, opts)
+      on_child_session(session)
     elseif adapter.type == "server" then
       local session
       session = Session:connect(adapter, opts, function(err)
@@ -1034,10 +1039,7 @@ local function start_debugging(self, request)
             err
           ), vim.log.levels.WARN)
         elseif session then
-          session.parent = self
-          self.children[session.id] = session
-          session:initialize(config)
-          self:response(request, {success = true})
+          on_child_session(session)
         end
       end)
     end
