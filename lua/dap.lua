@@ -438,6 +438,7 @@ function M.run(config, opts)
     return
   end
   opts.filetype = opts.filetype or vim.bo.filetype
+  opts.new = nil
   last_run = {
     config = config,
     opts = opts,
