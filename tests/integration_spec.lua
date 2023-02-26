@@ -35,7 +35,7 @@ local function run_and_wait_until_initialized(conf, server)
     -- wait for initialize and launch requests
     return (session and session.initialized and #server.spy.requests == 2)
   end, 100)
-  return dap.session()
+  return assert(dap.session(), "Must have session after run")
 end
 
 describe('dap with fake server', function()
@@ -935,5 +935,41 @@ describe('progress support', function()
     })
     wait(function() return progress.status() ~= 'progress title' end)
     assert.are.same('Running: Launch file', progress.status())
+  end)
+end)
+
+
+describe("run_last", function()
+  local server
+  before_each(function()
+    server = require('tests.server').spawn()
+    dap.adapters.dummy = server.adapter
+  end)
+  after_each(function()
+    server.stop()
+    dap.terminate()
+  end)
+
+  it('can repeat run_last and it always clears session', function()
+    server.client.initialize = function(self, request)
+      self:send_response(request, {
+        supportsTerminateRequest = true,
+      })
+      self:send_event("initialized", {})
+    end
+
+    run_and_wait_until_initialized(config, server)
+    server.spy.clear()
+    dap.run_last()
+    wait(function() return #server.spy.requests == 3 end)
+    local commands = vim.tbl_map(function(x) return x.command end, server.spy.requests)
+    assert.are.same({"terminate", "initialize", "launch"}, commands)
+    assert.are.same(1, vim.tbl_count(dap.sessions()))
+
+    dap.run_last()
+    wait(function() return #server.spy.requests == 3 end)
+    commands = vim.tbl_map(function(x) return x.command end, server.spy.requests)
+    assert.are.same({"terminate", "initialize", "launch"}, commands)
+    assert.are.same(1, vim.tbl_count(dap.sessions()))
   end)
 end)

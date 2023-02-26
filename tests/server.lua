@@ -96,6 +96,12 @@ function Client:disconnect(request)
 end
 
 
+function Client:terminate(request)
+  self:send_event('terminated', {})
+  self:send_response(request, {})
+end
+
+
 function Client:launch(request)
   self:send_response(request, {})
 end
