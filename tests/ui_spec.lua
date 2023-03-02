@@ -62,6 +62,21 @@ describe('ui', function()
       assert.are.same('bbbb', layer.get(2).item.label)
       assert.are.same('', layer.get(3).item.label)
     end)
+
+    it('can append at the end', function()
+      layer.render({{ label = "e" }}, render_item, nil, nil, nil)
+      local lines = api.nvim_buf_get_lines(buf, 0, -1, true)
+      assert.are.same({
+        'aa',
+        'bbb',
+        'bbbb',
+        '',
+        'dd',
+        'e',
+      }, lines)
+      assert.are.same('dd', layer.get(4).item.label)
+      assert.are.same('e', layer.get(5).item.label)
+    end)
   end)
 
   local opts = {
