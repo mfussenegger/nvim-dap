@@ -16,7 +16,7 @@ local function run_and_wait_until_initialized(conf, server)
     -- wait for initialize and launch requests
     return (session and session.initialized and #server.spy.requests == 2)
   end)
-  return dap.session()
+  return assert(dap.session(), "Must have session after dap.run")
 end
 
 
@@ -83,5 +83,9 @@ describe('sessions', function()
     )
     local _, child = next(dap.session().children)
     assert.are.same("Subprocess", child.config.name)
+
+    srv2.stop()
+    wait(function() return vim.tbl_count(dap.session().children) == 0 end)
+    assert.are.same({}, dap.session().children)
   end)
 end)

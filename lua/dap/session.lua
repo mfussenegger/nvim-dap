@@ -1018,9 +1018,16 @@ local function start_debugging(self, request)
       return
     end
 
+    ---@param session Session
     local function on_child_session(session)
       session.parent = self
       self.children[session.id] = session
+      session.on_close['dap.session.child'] = function(s)
+        if s.parent then
+          s.parent.children[s.id] = nil
+          s.parent = nil
+        end
+      end
       session:initialize(config)
       self:response(request, {success = true})
     end
