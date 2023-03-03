@@ -615,9 +615,10 @@ end
 
 
 ---@param frames dap.StackFrame[]
+---@return dap.StackFrame|nil
 local function get_top_frame(frames)
   for _, frame in pairs(frames) do
-    if frame.source and frame.source.path then
+    if frame.source then
       return frame
     end
   end
