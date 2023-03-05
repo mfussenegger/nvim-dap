@@ -477,7 +477,6 @@ function M.layer(buf)
         else
           end_ = start
         end
-        print('render, start and end_ computed', start, end_) --, vim.inspect(xs))
       else
         start = start or (api.nvim_buf_line_count(buf) - 1)
         end_ = end_ or start
@@ -509,7 +508,6 @@ function M.layer(buf)
         end
         text = text:gsub('\n', '\\n')
         api.nvim_buf_set_lines(buf, i, i + 1, true, {text})
-        print('set-line', i, text)
         if hl_regions then
           for _, hl_region in pairs(hl_regions) do
             api.nvim_buf_add_highlight(
