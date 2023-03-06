@@ -466,12 +466,13 @@ function M.layer(buf)
       local modifiable = api.nvim_buf_get_option(buf, 'modifiable')
       api.nvim_buf_set_option(buf, 'modifiable', true)
       if not start and not end_ then
-        start = api.nvim_buf_line_count(buf) - 1
+        start = api.nvim_buf_line_count(buf)
         -- Avoid inserting a new line at the end of the buffer
         -- The case of no lines and one empty line are ambiguous;
         -- set_lines(buf, 0, 0) would "preserve" the "empty buffer line" while set_lines(buf, 0, -1) replaces it
         -- Need to use regular end_ = start in other cases to support injecting lines in all other cases
-        if start == 0 and (api.nvim_buf_get_lines(buf, 0, -1, true))[1] == "" then
+        if start == 1 and (api.nvim_buf_get_lines(buf, 0, -1, true))[1] == "" then
+          start = 0
           end_ = -1
         else
           end_ = start
