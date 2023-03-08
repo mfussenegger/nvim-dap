@@ -799,11 +799,12 @@ end
 
 
 function M.run_to_cursor()
-  if not session then
+  local lsession = session
+  if not lsession then
     notify('Cannot use run_to_cursor without active session', vim.log.levels.INFO)
     return
   end
-  if not session.stopped_thread_id then
+  if not lsession.stopped_thread_id then
     notify('run_to_cursor can only be used if stopped at a breakpoint', vim.log.levels.INFO)
     return
   end
@@ -840,13 +841,13 @@ function M.run_to_cursor()
         lazy.breakpoints.set(opts, buf, line)
       end
     end
-    session:set_breakpoints(bps_before, nil)
+    lsession:set_breakpoints(bps_before, nil)
   end
 
   M.listeners.before.event_stopped['dap.run_to_cursor'] = restore_breakpoints
   M.listeners.before.event_terminated['dap.run_to_cursor'] = restore_breakpoints
-  session:set_breakpoints(temp_bps, function()
-    session:_step('continue')
+  lsession:set_breakpoints(temp_bps, function()
+    lsession:_step('continue')
   end)
 end
 
