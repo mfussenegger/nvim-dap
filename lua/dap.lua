@@ -696,7 +696,7 @@ end
 
 
 function M.restart(config, opts)
-  local lsession = opts.session or session
+  local lsession = opts and opts.session or session
   if not lsession then
     notify('No active session', vim.log.levels.INFO)
     return
@@ -712,7 +712,7 @@ function M.restart(config, opts)
     end)
   else
     terminate(lsession, nil, nil, vim.schedule_wrap(function()
-      local nopts = vim.deepcopy(opts)
+      local nopts = vim.deepcopy(opts) or {}
       nopts.new = true
       M.run(config, nopts)
     end))
