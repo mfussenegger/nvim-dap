@@ -159,6 +159,42 @@ describe('dap with fake server', function()
     assert.are.same(expected, diagnostics)
   end)
 
+  it('jumps to location if thread with same id is already stopped', function()
+    local session = run_and_wait_until_initialized(config, server)
+
+    -- Pretend to be stopped
+    session.stopped_thread_id = 1
+
+    server.spy.clear()
+    server.client.threads = function(self, request)
+      self:send_response(request, {
+        threads = { { id = 1, name = 'thread1' }, }
+      })
+    end
+    server.client.stackTrace = function(self, request)
+      self:send_response(request, {
+        stackFrames = {
+          {
+            id = 1,
+            name = 'stackFrame1',
+            line = 1,
+          },
+        },
+      })
+    end
+    session:event_stopped({
+      allThreadsStopped = false,
+      threadId = 1,
+      reason = 'breakpoint',
+    })
+    vim.wait(1000, function() return #server.spy.requests == 3 end)
+    local expected_commands = {"threads", "stackTrace", "scopes"}
+    assert.are.same(
+      expected_commands,
+      vim.tbl_map(function(x) return x.command end, server.spy.requests)
+    )
+  end)
+
   it('jumps to location on stopped with reason=pause and allThreadsStopped', function()
     local session = run_and_wait_until_initialized(config, server)
     server.spy.clear()

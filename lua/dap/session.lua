@@ -132,7 +132,9 @@ local function launch_external_terminal(terminal, args)
     detached = true
   }
   handle, pid_or_err = uv.spawn(terminal.command, opts, function(code)
-    handle:close()
+    if handle then
+      handle:close()
+    end
     if code ~= 0 then
       utils.notify(string.format('Terminal exited %d running %s %s', code, terminal.command, table.concat(full_args, ' ')), vim.log.levels.ERROR)
     end
@@ -641,7 +643,11 @@ function Session:event_stopped(stopped)
   end
 
   local should_jump = stopped.reason ~= 'pause' or stopped.allThreadsStopped
-  if self.stopped_thread_id and should_jump then
+
+  -- Some debug adapters allow to continue/step via custom REPL commands (via evaluate)
+  -- That by-passes `clear_running`, resulting in self.stopped_thread_id still being set
+  -- Dont auto-continue if`threadId == self.stopped_thread_id`, but stop & jump
+  if self.stopped_thread_id and self.stopped_thread_id ~= stopped.threadId and should_jump then
     if defaults(self).auto_continue_if_many_stopped then
       local thread = self.threads[self.stopped_thread_id]
       local thread_name = thread and thread.name or self.stopped_thread_id
