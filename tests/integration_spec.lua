@@ -356,6 +356,12 @@ describe('dap with fake server', function()
     local session = run_and_wait_until_initialized(callable_config, server)
     assert.are.same(session.config.x, 1)
   end)
+
+  it("step does nothing if session is not stopped", function()
+    local session = run_and_wait_until_initialized(config, server)
+    dap.step_over()
+    assert.are.same(session, dap.session())
+  end)
 end)
 
 describe('session disconnect', function()
