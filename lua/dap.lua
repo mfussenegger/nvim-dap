@@ -410,6 +410,8 @@ local function select_config_and_run(opts)
 end
 
 
+--- Get the first stopped session.
+--- If no session is stopped, it returns the active session or next in sessions.
 ---@return Session|nil
 local function first_stopped_session()
   if session and session.stopped_thread_id then
@@ -420,7 +422,11 @@ local function first_stopped_session()
       return s
     end
   end
-  return nil
+  if session then
+    return session
+  end
+  local _, s = next(sessions)
+  return s
 end
 
 
