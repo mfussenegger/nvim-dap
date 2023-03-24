@@ -197,6 +197,8 @@ local DAP_QUICKFIX_CONTEXT = DAP_QUICKFIX_TITLE
 ---@field detached nil|boolean
 
 
+---@alias Dap.AdapterFactory fun(callback: fun(adapter: Adapter), config: Configuration, parent?: Session)
+
 --- Adapter definitions. See `:help dap-adapter` for more help
 ---
 --- An example:
@@ -210,7 +212,7 @@ local DAP_QUICKFIX_CONTEXT = DAP_QUICKFIX_TITLE
 ---   },
 --- }
 --- ```
----@type table<string, Adapter|fun(callback: fun(adapter: Adapter), config: Configuration)>
+---@type table<string, Adapter|Dap.AdapterFactory>
 M.adapters = {}
 
 
