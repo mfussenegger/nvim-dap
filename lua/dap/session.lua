@@ -871,9 +871,6 @@ do
             breakpoints.set_state(bufnr, bp.line, bp)
             if not bp.verified then
               log.info('Server rejected breakpoint', bp)
-              if bp.message then
-                utils.notify(bp.message, vim.log.levels.ERROR)
-              end
             end
           end
         end
@@ -1014,7 +1011,7 @@ local function start_debugging(self, request)
     config.request = body.request
 
     if type(adapter) == "function" then
-      adapter(co_resume_schedule(co), config)
+      adapter(co_resume_schedule(co), config, self)
       adapter = coroutine.yield()
     end
 
@@ -1200,6 +1197,7 @@ function Session.connect(_, adapter, opts, on_connect)
 
   if adapter.executable then
     adapter = spawn_server_executable(adapter)
+    session.adapter = adapter
   end
   log.debug('Connecting to debug adapter', adapter)
   local max_retries = (adapter.options or {}).max_retries or 14

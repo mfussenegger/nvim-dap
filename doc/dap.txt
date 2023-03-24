@@ -143,9 +143,13 @@ Both types support the following additional options:
                                        -- retrieved via a source request.
 
 
-`dap.adapters.<name>` can also be set to a function which takes two arguments.
-This first argument is a callback which must be called with the adapter table.
-The second argument is the |dap-configuration| which the user wants to use.
+`dap.adapters.<name>` can also be set to a function which takes three arguments:
+
+- A `on_config` callback. This must be called with the actual adapter table.
+- The |dap-configuration| which the user wants to use.
+- An optional parent session. This is only available if the debug-adapter
+  wants to start a child-session via a `startDebugging` request.
+
 
 This can be used to defer the resolving of the values to when a configuration
 is used. A use-case for this is starting an adapter asynchronous. For example,
