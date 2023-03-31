@@ -860,7 +860,7 @@ function M.run_to_cursor()
 end
 
 
----@param opts? table<string, any>
+---@param opts? {new?: boolean}
 function M.continue(opts)
   if not session then
     session = first_stopped_session()

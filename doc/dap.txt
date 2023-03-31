@@ -608,7 +608,7 @@ API                                                  *dap-api*
 Lua module: dap
 
 
-continue()                                                      *dap.continue()*
+continue({opts})                                                *dap.continue()*
         `continue()` resumes the execution of an application [count] times if a
         debug session is active and a thread was stopped. Threads are usually
         stopped when a breakpoint is hit or an exception occurred.
@@ -622,6 +622,10 @@ continue()                                                      *dap.continue()*
 
         `continue()` is the main entry-point for users to start debugging an
         application.
+
+        Parameters:
+            {opts}    Optional table with:
+                      - `new: boolean` force starting an additional debug session
 
 
 run({config}, {opts})                                                *dap.run()*
@@ -640,7 +644,7 @@ run({config}, {opts})                                                *dap.run()*
         Parameters:
             {config}  |dap-configuration| to run
             {opts}    Optional table with:
-                      - `new: boolean` to force running an additional debug session
+                      - `new: boolean` force starting an additional debug session
 
 
 run_last()                                                      *dap.run_last()*
