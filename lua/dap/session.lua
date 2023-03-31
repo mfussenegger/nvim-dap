@@ -1015,6 +1015,14 @@ local function start_debugging(self, request)
       adapter = coroutine.yield()
     end
 
+    -- Prefer connecting to root server again if it is of type server and
+    -- the new adapter would have an executable.
+    -- Spawning a new executable is likely the wrong thing to do
+    if self.adapter.type == "server" and adapter.executable then
+      adapter = vim.deepcopy(self.adapter)
+      adapter.executable = nil
+    end
+
     local expected_types = {"executable", "server"}
     if type(adapter) ~= "table" or not vim.tbl_contains(expected_types, adapter.type) then
       local msg = "Invalid adapter definition. Expected a table with type `executable` or `server`: "
