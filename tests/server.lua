@@ -109,7 +109,7 @@ end
 
 function M.spawn(opts)
   opts = opts or {}
-  local server = uv.new_tcp()
+  local server = assert(uv.new_tcp())
   local host = '127.0.0.1'
   local spy = {
     requests = {},
@@ -126,16 +126,22 @@ function M.spawn(opts)
     seq = 0,
     handlers = {},
     spy = spy,
+    num_connected = 0,
   }
   setmetatable(client, {__index = Client})
   server:listen(128, function(err)
     assert(not err, err)
-    local socket = uv.new_tcp()
+    client.num_connected = client.num_connected + 1
+    local socket = assert(uv.new_tcp())
     client.socket = socket
     server:accept(socket)
-    socket:read_start(rpc.create_read_loop((function(body)
+    local function on_chunk(body)
       client:handle_input(body)
-    end)))
+    end
+    local function on_eof()
+      client.num_connected = client.num_connected - 1
+    end
+    socket:read_start(rpc.create_read_loop(on_chunk, on_eof))
   end)
   return {
     client = client,
