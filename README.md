@@ -18,6 +18,7 @@
   - `git clone https://github.com/mfussenegger/nvim-dap.git ~/.config/nvim/pack/plugins/start/nvim-dap`
   - Or with [vim-plug][11]: `Plug 'mfussenegger/nvim-dap'`
   - Or with [packer.nvim][12]: `use 'mfussenegger/nvim-dap'`
+  - Or with [lazy.nvim][16]: `'mfussenegger/nvim-dap'`
 - Generate the documentation for nvim-dap using `:helptags ALL` or
   `:helptags <PATH-TO-PLUGIN/doc/>`
 
@@ -146,5 +147,6 @@ time.
 [12]: https://github.com/wbthomason/packer.nvim
 [13]: https://microsoft.github.io/debug-adapter-protocol/implementors/adapters/
 [15]: https://github.com/rcarriga/nvim-dap-ui
+[16]: https://github.com/folke/lazy.nvim
 [demo]: https://user-images.githubusercontent.com/38700/124292938-669a7100-db56-11eb-93b8-77b66994fc8a.gif
 
