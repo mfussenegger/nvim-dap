@@ -684,7 +684,7 @@ terminate(terminate_opts, disconnect_opts, cb),                                 
 set_breakpoint({condition}, {hit_condition}, {log_message})
                                                           *dap.set_breakpoint()*
 
-        Same as |toggle_breakpoint|, but is guaranteed to overwrite previous 
+        Same as |toggle_breakpoint|, but is guaranteed to overwrite previous
         breakpoint.
 
 toggle_breakpoint({condition}, {hit_condition}, {log_message})
@@ -698,7 +698,7 @@ toggle_breakpoint({condition}, {hit_condition}, {log_message})
             {hit_condition} Optional hit condition, e.g. a number as a string
                             that tells how often this breakpoint should be visited
                             to stop.
-            {log_message}   Optional log message. This transforms the breakpoint 
+            {log_message}   Optional log message. This transforms the breakpoint
                             into a log point. Variable interpolation with {foo} is
                             supported within the message.
 
@@ -766,7 +766,7 @@ step_into([{opts}])                                            *dap.step_into()*
         If it cannot step into a function or method it behaves like
         |dap.step_over()|.
 
-        If the debug adapter has the `supportsStepInTargetsRequest` and  
+        If the debug adapter has the `supportsStepInTargetsRequest` and
         {ask_for_targets} is true, the user can choose into which function they
         want to step into if there are multiple.
 
@@ -1159,10 +1159,16 @@ UTILS API                                                          *dap-utils*
 
 Lua module: dap.utils
 
-pick_process()                                         *dap.utils.pick_process*
+pick_process(opts)                                         *dap.utils.pick_process*
         Show a prompt to pick a PID from a list of processes.
 
         This uses `ps ah` to retrieve the process list and won't work if `ps ah`
         is not available. On windows this method uses `tasklist /nh /fo csv` command.
+
+        Parameters: ~
+            {opts}    Table with options for the pick process request.
+                      Defaults to `{ match_pattern = nil }`
+                      You can use `match_pattern` to filter out the processes
+                      by name
 
 vim:ft=help
