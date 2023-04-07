@@ -50,6 +50,8 @@ end
 
 
 --- Return running processes as a list with { pid, name } tables.
+---
+---@return {pid: integer, name: string}[]
 function M.get_processes()
   local is_windows = vim.fn.has('win32') == 1
   local separator = is_windows and ',' or ' \\+'
@@ -95,20 +97,56 @@ end
 
 
 --- Show a prompt to select a process pid
-function M.pick_process()
+--- Requires `ps ah` on Linux/Mac and `tasklist /nh /fo csv` on windows.
+--
+--- Takes an optional `opts` table with the following options:
+---
+--- - filter string|fun: A lua pattern or function to filter the processes.
+---                      If a function the parameter is a table with
+---                      {pid: integer, name: string}
+---                      and it must return a boolean.
+---                      Matches are included.
+---
+--- <pre>
+--- require("dap.utils").pick_process({ filter = "sway" })
+--- </pre>
+---
+--- <pre>
+--- require("dap.utils").pick_process({
+---   filter = function(proc) return vim.endswith(proc.name, "sway") end
+--- })
+--- </pre>
+---
+---@param opts? {filter: string|(fun(proc: {pid: integer, name: string}): boolean)}
+function M.pick_process(opts)
+  opts = opts or {}
   local label_fn = function(proc)
     return string.format("id=%d name=%s", proc.pid, proc.name)
+  end
+  local procs = M.get_processes()
+  if opts.filter then
+    local filter
+    if type(opts.filter) == "string" then
+      filter = function(proc)
+        return proc.name:find(opts.filter)
+      end
+    elseif type(opts.filter) == "function" then
+      filter = function(proc)
+        return opts.filter(proc)
+      end
+    else
+      error("opts.filter must be a string or a function")
+    end
+    procs = vim.tbl_filter(filter, procs)
   end
   local co = coroutine.running()
   if co then
     return coroutine.create(function()
-      local procs = M.get_processes()
       require('dap.ui').pick_one(procs, "Select process", label_fn, function(choice)
         coroutine.resume(co, choice and choice.pid or nil)
       end)
     end)
   else
-    local procs = M.get_processes()
     local result = require('dap.ui').pick_one_sync(procs, "Select process", label_fn)
     return result and result.pid or nil
   end
