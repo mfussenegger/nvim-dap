@@ -1159,10 +1159,28 @@ UTILS API                                                          *dap-utils*
 
 Lua module: dap.utils
 
-pick_process()                                         *dap.utils.pick_process*
-        Show a prompt to pick a PID from a list of processes.
+pick_process({opts})                                    *dap.utils.pick_process*
+    Show a prompt to select a process pid
+    Requires `ps ah` on Linux/Mac and `tasklist /nh /fo csv` on windows.
 
-        This uses `ps ah` to retrieve the process list and won't work if `ps ah`
-        is not available. On windows this method uses `tasklist /nh /fo csv` command.
+
+    Parameters:
+      {opts}  optional table with the following properties:
+
+                - filter string|fun:
+                    A lua pattern or function to filter the processes.
+                    If a function the parameter is a table with
+                    {pid: integer, name: string}
+                    and it must return a boolean.
+                    Matches are included.
+
+    >lua
+    require("dap.utils").pick_process({ filter = "sway" })
+<
+    >lua
+    require("dap.utils").pick_process({
+      filter = function(proc) return vim.endswith(proc.name, "sway") end
+    })
+<
 
 vim:ft=help
