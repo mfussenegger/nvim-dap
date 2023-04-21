@@ -48,6 +48,7 @@ describe('dap with fake server', function()
     server.stop()
     dap.close()
     require('dap.breakpoints').clear()
+    wait(function() return dap.session() == nil end)
   end)
   it('clear breakpoints clears all active breakpoints', function()
     local session = run_and_wait_until_initialized(config, server)
@@ -374,6 +375,7 @@ describe('session disconnect', function()
     dap.close()
     require('dap.breakpoints').clear()
     server.stop()
+    wait(function() return dap.session() == nil end)
   end)
 
   it('Can call close on session after session has already closed', function()
@@ -461,6 +463,7 @@ describe('request source', function()
   after_each(function()
     dap.close()
     server.stop()
+    wait(function() return dap.session() == nil end)
   end)
 
   it('can jump to frame if source needs to be fetched', function()
@@ -586,6 +589,7 @@ describe('run_to_cursor', function()
     for _, buf in pairs(api.nvim_list_bufs()) do
       api.nvim_buf_delete(buf, { force = true })
     end
+    wait(function() return dap.session() == nil end)
   end)
 
   it('clears breakpoints from buffers, adds breakpoint for current line, continues, restores breakpoints', function()
@@ -730,6 +734,7 @@ describe('breakpoint events', function()
     server.stop()
     dap.close()
     require('dap.breakpoints').clear()
+    wait(function() return dap.session() == nil end)
   end)
   it('can change state from rejected to verified', function()
     server.client.setBreakpoints = function(self, request)
@@ -803,6 +808,7 @@ describe('restart_frame', function()
   after_each(function()
     server.stop()
     dap.close()
+    wait(function() return dap.session() == nil end)
   end)
   it('Requires restart capability', function()
     run_and_wait_until_initialized(config, server)
@@ -917,6 +923,7 @@ describe('event_terminated', function()
   after_each(function()
     server.stop()
     dap.terminate()
+    wait(function() return dap.session() == nil end)
   end)
   it('can restart session', function()
     local session = run_and_wait_until_initialized(config, server)
@@ -954,6 +961,7 @@ describe('progress support', function()
   after_each(function()
     server.stop()
     dap.terminate()
+    wait(function() return dap.session() == nil end)
   end)
 
   it('shows progress in status', function()
@@ -990,6 +998,7 @@ describe("run_last", function()
   after_each(function()
     server.stop()
     dap.terminate()
+    wait(function() return dap.session() == nil end)
   end)
 
   it('can repeat run_last and it always clears session', function()
@@ -1013,5 +1022,32 @@ describe("run_last", function()
     commands = vim.tbl_map(function(x) return x.command end, server.spy.requests)
     assert.are.same({"terminate", "initialize", "launch"}, commands)
     assert.are.same(1, vim.tbl_count(dap.sessions()))
+  end)
+end)
+
+
+describe("bad debug adapter", function()
+  it("calls notify with warning", function()
+    dap.adapters.bad = {
+      type = "executable",
+      command = "python",
+      args = { vim.fn.expand("%:p:h") .. "/tests/bad_adapter.py" }
+    }
+    local captured_msg
+    local captured_log_level
+    ---@diagnostic disable-next-line: duplicate-set-field
+    require("dap.utils").notify = function(msg, log_level)
+      captured_msg = msg
+      captured_log_level = log_level
+    end
+    local bad_config = {
+      type = 'bad',
+      request = 'launch',
+      name = 'Launch file',
+    }
+    dap.run(bad_config)
+    wait(function() return captured_msg ~= nil end)
+    assert.are.same("python exited with code: 10", captured_msg)
+    assert.are.same(vim.log.levels.WARN, captured_log_level)
   end)
 end)
