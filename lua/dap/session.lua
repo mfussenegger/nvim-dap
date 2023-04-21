@@ -1312,7 +1312,15 @@ function Session.spawn(_, adapter, opts)
     env = options.env;
     detached = utils.if_nil(options.detached, true);
   }
-  handle, pid_or_err = uv.spawn(adapter.command, spawn_opts, onexit)
+  handle, pid_or_err = uv.spawn(adapter.command, spawn_opts, function(code)
+    onexit()
+    if code ~= 0 then
+      utils.notify(adapter.command .. " exited with code: " .. tostring(code), vim.log.levels.WARN)
+    end
+    if not session.closed then
+      session:close()
+    end
+  end)
   if not handle then
     onexit()
     if adapter.command == "" then
@@ -1651,7 +1659,7 @@ function Session:initialize(config)
   timer:start(sec_to_wait * sec_to_ms, 0, function()
     timer:stop()
     timer:close()
-    if not adapter_responded then
+    if not adapter_responded and not self.closed then
       vim.schedule(function()
         utils.notify(
           string.format(
