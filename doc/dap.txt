@@ -204,6 +204,12 @@ This is controlled via a `Configuration`, which has 3 required fields:
     name: string        -- A user-readable name for the configuration.
 <
 
+There is one optional field to control whether the debuggee is terminated when
+vim exits:
+
+>
+    dont_terminate_on_exit: bool        -- defaults to false
+<
 In addition, a `Configuration` accepts an arbitrary number of further options
 which are debug-adapter-specific.
 

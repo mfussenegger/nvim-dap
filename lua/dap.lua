@@ -220,6 +220,7 @@ M.adapters = {}
 ---@field type string
 ---@field request "launch"|"attach"
 ---@field name string
+---@field dont_terminate_on_exit boolean
 
 --- Configurations per adapter. See `:help dap-configuration` for more help.
 ---
@@ -1017,11 +1018,13 @@ end
 
 function M._vim_exit_handler()
   for _, s in pairs(sessions) do
-    terminate(s)
-    vim.wait(500, function()
-      ---@diagnostic disable-next-line: redundant-return-value
-      return session == nil and next(sessions) == nil
-    end)
+    if not s.config.dont_terminate_on_exit then
+        terminate(s)
+        vim.wait(500, function()
+          ---@diagnostic disable-next-line: redundant-return-value
+          return session == nil and next(sessions) == nil
+        end)
+    end
   end
   M.repl.close()
 end
