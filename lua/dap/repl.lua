@@ -6,7 +6,8 @@ local M = {}
 local history = {
   last = nil,
   entries = {},
-  idx = 1
+  idx = 1,
+  max_size = 5000,
 }
 
 local autoscroll = vim.fn.has('nvim-0.7') == 1
@@ -226,6 +227,9 @@ function execute(text)
     end
   else
     history.last = text
+    if #history.entries == history.max_size then
+      table.remove(history.entries, 1)
+    end
     table.insert(history.entries, text)
     history.idx = #history.entries + 1
   end
@@ -245,8 +249,7 @@ function execute(text)
     return
   elseif vim.tbl_contains(M.commands.clear, text) then
     if repl.buf and api.nvim_buf_is_loaded(repl.buf) then
-      local layer = ui.layer(repl.buf)
-      layer.render({}, tostring, {}, 0, - 1)
+      M.clear_output()
     end
     return
   end
@@ -383,10 +386,7 @@ function M.append(line, lnum, opts)
 end
 
 
-function M.clear()
-  history.last = nil
-  history.entries = {}
-  history.idx = 1
+function M.clear_output()
   if repl.buf and api.nvim_buf_is_loaded(repl.buf) then
     local layer = ui.layer(repl.buf)
     layer.render({}, tostring, {}, 0, - 1)
