@@ -11,6 +11,7 @@ local history = {
 }
 
 local autoscroll = vim.fn.has('nvim-0.7') == 1
+M.show_tree = true
 
 local function get_session()
   return require('dap').session()
@@ -157,7 +158,7 @@ local function evaluate_handler(err, resp)
   end
   local layer = ui.layer(repl.buf)
   local attributes = (resp.presentationHint or {}).attributes or {}
-  if resp.variablesReference > 0 or vim.tbl_contains(attributes, 'rawString') then
+  if M.show_tree and (resp.variablesReference > 0 or vim.tbl_contains(attributes, 'rawString')) then
     local spec = require('dap.entity').variable.tree_spec
     local tree = ui.new_tree(spec)
     -- tree.render would "append" twice, once for the top element and once for the children
