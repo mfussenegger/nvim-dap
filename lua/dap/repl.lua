@@ -334,9 +334,9 @@ local function select_history(delta)
   end
   local text = history.entries[history.idx]
   if text then
-    local lnum = vim.fn.line('$') - 1
-    api.nvim_buf_set_lines(repl.buf, lnum, lnum + 1, true, {'dap> ' .. text })
-    vim.fn.setcursorcharpos({ vim.fn.line('$'), vim.fn.col('$') })  -- move cursor to the end of line
+    local lnum = vim.fn.line('$')
+    api.nvim_buf_set_lines(repl.buf, lnum - 1, lnum, true, {'dap> ' .. text })
+    vim.fn.setcursorcharpos({ lnum, vim.fn.col('$') })  -- move cursor to the end of line
   end
 end
 
