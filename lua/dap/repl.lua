@@ -7,7 +7,7 @@ local history = {
   last = nil,
   entries = {},
   idx = 1,
-  max_size = 5000,
+  max_size = 100,
 }
 
 local autoscroll = vim.fn.has('nvim-0.7') == 1
