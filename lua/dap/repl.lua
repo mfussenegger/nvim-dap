@@ -249,7 +249,7 @@ function execute(text)
     return
   elseif vim.tbl_contains(M.commands.clear, text) then
     if repl.buf and api.nvim_buf_is_loaded(repl.buf) then
-      M.clear_output()
+      M.clear()
     end
     return
   end
@@ -386,7 +386,7 @@ function M.append(line, lnum, opts)
 end
 
 
-function M.clear_output()
+function M.clear()
   if repl.buf and api.nvim_buf_is_loaded(repl.buf) then
     local layer = ui.layer(repl.buf)
     layer.render({}, tostring, {}, 0, - 1)

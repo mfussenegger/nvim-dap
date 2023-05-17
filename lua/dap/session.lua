@@ -1623,7 +1623,7 @@ end
 --- Initialize the debug session
 ---@param config Configuration
 function Session:initialize(config)
-  vim.schedule(repl.clear_output)
+  vim.schedule(repl.clear)
   local adapter_responded = false
   self.config = config
   self:request('initialize', {
