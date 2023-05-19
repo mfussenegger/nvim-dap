@@ -18,7 +18,7 @@ function M.apply_winopts(win, opts)
     elseif k == 'border' then
       api.nvim_win_set_config(win, {[k]=v})
     else
-      api.nvim_win_set_option(win, k, v)
+      vim.wo[win][k] = v
     end
   end
 end
@@ -326,6 +326,7 @@ function M.new_view(new_buf, new_win, opts)
       return closed
     end,
 
+    ---@return integer
     _init_buf = function()
       if self.buf then
         return self.buf
@@ -350,8 +351,8 @@ function M.new_view(new_buf, new_win, opts)
       api.nvim_win_set_buf(win, buf)
 
       -- Trigger filetype again to ensure ftplugin files can change window settings
-      local ft = api.nvim_buf_get_option(buf, 'filetype')
-      api.nvim_buf_set_option(buf, 'filetype', ft)
+      local ft = vim.bo[buf].filetype
+      vim.bo[buf].filetype = ft
 
       self.buf = buf
       self.win = win
@@ -463,8 +464,8 @@ function M.layer(buf)
       if not api.nvim_buf_is_valid(buf) then
         return
       end
-      local modifiable = api.nvim_buf_get_option(buf, 'modifiable')
-      api.nvim_buf_set_option(buf, 'modifiable', true)
+      local modifiable = vim.bo[buf].modifiable
+      vim.bo[buf].modifiable = true
       if not start and not end_ then
         start = api.nvim_buf_line_count(buf)
         -- Avoid inserting a new line at the end of the buffer
@@ -519,7 +520,7 @@ function M.layer(buf)
         local mark_id = api.nvim_buf_set_extmark(buf, ns, i, 0, {end_col=end_col})
         marks[mark_id] = { mark_id = mark_id, item = item, context = context }
       end
-      api.nvim_buf_set_option(buf, 'modifiable', modifiable)
+      vim.bo[buf].modifiable = modifiable
     end,
 
     --- Get the information associated with a line

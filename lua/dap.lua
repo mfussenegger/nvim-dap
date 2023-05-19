@@ -380,7 +380,7 @@ end
 
 
 local function select_config_and_run(opts)
-  local filetype = api.nvim_buf_get_option(0, 'filetype')
+  local filetype = vim.bo.filetype
   local configurations = M.configurations[filetype] or {}
   assert(
     vim.tbl_islist(configurations),
