@@ -176,4 +176,34 @@ function M.load_launchjs(path, type_to_filetypes)
   end
 end
 
+--- Directly uses .vscode/launch.json to pick and run the desired configuration
+--- interactively.
+function M.run_launchjs(path)
+  path = path or vim.fs.normalize(vim.fn.getcwd() .. "/.vscode/launch.json")
+  if not vim.loop.fs_stat(path) then
+    vim.notify(string.format("launch.json does not exist", path), vim.log.levels.ERROR)
+    return
+  end
+
+  local contents = table.concat(vim.fn.readfile(path), "\n")
+  local configurations = M._load_json(contents)
+  assert(configurations, "launch.json must have a 'configurations' key")
+
+  vim.ui.select(configurations, {
+    prompt = "Configurations:",
+    format_item = function(config)
+      return config.name
+    end,
+  }, function(config)
+    if config == nil then
+      return
+    end
+
+    assert(config.type, "Configuration in launch.json must have a 'type' key")
+    assert(config.name, "Configuration in launch.json must have a 'name' key")
+
+    dap.run(config)
+  end)
+end
+
 return M
