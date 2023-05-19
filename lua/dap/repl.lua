@@ -23,12 +23,12 @@ local function new_buf()
   local prev_buf = api.nvim_get_current_buf()
   local buf = api.nvim_create_buf(true, true)
   api.nvim_buf_set_name(buf, '[dap-repl]')
-  api.nvim_buf_set_option(buf, 'buftype', 'prompt')
-  api.nvim_buf_set_option(buf, 'omnifunc', "v:lua.require'dap.repl'.omnifunc")
-  api.nvim_buf_set_option(buf, 'buflisted', false)
-  local ok, path = pcall(api.nvim_buf_get_option, prev_buf, 'path')
-  if ok then
-    api.nvim_buf_set_option(buf, 'path', path)
+  vim.bo[buf].buftype = "prompt"
+  vim.bo[buf].omnifunc = "v:lua.require'dap.repl'.omnifunc"
+  vim.bo[buf].buflisted = false
+  local path = vim.bo[prev_buf].path
+  if path and path ~= "" then
+    vim.bo[buf].path = path
   end
   api.nvim_buf_set_keymap(buf, 'n', '<CR>', "<Cmd>lua require('dap.ui').trigger_actions({ mode = 'first' })<CR>", {})
   api.nvim_buf_set_keymap(buf, 'n', 'o', "<Cmd>lua require('dap.ui').trigger_actions()<CR>", {})
@@ -53,7 +53,7 @@ local function new_buf()
       end
     })
   end
-  api.nvim_buf_set_option(buf, 'filetype', 'dap-repl')
+  vim.bo[buf].filetype = "dap-repl"
   return buf
 end
 
@@ -362,7 +362,7 @@ function M.append(line, lnum, opts)
   if api.nvim_get_current_win() == repl.win and lnum == '$' then
     lnum = nil
   end
-  if api.nvim_buf_get_option(buf, 'fileformat') ~= 'dos' then
+  if vim.bo[buf].fileformat ~= "dos" then
     line = line:gsub('\r\n', '\n')
   end
   local lines = vim.split(line, '\n')

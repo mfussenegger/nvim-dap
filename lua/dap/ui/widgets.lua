@@ -5,8 +5,8 @@ local M = {}
 
 
 local function set_default_bufopts(buf)
-  api.nvim_buf_set_option(buf, 'modifiable', false)
-  api.nvim_buf_set_option(buf, 'buftype', 'nofile')
+  vim.bo[buf].modifiable = false
+  vim.bo[buf].buftype = "nofile"
   api.nvim_buf_set_keymap(
     buf, "n", "<CR>", "<Cmd>lua require('dap.ui').trigger_actions({ mode = 'first' })<CR>", {})
   api.nvim_buf_set_keymap(
@@ -26,18 +26,18 @@ end
 
 
 function M.new_cursor_anchored_float_win(buf)
-  api.nvim_buf_set_option(buf, 'bufhidden', 'wipe')
-  api.nvim_buf_set_option(buf, 'filetype', 'dap-float')
+  vim.bo[buf].bufhidden = "wipe"
+  vim.bo[buf].filetype = "dap-float"
   local opts = vim.lsp.util.make_floating_popup_options(50, 30, {border = 'single'})
   local win = api.nvim_open_win(buf, true, opts)
-  api.nvim_win_set_option(win, 'scrolloff', 0)
+  vim.wo[win].scrolloff = 0
   return win
 end
 
 
 function M.new_centered_float_win(buf)
-  api.nvim_buf_set_option(buf, 'bufhidden', 'wipe')
-  api.nvim_buf_set_option(buf, 'filetype', 'dap-float')
+  vim.bo[buf].bufhidden = "wipe"
+  vim.bo[buf].filetype = "dap-float"
   local columns = api.nvim_get_option('columns')
   local lines = api.nvim_get_option('lines')
   local width = math.floor(columns * 0.9)
@@ -68,9 +68,9 @@ local function mk_sidebar_win_func(winopts, wincmd)
   return function()
     vim.cmd(wincmd or '30 vsplit')
     local win = api.nvim_get_current_win()
-    api.nvim_win_set_option(win, 'number', false)
-    api.nvim_win_set_option(win, 'relativenumber', false)
-    api.nvim_win_set_option(win, 'statusline', ' ')
+    vim.wo[win].number = false
+    vim.wo[win].relativenumber = false
+    vim.wo[win].statusline = ' '
     ui.apply_winopts(win, winopts)
     return win
   end

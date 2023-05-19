@@ -231,9 +231,9 @@ local function run_in_terminal(lsession, request)
     api.nvim_buf_set_name(terminal_buf, '[dap-terminal] dap-' .. tostring(lsession.id))
   end
   pcall(api.nvim_buf_del_keymap, terminal_buf, "t", "<CR>")
-  local ok, path = pcall(api.nvim_buf_get_option, cur_buf, 'path')
-  if ok then
-    api.nvim_buf_set_option(terminal_buf, 'path', path)
+  local path = vim.bo[cur_buf].path
+  if path and path ~= "" then
+    vim.bo[terminal_buf].path = path
   end
   local jobid
 
@@ -575,7 +575,7 @@ function Session:source(source, cb)
     local adapter_options = self.adapter.options or {}
     local ft = mime_to_filetype[response.mimeType] or adapter_options.source_filetype
     if ft then
-      api.nvim_buf_set_option(buf, 'filetype', ft)
+      vim.bo[buf].filetype = ft
     end
     api.nvim_buf_set_lines(buf, 0, -1, false, vim.split(response.content, '\n'))
     if not ft and source.path and vim.filetype then
