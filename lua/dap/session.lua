@@ -1119,7 +1119,7 @@ end
 
 
 ---@param adapter ServerAdapter
----@return ServerAdapter
+---@return ServerAdapter, uv_process_t?
 local function spawn_server_executable(adapter)
   local cmd = assert(adapter.executable.command, "executable of server adapter must have a `command` property")
   log.debug("Starting debug adapter server executable", adapter.executable)
@@ -1174,7 +1174,7 @@ local function spawn_server_executable(adapter)
   end
   stderr:read_start(read_output('stderr', stderr))
   stdout:read_start(read_output('stdout', stdout))
-  return adapter
+  return adapter, handle
 end
 
 
@@ -1196,6 +1196,26 @@ function Session.connect(_, adapter, opts, on_connect)
     end)
   end
 
+  if adapter.executable then
+    local handle
+    adapter, handle = spawn_server_executable(adapter)
+    session.adapter = adapter
+
+    if handle then
+      local _close = close
+      close = function(cb)
+        _close(function()
+          if not handle:is_closing() then
+            handle:kill("sigterm")
+          end
+          if cb then
+            cb()
+          end
+        end)
+      end
+    end
+  end
+
   session.client = {
     write = function(line)
       client:write(line)
@@ -1203,10 +1223,6 @@ function Session.connect(_, adapter, opts, on_connect)
     close = close
   }
 
-  if adapter.executable then
-    adapter = spawn_server_executable(adapter)
-    session.adapter = adapter
-  end
   log.debug('Connecting to debug adapter', adapter)
   local max_retries = (adapter.options or {}).max_retries or 14
 
