@@ -1206,7 +1206,7 @@ function Session.connect(_, adapter, opts, on_connect)
       close = function(cb)
         _close(function()
           if not handle:is_closing() then
-            handle:kill("sigterm")
+            handle:kill("SIGTERM")
           end
           if cb then
             cb()
