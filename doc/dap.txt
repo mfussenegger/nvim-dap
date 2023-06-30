@@ -297,8 +297,8 @@ function to support json5 features like trailing comma.
 load_launchjs({path}, {type_to_filetypes})        *dap.ext.vscode.load_launchjs*
 
   Parses a JSON file at {path} and adds the entries to `dap.configurations`.
-  Configurations are overwriten by name, so if filetype and name matches a
-  configuration in `dap.configurations`, the config is overwriten by the
+  Configurations are overwritten by name, so if filetype and name matches a
+  configuration in `dap.configurations`, the config is overwritten by the
   one loaded from the file at {path}.
 
   Parameters:
