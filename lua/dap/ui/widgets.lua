@@ -235,8 +235,9 @@ M.frames = {
         label = "Jump to frame",
         fn = function(_, frame)
           if session then
+            local close = vim.bo.bufhidden == "wipe"
             session:_frame_set(frame)
-            if vim.bo.bufhidden == 'wipe' then
+            if close then
               view.close()
             end
           else
@@ -284,11 +285,12 @@ M.sessions = {
       {
         label = "Focus session",
         fn = function(_, s)
+          local close = vim.bo.bufhidden == "wipe"
           if s then
             dap.set_session(s)
             view.refresh()
           end
-          if vim.bo.bufhidden == 'wipe' then
+          if close then
             view.close()
           end
         end

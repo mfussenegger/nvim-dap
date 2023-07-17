@@ -375,7 +375,10 @@ end
 local function set_cursor(win, line, column)
   local ok, err = pcall(api.nvim_win_set_cursor, win, { line, column - 1 })
   if ok then
-    api.nvim_set_current_win(win)
+    local curbuf = api.nvim_get_current_buf()
+    if vim.bo[curbuf].filetype ~= "dap-repl" then
+      api.nvim_set_current_win(win)
+    end
     api.nvim_win_call(win, function()
       api.nvim_command('normal! zv')
     end)
