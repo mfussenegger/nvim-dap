@@ -162,7 +162,8 @@ local DAP_QUICKFIX_CONTEXT = DAP_QUICKFIX_TITLE
 ---@field type string
 ---@field id string|nil
 ---@field options nil|AdapterOptions
----@field enrich_config fun(config: Configuration, on_config: fun(config: Configuration))
+---@field enrich_config? fun(config: Configuration, on_config: fun(config: Configuration))
+---@field reverse_request_handlers? table<string, fun(session: Session, request: dap.Request)>
 
 ---@class AdapterOptions
 ---@field initialize_timeout_sec nil|number
@@ -189,6 +190,11 @@ local DAP_QUICKFIX_CONTEXT = DAP_QUICKFIX_TITLE
 ---@field port integer
 ---@field executable nil|ServerAdapterExecutable
 ---@field options nil|ServerOptions
+
+---@class PipeAdapter : Adapter
+---@field type "pipe"
+---@field pipe string absolute path to the pipe or ${pipe} to use random tmp path
+---@field executable? ServerAdapterExecutable
 
 ---@class ServerAdapterExecutable
 ---@field command string
@@ -339,6 +345,16 @@ local function expand_config_variables(option)
   return ret
 end
 
+---@param lsession Session
+local function add_reset_session_hook(lsession)
+  lsession.on_close['dap.session'] = function(s)
+    assert(s.id == lsession.id, "on_close must not be called with a foreign session")
+    lazy.progress.report('Closed session: ' .. tostring(s.id))
+    sessions[s.id] = nil
+    M.set_session(nil)
+  end
+end
+
 
 local function run_adapter(adapter, configuration, opts)
   local name = configuration.name or '[no name]'
@@ -353,6 +369,16 @@ local function run_adapter(adapter, configuration, opts)
   elseif adapter.type == 'server' then
     lazy.progress.report('Running: ' .. name)
     M.attach(adapter, configuration, opts)
+  elseif adapter.type == "pipe" then
+    lazy.progress.report("Running: " .. name)
+    local lsession
+    lsession = require("dap.session").pipe(adapter, opts, function(err)
+      if not err then
+        lsession:initialize(configuration)
+      end
+    end)
+    add_reset_session_hook(lsession)
+    M.set_session(lsession)
   else
     notify(string.format('Invalid adapter type %s, expected `executable` or `server`', adapter.type), vim.log.levels.ERROR)
   end
@@ -953,16 +979,6 @@ function M.disconnect(opts, cb)
     if cb then
       cb()
     end
-  end
-end
-
-
-local function add_reset_session_hook(lsession)
-  lsession.on_close['dap.session'] = function(s)
-    assert(s.id == lsession.id, "on_close must not be called with a foreign session")
-    lazy.progress.report('Closed session: ' .. tostring(s.id))
-    sessions[s.id] = nil
-    M.set_session(nil)
   end
 end
 

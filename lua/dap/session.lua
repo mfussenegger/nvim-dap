@@ -46,7 +46,8 @@ end
 ---@field private handlers table<string, fun(self: Session, payload: table)|fun()>
 ---@field private message_callbacks table<number, fun(err: nil|dap.ErrorResponse, body: nil|table, seq: number)>
 ---@field private message_requests table<number, any>
----@field client Client
+---@field private client Client
+---@field private handle uv_stream_t
 ---@field current_frame dap.StackFrame|nil
 ---@field initialized boolean
 ---@field stopped_thread_id number|nil
@@ -63,7 +64,7 @@ end
 
 ---@class Client
 ---@field close fun(cb: function)
----@field write function
+---@field write fun(line: string)
 
 ---@class Session
 local Session = {}
@@ -1077,8 +1078,10 @@ local default_reverse_request_handlers = {
 
 local next_session_id = 1
 
+---@param adapter Adapter
+---@param handle uv_stream_t
 ---@return Session
-local function new_session(adapter, opts)
+local function new_session(adapter, opts, handle)
   local handlers = {}
   handlers.after = opts.after
   handlers.reverse_requests = vim.tbl_extend(
@@ -1106,7 +1109,25 @@ local function new_session(adapter, opts)
     closed = false,
     on_close = {},
     children = {},
+    handle = handle,
+    client = {}
   }
+  function state.client.write(line)
+    state.handle:write(line)
+  end
+
+  function state.client.close(cb)
+    cb = cb or function() end
+    if state.handle:is_closing() then
+      cb()
+      return
+    end
+    state.handle:shutdown(function()
+      state.handle:close()
+      state.closed = true
+      cb()
+    end)
+  end
   next_session_id = next_session_id + 1
   return setmetatable(state, { __index = Session })
 end
@@ -1122,30 +1143,23 @@ local function get_free_port()
 end
 
 
----@param adapter ServerAdapter
----@return ServerAdapter, uv_process_t?
-local function spawn_server_executable(adapter)
-  local cmd = assert(adapter.executable.command, "executable of server adapter must have a `command` property")
-  log.debug("Starting debug adapter server executable", adapter.executable)
-  if adapter.port == "${port}" then
-    local port = get_free_port()
-    -- don't mutate original adapter definition
-    adapter = vim.deepcopy(adapter)
-    adapter.port = port
-    if adapter.executable.args then
-      local args = assert(adapter.executable.args)
-      for idx, arg in pairs(args) do
-        args[idx] = arg:gsub('${port}', tostring(port))
-      end
-    end
-  end
+--- Spawn the executable or raise an error if the command doesn't start.
+---
+--- Adds a on_close hook on the session to terminate the executable once the
+--- session closes.
+---
+---@param executable ServerAdapterExecutable
+---@param session Session
+local function spawn_server_executable(executable, session)
+  local cmd = assert(executable.command, "executable of server adapter must have a `command` property")
+  log.debug("Starting debug adapter server executable", executable)
   local stdout = assert(uv.new_pipe(false), "Must be able to create pipe")
   local stderr = assert(uv.new_pipe(false), "Must be able to create pipe")
   local opts = {
     stdio = {nil, stdout, stderr},
-    args = adapter.executable.args or {},
-    detached = utils.if_nil(adapter.executable.detached, true),
-    cwd = adapter.executable.cwd,
+    args = executable.args or {},
+    detached = utils.if_nil(executable.detached, true),
+    cwd = executable.cwd,
   }
   local handle, pid_or_err
   handle, pid_or_err = uv.spawn(cmd, opts, function(code)
@@ -1161,8 +1175,6 @@ local function spawn_server_executable(adapter)
     stderr:close()
     error(pid_or_err)
   end
-  log.debug(
-    "Debug adapter server executable started (" .. pid_or_err .. "), listening on " .. adapter.port)
 
   local read_output = function(stream, pipe)
     return function(err, chunk)
@@ -1178,54 +1190,96 @@ local function spawn_server_executable(adapter)
   end
   stderr:read_start(read_output('stderr', stderr))
   stdout:read_start(read_output('stdout', stdout))
-  return adapter, handle
+
+  session.on_close["dap.server_executable"] = function()
+    if not handle:is_closing() then
+      handle:kill("sigterm")
+    end
+  end
+end
+
+
+---@param adapter PipeAdapter
+---@param opts? table
+---@param on_connect fun(err?: string)
+---@return Session
+function Session.pipe(adapter, opts, on_connect)
+  local pipe = assert(uv.new_pipe(), "Must be able to create pipe")
+  local session = new_session(adapter, opts or {}, pipe)
+
+  if adapter.executable then
+    if adapter.pipe == "${pipe}" then
+      -- don't mutate original adapter definition
+      adapter = vim.deepcopy(adapter)
+      session.adapter = adapter
+
+      local filepath = os.tmpname()
+      os.remove(filepath)
+      session.on_close["dap.server_executable_pipe"] = function()
+        pcall(os.remove, filepath)
+      end
+      adapter.pipe = filepath
+      if adapter.executable.args then
+        local args = assert(adapter.executable.args)
+        for idx, arg in pairs(args) do
+          args[idx] = arg:gsub('${pipe}', filepath)
+        end
+      end
+    end
+    spawn_server_executable(adapter.executable, session)
+    log.debug(
+      "Debug adapter server executable started with pipe " .. adapter.pipe)
+    -- The adapter should create the pipe
+    vim.wait(5000, function()
+      return uv.fs_stat(adapter.pipe) ~= nil
+    end)
+  end
+
+  pipe:connect(adapter.pipe, function(err)
+    if err then
+      local msg = string.format("Couldn't connect to pipe %s: %s", adapter.pipe, err)
+      utils.notify(msg, vim.log.levels.ERROR)
+      session:close()
+    else
+      progress.report("Connected to " .. adapter.pipe)
+      local handle_body = vim.schedule_wrap(function(body)
+        session:handle_body(body)
+      end)
+      pipe:read_start(rpc.create_read_loop(handle_body, function()
+        if not session.closed then
+          session:close()
+          utils.notify("Debug adapter disconnected", vim.log.levels.INFO)
+        end
+      end))
+    end
+    on_connect(err)
+  end)
+  return session
 end
 
 
 function Session.connect(_, adapter, opts, on_connect)
-  local session = new_session(adapter, opts or {})
-  local closed = false
   local client = assert(uv.new_tcp(), "Must be able to create TCP client")
-
-  local function close(cb)
-    if closed then
-      return
-    end
-    closed = true
-    client:shutdown(function()
-      client:close()
-      if cb then
-        cb()
-      end
-    end)
-  end
+  local session = new_session(adapter, opts or {}, client)
 
   if adapter.executable then
-    local handle
-    adapter, handle = spawn_server_executable(adapter)
-    session.adapter = adapter
-
-    if handle then
-      local _close = close
-      close = function(cb)
-        _close(function()
-          if not handle:is_closing() then
-            handle:kill("sigterm")
-          end
-          if cb then
-            cb()
-          end
-        end)
+    if adapter.port == "${port}" then
+      local port = get_free_port()
+      -- don't mutate original adapter definition
+      adapter = vim.deepcopy(adapter)
+      session.adapter = adapter
+      adapter.port = port
+      if adapter.executable.args then
+        local args = assert(adapter.executable.args)
+        for idx, arg in pairs(args) do
+          args[idx] = arg:gsub('${port}', tostring(port))
+        end
       end
     end
+    spawn_server_executable(adapter.executable, session)
+    log.debug(
+      "Debug adapter server executable started, listening on " .. adapter.port)
   end
-
-  session.client = {
-    write = function(line)
-      client:write(line)
-    end;
-    close = close
-  }
 
   log.debug('Connecting to debug adapter', adapter)
   local max_retries = (adapter.options or {}).max_retries or 14
@@ -1249,6 +1303,8 @@ function Session.connect(_, adapter, opts, on_connect)
           -- Create new handle as workaround
           client:close()
           client = assert(uv.new_tcp(), "Must be able to create TCP client")
+          ---@diagnostic disable-next-line: invisible
+          session.handle = client
           local timer = assert(uv.new_timer(), "Must be able to create timer")
           timer:start(250, 0, function()
             timer:stop()
@@ -1293,7 +1349,6 @@ end
 ---@return Session
 function Session.spawn(_, adapter, opts)
   log.debug('Spawning debug adapter', adapter)
-  local session = new_session(adapter, opts or {})
 
   local stdin = assert(uv.new_pipe(false), "Must be able to create pipe")
   local stdout = assert(uv.new_pipe(false), "Must be able to create pipe")
@@ -1332,12 +1387,13 @@ function Session.spawn(_, adapter, opts)
     env = options.env;
     detached = utils.if_nil(options.detached, true);
   }
+  local session
   handle, pid_or_err = uv.spawn(adapter.command, spawn_opts, function(code)
     onexit()
     if code ~= 0 then
       utils.notify(adapter.command .. " exited with code: " .. tostring(code), vim.log.levels.WARN)
     end
-    if not session.closed then
+    if session and not session.closed then
       session:close()
     end
   end)
@@ -1349,10 +1405,8 @@ function Session.spawn(_, adapter, opts)
       error('Error running ' .. adapter.command .. ': ' .. pid_or_err)
     end
   end
-  session.client = {
-    write = function(line) stdin:write(line) end;
-    close = onexit,
-  }
+  session = new_session(adapter, opts or {}, stdin)
+  session.client.close = onexit
   stdout:read_start(rpc.create_read_loop(vim.schedule_wrap(function(body)
     session:handle_body(body)
   end)))

@@ -73,8 +73,13 @@ The `Adapter` needs to contain a `type`, which can be one of:
   this case nvim-dap will spawn the given process and communicate with it using
   stdio.
 
-- `server`, to indicate that nvim-dap can connect to an already-running
-  debug adapter via TCP.
+- `server`, to connect to a debug adapter via TCP.
+  The adapter must be running, or started with a debug session via a
+  `executable` configuration of the adapter. See the options further below.
+
+- `pipe`, to connect to a adebug adapter via a unix domain socket or named pipe.
+  The adapter must be running, or started with a debug session via a
+  `executable` configuration of the adapter. See the options further below.
 
 For `executable` the following options are supported:
 
@@ -126,7 +131,27 @@ For `server` the following options are supported:
     }
 
 
-Both types support the following additional options:
+For `pipe` the following options are supported:
+
+
+    pipe: string      -- Absolute path to the pipe file.
+                      -- If `${pipe}` nvim-dap generates a temporary filename
+                      -- that is intended for use with `executable`
+
+    -- nvim-dap can optionally launch the debug-adapter on each new debug session
+    -- And then connect to the socket or named pipe
+    executable?: {
+      command: string       -- command that spawns the server
+      args?: string[]       -- command arguments
+                            -- ${pipe} used in the args is replaced with a
+                            -- dynamically resolved temporary file
+      detached?: boolean    -- Spawn the debug adapter in detached mode.
+                            -- Defaults to true.
+      cwd?: string          -- Working directory
+    }
+
+
+All types support the following additional options:
 
 >
     options?: {
