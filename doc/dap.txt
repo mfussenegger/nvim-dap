@@ -1161,7 +1161,7 @@ Lua module: dap.utils
 
 pick_process({opts})                                    *dap.utils.pick_process*
     Show a prompt to select a process pid
-    Requires `ps ah` on Linux/Mac and `tasklist /nh /fo csv` on windows.
+    Requires `ps ah -u $USER` on Linux/Mac and `tasklist /nh /fo csv` on windows.
 
 
     Parameters:
