@@ -109,8 +109,7 @@ end
 
 function M.spawn(opts)
   opts = opts or {}
-  local server = assert(uv.new_tcp())
-  local host = '127.0.0.1'
+  opts.mode = opts.mode or "tcp"
   local spy = {
     requests = {},
     responses = {},
@@ -121,7 +120,32 @@ function M.spawn(opts)
     spy.responses = {}
     spy.events = {}
   end
-  server:bind(host, opts.port or 0)
+  local adapter
+  local server
+  if opts.mode == "tcp" then
+    server = assert(uv.new_tcp())
+    assert(server:bind("127.0.0.1", opts.port or 0), "Must be able to bind to ip:port")
+    adapter = {
+      type = "server",
+      host = "127.0.0.1",
+      port = server:getsockname().port,
+      options = {
+        disconnect_timeout_sec = 0.1
+      }
+    }
+  else
+    server = assert(uv.new_pipe())
+    local pipe = os.tmpname()
+    os.remove(pipe)
+    assert(server:bind(pipe), "Must be able to bind to pipe")
+    adapter = {
+      type = "pipe",
+      pipe = pipe,
+      options = {
+        disconnect_timeout_sec = 0.1
+      }
+    }
+  end
   local client = {
     seq = 0,
     handlers = {},
@@ -132,7 +156,7 @@ function M.spawn(opts)
   server:listen(128, function(err)
     assert(not err, err)
     client.num_connected = client.num_connected + 1
-    local socket = assert(uv.new_tcp())
+    local socket = assert(opts.mode == "tcp" and uv.new_tcp() or uv.new_pipe())
     client.socket = socket
     server:accept(socket)
     local function on_chunk(body)
@@ -145,16 +169,12 @@ function M.spawn(opts)
   end)
   return {
     client = client,
-    adapter = {
-      type = 'server',
-      host = host;
-      port = server:getsockname().port,
-      options = {
-        disconnect_timeout_sec = 0.1
-      },
-    },
+    adapter = adapter,
     spy = spy,
     stop = function()
+      if opts.mode ~= "tcp" then
+        pcall(os.remove, adapter.pipe)
+      end
       if client.socket then
         client.socket:shutdown(function()
           client.socket:close()
