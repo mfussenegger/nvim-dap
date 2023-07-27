@@ -55,7 +55,7 @@ end
 function M.get_processes()
   local is_windows = vim.fn.has('win32') == 1
   local separator = is_windows and ',' or ' \\+'
-  local command = is_windows and {'tasklist', '/nh', '/fo', 'csv'} or {'ps', 'ah', '-u', os.getenv("USER")}
+  local command = is_windows and {'tasklist', '/nh', '/fo', 'csv'} or {'ps', 'ah', '-U', os.getenv("USER")}
   -- output format for `tasklist /nh /fo` csv
   --    '"smss.exe","600","Services","0","1,036 K"'
   -- output format for `ps ah`
