@@ -264,9 +264,9 @@ for name in pairs(signs) do
   sign_try_define(name)
 end
 
-local function eval_option(option)
+local function eval_option(option, ...)
   if type(option) == 'function' then
-    option = option()
+    option = option(...)
   end
   if type(option) == "thread" then
     assert(coroutine.status(option) == "suspended", "If option is a thread it must be suspended")
@@ -274,8 +274,9 @@ local function eval_option(option)
     -- Schedule ensures `coroutine.resume` happens _after_ coroutine.yield
     -- This is necessary in case the option coroutine is synchronous and
     -- gives back control immediately
+    local arg = { ... }
     vim.schedule(function()
-      coroutine.resume(option, co)
+      coroutine.resume(option, unpack(arg))
     end)
     option = coroutine.yield()
   end
@@ -283,49 +284,64 @@ local function eval_option(option)
 end
 
 local var_placeholders_once = {
-  ['${command:pickProcess}'] = lazy.utils.pick_process
-}
-
-local var_placeholders = {
-  ['${file}'] = function(_)
-    return vim.fn.expand("%:p")
-  end,
-  ['${fileBasename}'] = function(_)
-    return vim.fn.expand("%:t")
-  end,
-  ['${fileBasenameNoExtension}'] = function(_)
-    return vim.fn.fnamemodify(vim.fn.expand("%:t"), ":r")
-  end,
-  ['${fileDirname}'] = function(_)
-    return vim.fn.expand("%:p:h")
-  end,
-  ['${fileExtname}'] = function(_)
-    return vim.fn.expand("%:e")
-  end,
-  ['${relativeFile}'] = function(_)
-    return vim.fn.expand("%:.")
-  end,
-  ['${relativeFileDirname}'] = function(_)
-    return vim.fn.fnamemodify(vim.fn.expand("%:.:h"), ":r")
-  end,
-  ['${workspaceFolder}'] = function(_)
-    return vim.fn.getcwd()
-  end,
-  ['${workspaceFolderBasename}'] = function(_)
-    return vim.fn.fnamemodify(vim.fn.getcwd(), ":t")
-  end,
-  ['${env:([%w_]+)}'] = function(match)
+  env = function(match)
     return os.getenv(match) or ''
   end,
+  command = {
+    pickProcess = lazy.utils.pick_process
+  },
 }
 
-local function expand_config_variables(option)
+
+--- Register command style varible, e.g. ${command: cmake.launchTarget}
+---@param command string A unique identifier for the command
+---@param commandHandler function A command handler function, support async
+function M.register_command(command, commandHandler)
+  var_placeholders_once["command"][command] = commandHandler
+end
+
+local var_placeholders = {
+  file = function(_)
+    return vim.fn.expand("%:p")
+  end,
+  fileBasename = function(_)
+    return vim.fn.expand("%:t")
+  end,
+  fileBasenameNoExtension = function(_)
+    return vim.fn.fnamemodify(vim.fn.expand("%:t"), ":r")
+  end,
+  fileDirname = function(_)
+    return vim.fn.expand("%:p:h")
+  end,
+  fileExtname = function(_)
+    return vim.fn.expand("%:e")
+  end,
+  relativeFile = function(_)
+    return vim.fn.expand("%:.")
+  end,
+  relativeFileDirname = function(_)
+    return vim.fn.fnamemodify(vim.fn.expand("%:.:h"), ":r")
+  end,
+  workspaceFolder = function(_)
+    return vim.fn.getcwd()
+  end,
+  workspaceFolderBasename = function(_)
+    return vim.fn.fnamemodify(vim.fn.getcwd(), ":t")
+  end,
+}
+
+-- match ${fileBasename}
+local re = "(${([%a%d]+)})"
+-- match ${comand:aaa.bbb}
+local re_command = "(${([%a%d]+):([%a%d.]+)})"
+
+function M.expand_config_variables(option)
   option = eval_option(option)
   if type(option) == "table" then
     local mt = getmetatable(option)
     local result = {}
     for k, v in pairs(option) do
-      result[expand_config_variables(k)] = expand_config_variables(v)
+      result[M.expand_config_variables(k)] = M.expand_config_variables(v)
     end
     return setmetatable(result, mt)
   end
@@ -333,13 +349,23 @@ local function expand_config_variables(option)
     return option
   end
   local ret = option
-  for key, fn in pairs(var_placeholders) do
-    ret = ret:gsub(key, fn)
+  for raw, name in option:gmatch(re) do
+    local handler = var_placeholders[name]
+    if handler then
+      ret = vim.fn.substitute(ret, raw, eval_option(handler), 'g')
+    end
   end
-  for key, fn in pairs(var_placeholders_once) do
-    if ret:find(key) then
-      local val = eval_option(fn)
-      ret = ret:gsub(key, val)
+  for raw, command, identifier in option:gmatch(re_command) do
+    local sub_command = var_placeholders_once[command]
+    if type(sub_command) == 'table' then
+      local handler = sub_command[identifier]
+      if handler then
+        local val = eval_option(handler)
+        ret = vim.fn.substitute(ret, raw, val, 'g')
+      end
+    elseif type(sub_command) == 'function' then
+      local val = eval_option(sub_command, identifier)
+      ret = vim.fn.substitute(ret, raw, val, 'g')
     end
   end
   return ret
@@ -486,7 +512,7 @@ function M.run(config, opts)
       config = config()
       assert(config and type(config) == "table", "config metatable __call must return a config table")
     end
-    config = vim.tbl_map(expand_config_variables, config)
+    config = vim.tbl_map(M.expand_config_variables, config)
     local adapter = M.adapters[config.type]
     if type(adapter) == 'table' then
       lazy.progress.report('Launching debug adapter')
@@ -508,7 +534,7 @@ function M.run(config, opts)
     else
       notify(string.format(
           'Invalid adapter `%s` for config `%s`. Expected a table or function. '
-            .. 'Read :help dap-adapter and define a valid adapter.',
+          .. 'Read :help dap-adapter and define a valid adapter.',
           vim.inspect(adapter),
           config.type
         ),
