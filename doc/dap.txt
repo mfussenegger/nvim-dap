@@ -1104,8 +1104,17 @@ Available widget builder functions:
     It can be either a string as described in |expand()| or a function that
     should return the variable or expression that should be evaluated.
 
-- preview({expr})
+- preview({expr}, {opts})
     Like hover but uses the preview window
+
+    {opts} optional table with:
+
+      - listener?: string[]
+          Names of commands or events which trigger an update of the view.
+          Defaults to none; freezing the value.
+
+          See |dap-extensions| for information about available commands and
+          events and the listener system.
 
 All widget builder functions return a `view`. A view has the following methods:
 
