@@ -425,14 +425,20 @@ local function jump_to_location(bufnr, line, column, switchbuf, filetype)
       set_cursor(cur_win, line, column)
     else
       local win = vim.fn.win_getid(vim.fn.winnr('#'))
-      api.nvim_win_set_buf(win, bufnr)
-      set_cursor(win, line, column)
+      if win then
+        api.nvim_win_set_buf(win, bufnr)
+        set_cursor(win, line, column)
+      end
     end
     return true
   end
 
   function switchbuf_fn.useopen()
-    for _, win in pairs(api.nvim_tabpage_list_wins(0)) do
+    if api.nvim_win_get_buf(cur_win) == bufnr then
+      set_cursor(cur_win, line, column)
+      return true
+    end
+    for _, win in ipairs(api.nvim_tabpage_list_wins(0)) do
       if api.nvim_win_get_buf(win) == bufnr then
         set_cursor(win, line, column)
         return true
@@ -442,10 +448,14 @@ local function jump_to_location(bufnr, line, column, switchbuf, filetype)
   end
 
   function switchbuf_fn.usetab()
+    if api.nvim_win_get_buf(cur_win) == bufnr then
+      set_cursor(cur_win, line, column)
+      return true
+    end
     local tabs = {0,}
     vim.list_extend(tabs, api.nvim_list_tabpages())
-    for _, tabpage in pairs(tabs) do
-      for _, win in pairs(api.nvim_tabpage_list_wins(tabpage)) do
+    for _, tabpage in ipairs(tabs) do
+      for _, win in ipairs(api.nvim_tabpage_list_wins(tabpage)) do
         if api.nvim_win_get_buf(win) == bufnr then
           api.nvim_set_current_tabpage(tabpage)
           set_cursor(win, line, column)
