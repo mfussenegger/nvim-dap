@@ -1202,11 +1202,16 @@ function Session.connect(_, adapter, opts, on_connect)
     session.adapter = adapter
 
     if handle then
+      local is_windows = vim.fn.has("win32")
       local _close = close
       close = function(cb)
         _close(function()
           if not handle:is_closing() then
-            handle:kill("SIGTERM")
+            if is_windows == 1 then
+                handle:kill("sighup")
+            else
+                handle:kill("sigterm")
+            end
           end
           if cb then
             cb()
