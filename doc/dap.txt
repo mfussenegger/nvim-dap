@@ -73,8 +73,13 @@ The `Adapter` needs to contain a `type`, which can be one of:
   this case nvim-dap will spawn the given process and communicate with it using
   stdio.
 
-- `server`, to indicate that nvim-dap can connect to an already-running
-  debug adapter via TCP.
+- `server`, to connect to a debug adapter via TCP.
+  The adapter must be running, or started with a debug session via a
+  `executable` configuration of the adapter. See the options further below.
+
+- `pipe`, to connect to a adebug adapter via a unix domain socket or named pipe.
+  The adapter must be running, or started with a debug session via a
+  `executable` configuration of the adapter. See the options further below.
 
 For `executable` the following options are supported:
 
@@ -126,7 +131,27 @@ For `server` the following options are supported:
     }
 
 
-Both types support the following additional options:
+For `pipe` the following options are supported:
+
+
+    pipe: string      -- Absolute path to the pipe file.
+                      -- If `${pipe}` nvim-dap generates a temporary filename
+                      -- that is intended for use with `executable`
+
+    -- nvim-dap can optionally launch the debug-adapter on each new debug session
+    -- And then connect to the socket or named pipe
+    executable?: {
+      command: string       -- command that spawns the server
+      args?: string[]       -- command arguments
+                            -- ${pipe} used in the args is replaced with a
+                            -- dynamically resolved temporary file
+      detached?: boolean    -- Spawn the debug adapter in detached mode.
+                            -- Defaults to true.
+      cwd?: string          -- Working directory
+    }
+
+
+All types support the following additional options:
 
 >
     options?: {
@@ -297,8 +322,8 @@ function to support json5 features like trailing comma.
 load_launchjs({path}, {type_to_filetypes})        *dap.ext.vscode.load_launchjs*
 
   Parses a JSON file at {path} and adds the entries to `dap.configurations`.
-  Configurations are overwriten by name, so if filetype and name matches a
-  configuration in `dap.configurations`, the config is overwriten by the
+  Configurations are overwritten by name, so if filetype and name matches a
+  configuration in `dap.configurations`, the config is overwritten by the
   one loaded from the file at {path}.
 
   Parameters:
@@ -1079,8 +1104,17 @@ Available widget builder functions:
     It can be either a string as described in |expand()| or a function that
     should return the variable or expression that should be evaluated.
 
-- preview({expr})
+- preview({expr}, {opts})
     Like hover but uses the preview window
+
+    {opts} optional table with:
+
+      - listener?: string[]
+          Names of commands or events which trigger an update of the view.
+          Defaults to none; freezing the value.
+
+          See |dap-extensions| for information about available commands and
+          events and the listener system.
 
 All widget builder functions return a `view`. A view has the following methods:
 
@@ -1161,7 +1195,7 @@ Lua module: dap.utils
 
 pick_process({opts})                                    *dap.utils.pick_process*
     Show a prompt to select a process pid
-    Requires `ps ah` on Linux/Mac and `tasklist /nh /fo csv` on windows.
+    Requires `ps ah -U $USER` on Linux/Mac and `tasklist /nh /fo csv` on windows.
 
 
     Parameters:

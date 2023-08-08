@@ -15,7 +15,7 @@ function M.apply_winopts(win, opts)
       api.nvim_win_set_width(win, v)
     elseif k == 'height' then
       api.nvim_win_set_height(win, v)
-    elseif k == 'border' then
+    elseif vim.tbl_contains({ 'border', 'title' }, k) then
       api.nvim_win_set_config(win, {[k]=v})
     else
       vim.wo[win][k] = v

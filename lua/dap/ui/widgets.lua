@@ -235,8 +235,9 @@ M.frames = {
         label = "Jump to frame",
         fn = function(_, frame)
           if session then
+            local close = vim.bo.bufhidden == "wipe"
             session:_frame_set(frame)
-            if vim.bo.bufhidden == 'wipe' then
+            if close then
               view.close()
             end
           else
@@ -284,11 +285,12 @@ M.sessions = {
       {
         label = "Focus session",
         fn = function(_, s)
+          local close = vim.bo.bufhidden == "wipe"
           if s then
             dap.set_session(s)
             view.refresh()
           end
-          if vim.bo.bufhidden == 'wipe' then
+          if close then
             view.close()
           end
         end
@@ -501,7 +503,11 @@ function M.centered_float(widget, winopts)
 end
 
 
-function M.preview(expr)
+--- View the value of the expression under the cursor in a preview window
+---
+---@param opts? {listener?: string[]}
+function M.preview(expr, opts)
+  opts = opts or {}
   local value = eval_expression(expr)
 
   local function new_preview_buf()
@@ -517,14 +523,24 @@ function M.preview(expr)
   end
 
   local function new_preview_win()
+    -- Avoid pedit call if window is already open
+    -- Otherwise on_detach is triggered
+    for _, win in ipairs(api.nvim_list_wins()) do
+      if vim.wo[win].previewwindow then
+        return win
+      end
+    end
     vim.cmd('pedit ' .. 'dap-preview: ' .. value)
-    for _, win in pairs(api.nvim_list_wins()) do
+    for _, win in ipairs(api.nvim_list_wins()) do
       if vim.wo[win].previewwindow then
         return win
       end
     end
   end
 
+  if opts.listener and next(opts.listener) then
+    new_preview_buf = M.with_refresh(new_preview_buf, opts.listener)
+  end
   local view = M.builder(M.expression)
     .new_buf(new_preview_buf)
     .new_win(new_preview_win)
@@ -538,6 +554,7 @@ end
 -- `dap.listeners.after[listener]` which will trigger a `view.refresh` call.
 --
 -- Use this if you want a widget to live-update.
+---@param listener string|string[]
 function M.with_refresh(new_buf_, listener)
   local listeners
   if type(listener) == "table" then
