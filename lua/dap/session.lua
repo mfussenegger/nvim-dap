@@ -1201,9 +1201,14 @@ local function spawn_server_executable(executable, session)
   stderr:read_start(read_output('stderr', stderr))
   stdout:read_start(read_output('stdout', stdout))
 
+  local is_windows = vim.fn.has("win32")
   session.on_close["dap.server_executable"] = function()
     if not handle:is_closing() then
-      handle:kill("sigterm")
+      if is_windows == 1 then
+        handle:kill("sighup")
+      else
+        handle:kill("sigterm")
+      end
     end
   end
 end
