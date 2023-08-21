@@ -563,6 +563,7 @@ function M.restart_frame()
 end
 
 
+---@param opts? {askForTargets?: boolean, steppingGranularity?: dap.SteppingGranularity}
 function M.step_into(opts)
   session = first_stopped_session()
   if not session then

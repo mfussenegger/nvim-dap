@@ -791,12 +791,12 @@ step_into([{opts}])                                            *dap.step_into()*
         If it cannot step into a function or method it behaves like
         |dap.step_over()|.
 
-        If the debug adapter has the `supportsStepInTargetsRequest` and  
-        {ask_for_targets} is true, the user can choose into which function they
-        want to step into if there are multiple.
+        If the debug adapter has the `supportsStepInTargetsRequest` capability and
+        {askForTargets} is true, the user can choose into which function they
+        want to step into if there are multiple choices.
 
         Some debug adapters allow a more fine-grained control over the
-        behavior of this command using the {opts} parameter:
+        behavior of this command using the `steppingGranularity` {opts} parameter:
 
         steppingGranularity:
           Can be 'statement' | 'line' | 'instruction'

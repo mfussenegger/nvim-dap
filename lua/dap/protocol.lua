@@ -246,3 +246,6 @@
 ---@class dap.StartDebuggingRequestArguments
 ---@field configuration table<string, any>
 ---@field request 'launch'|'attach'
+
+
+---@alias dap.SteppingGranularity 'statement'|'line'|'instruction'
