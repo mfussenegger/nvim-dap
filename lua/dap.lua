@@ -1038,12 +1038,12 @@ function M._vim_exit_handler()
       s:disconnect({ terminateDebuggee = false })
     else
       terminate(s)
-      vim.wait(500, function()
-        ---@diagnostic disable-next-line: redundant-return-value
-        return session == nil and next(sessions) == nil
-      end)
     end
   end
+  vim.wait(500, function()
+    ---@diagnostic disable-next-line: redundant-return-value
+    return session == nil and next(sessions) == nil
+  end)
   M.repl.close()
 end
 
