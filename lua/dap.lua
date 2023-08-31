@@ -1034,12 +1034,16 @@ end
 
 function M._vim_exit_handler()
   for _, s in pairs(sessions) do
-    terminate(s)
-    vim.wait(500, function()
-      ---@diagnostic disable-next-line: redundant-return-value
-      return session == nil and next(sessions) == nil
-    end)
+    if s.config.request == "attach" then
+      s:disconnect({ terminateDebuggee = false })
+    else
+      terminate(s)
+    end
   end
+  vim.wait(500, function()
+    ---@diagnostic disable-next-line: redundant-return-value
+    return session == nil and next(sessions) == nil
+  end)
   M.repl.close()
 end
 
