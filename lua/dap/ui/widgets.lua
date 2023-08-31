@@ -228,7 +228,17 @@ M.frames = {
       layer.render({'Not stopped at any breakpoint. No frames available'})
       return
     end
-    local frames = (session.threads[session.stopped_thread_id] or {}).frames or {}
+    local thread = session.threads[session.stopped_thread_id]
+    if not thread then
+      local msg = string.format("Stopped thread (%d) not found. Can't display frames", session.stopped_thread_id)
+      layer.render({msg})
+      return
+    end
+    local frames = thread.frames
+    if not frames then
+      layer.render({"Stopped thread has no frames"})
+      return
+    end
     local context = {}
     context.actions = {
       {
