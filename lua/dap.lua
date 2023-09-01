@@ -169,6 +169,7 @@ local DAP_QUICKFIX_CONTEXT = DAP_QUICKFIX_TITLE
 ---@field initialize_timeout_sec nil|number
 ---@field disconnect_timeout_sec nil|number
 ---@field source_filetype nil|string
+---@field source_map nil|table<string, string>
 
 ---@class ExecutableAdapter : Adapter
 ---@field type "executable"

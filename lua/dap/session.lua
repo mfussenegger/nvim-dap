@@ -122,6 +122,40 @@ local function signal_err(err, cb)
 end
 
 
+---@param str string
+---@return string
+local function expand_env(str)
+  return (str:gsub("%$(%w+)", os.getenv))
+end
+
+
+---@param session Session
+---@param path nil|string
+---@param reverse nil|boolean
+---@return nil|string
+local function get_source_path(session, path, reverse)
+  if not path then
+    return nil
+  end
+
+  assert(session ~= nil, 'session is required')
+
+  local adapter = session.adapter
+  local source_map = (adapter.options or {}).source_map or {}
+  for from, to in pairs(source_map) do
+    if reverse then
+      from, to = to, from
+    end
+
+    local mapped, n = path:gsub(vim.pesc(expand_env(from)), vim.pesc(expand_env(to)))
+    if n > 0 then
+      return mapped
+    end
+  end
+
+  return path
+end
+
 local function launch_external_terminal(terminal, args)
   local handle
   local pid_or_err
@@ -523,11 +557,14 @@ local function frame_to_bufnr(session, frame)
     if not source.path then
       return nil
     end
-    local scheme = source.path:match('^([a-z]+)://.*')
+
+    local path = get_source_path(session, source.path, true)
+
+    local scheme = path:match('^([a-z]+)://.*')
     if scheme then
-      return vim.uri_to_bufnr(source.path)
+      return vim.uri_to_bufnr(path)
     else
-      return vim.uri_to_bufnr(vim.uri_from_fname(source.path))
+      return vim.uri_to_bufnr(vim.uri_from_fname(path))
     end
   end
   local co = coroutine.running()
@@ -856,7 +893,7 @@ do
         detach_handlers[bufnr] = true
         api.nvim_buf_attach(bufnr, false, { on_detach = remove_breakpoints })
       end
-      local path = api.nvim_buf_get_name(bufnr)
+      local path = get_source_path(self, api.nvim_buf_get_name(bufnr))
       local payload = {
         source = {
           path = path;
