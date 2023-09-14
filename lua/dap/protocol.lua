@@ -248,4 +248,38 @@
 ---@field request 'launch'|'attach'
 
 
+---@alias dap.CompletionItemType
+---|'method'
+---|'function'
+---|'constructor'
+---|'field'
+---|'variable'
+---|'class'
+---|'interface'
+---|'module'
+---|'property'
+---|'unit'
+---|'value'
+---|'enum'
+---|'keyword'
+---|'snippet'
+---|'text'
+---|'color'
+---|'file'
+---|'reference'
+---|'customcolor'
+
+
+---@class dap.CompletionItem
+---@field label string By default this is also the text that is inserted when selecting this completion
+---@field text? string If present and not empty this is inserted instead of the label
+---@field sortText? string Used to sort completion items if present and not empty. Otherwise label is used
+---@field detail? string human-readable string with additional information about this item. Like type or symbol information
+---@field type? dap.CompletionItemType
+---@field start? number Start position in UTF-16 code units. (within the `text` attribute of the `completions` request) 0- or 1-based depending on `columnsStartAt1` capability. If omitted, the text is added at the location of the `column` attribute of the `completions` request.
+---@field length? number How many characters are overwritten by the completion text. Measured in UTF-16 code units. If missing the value 0 is assumed which results in the completion text being inserted.
+---@field selectionStart? number
+---@field selectionLength? number
+
+
 ---@alias dap.SteppingGranularity 'statement'|'line'|'instruction'
