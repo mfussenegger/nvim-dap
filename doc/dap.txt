@@ -308,6 +308,9 @@ debug adapters in Visual Studio Code.
 To load a `launch.json` file, use the `load_launchjs` function from the
 `dap.ext.vscode` module.
 
+To pick a configuration from `load.json` and run it immediately, use the
+`run_launchjs` function from the `dap.ext.vscode` module.
+
 Unlike VS Code, nvim-dap supports standard JSON. Trailing commas on the
 last item of a list are an error.
 
@@ -334,6 +337,17 @@ load_launchjs({path}, {type_to_filetypes})        *dap.ext.vscode.load_launchjs*
                            one or more filetypes.
                            By default, the `type` values in `launch.json` will
                            be used as filetypes verbatim.
+
+run_launchjs({path})                            *dap.ext.vscode.load_launchjs*
+
+  Parses a JSON file at {path} and prompts user to pick a configuration to run
+  immediately. The key difference between this and `load_launchjs` is that
+  this does not require a `type_to_filetypes` mapping to be provided, neither
+  will add any entries to `dap.configurations`.
+
+  Parameters:
+      {path}    Path to the `launch.json` file. Defaults to
+                `.vscode/launch.json` in the current working directory.
 
 An example `launch.json` might look like this:
 
