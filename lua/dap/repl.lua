@@ -409,6 +409,24 @@ do
     return items
   end
 
+  ---@param items dap.CompletionItem[]
+  ---@return boolean mixed, integer? start
+  local function get_start(items)
+    local start = nil
+    local mixed = false
+    for _, item in ipairs(items) do
+      if item.start and (item.length or 0) > 0 then
+        if start and start ~= item.start then
+          mixed = true
+          start = math.min(start, item.start)
+        else
+          start = item.start
+        end
+      end
+    end
+    return mixed, start
+  end
+
   function M.omnifunc(findstart, base)
     local session = get_session()
     local col = api.nvim_win_get_cursor(0)[2]
@@ -456,8 +474,13 @@ do
         require('dap.utils').notify('completions request failed: ' .. err.message, vim.log.levels.WARN)
         return
       end
-      local items = completions_to_items(response.targets)
-      vim.fn.complete(offset + text_match + 1, items)
+      local items = response.targets --[[@as dap.CompletionItem[]|]]
+      local mixed, start = get_start(items)
+      if start and not mixed then
+        vim.fn.complete(offset + start + 1, completions_to_items(items))
+      else
+        vim.fn.complete(offset + text_match + 1, completions_to_items(items))
+      end
     end)
 
     -- cancel but stay in completion mode for completion via `completions` callback
