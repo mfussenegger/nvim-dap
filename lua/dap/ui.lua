@@ -17,6 +17,17 @@ function M.apply_winopts(win, opts)
       api.nvim_win_set_height(win, v)
     elseif vim.tbl_contains({ 'border', 'title' }, k) then
       api.nvim_win_set_config(win, {[k]=v})
+    elseif k == 'relative' then
+      assert(opts.row, "'relative' requires 'row'/'col'")
+      assert(opts.col, "'relative' requires 'row'/'col'")
+      api.nvim_win_set_config(win, {
+        relative=opts.relative,
+        row=opts.row,
+        col=opts.col
+      })
+    elseif k == 'row' or k == 'col' then
+      assert(opts.relative, "'row/col' requires 'relative'")
+      -- col and row must be processed together with 'relative' setting
     else
       vim.wo[win][k] = v
     end
