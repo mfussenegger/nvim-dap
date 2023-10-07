@@ -365,7 +365,7 @@ function threads_spec.compute_actions(info)
       label = 'Jump to frame',
       fn = function(_, frame)
         session:_frame_set(frame)
-        if vim.bo.bufhidden == 'wipe' and context.view then
+        if context.view and vim.bo[context.view.buf].bufhidden == 'wipe' then
           context.view.close()
         end
       end
