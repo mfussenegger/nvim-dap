@@ -301,6 +301,13 @@ function execute(text)
 end
 
 
+--- Add and execute text as if entered directly
+function M.execute(text)
+  M.append("dap> " .. text .. "\n", "$", { newline = true })
+  execute(text)
+end
+
+
 --- Close the REPL if it is open.
 --
 -- Does not disconnect an active session.
