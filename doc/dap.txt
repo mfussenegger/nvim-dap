@@ -939,6 +939,10 @@ repl.close()                                                  *dap.repl.close()*
         Closes the REPL if it is open.
 
 
+repl.execute({text})                                        *dap.repl.execute()*
+        Add and execute text as if entered directly
+
+
 set_log_level(level)                                       *dap.set_log_level()*
         Sets the log level. Defaults to `INFO`  >
 
