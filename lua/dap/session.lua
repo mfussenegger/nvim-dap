@@ -47,7 +47,7 @@ end
 ---@field private message_callbacks table<number, fun(err: nil|dap.ErrorResponse, body: nil|table, seq: number)>
 ---@field private message_requests table<number, any>
 ---@field private client Client
----@field private handle uv_stream_t
+---@field private handle uv.uv_stream_t
 ---@field current_frame dap.StackFrame|nil
 ---@field initialized boolean
 ---@field stopped_thread_id number|nil
@@ -1089,7 +1089,7 @@ local default_reverse_request_handlers = {
 local next_session_id = 1
 
 ---@param adapter Adapter
----@param handle uv_stream_t
+---@param handle uv.uv_stream_t
 ---@return Session
 local function new_session(adapter, opts, handle)
   local handlers = {}
