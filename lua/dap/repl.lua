@@ -178,8 +178,7 @@ local function evaluate_handler(err, resp)
       tree.render(layer, resp)
     end
   else
-    local lines = vim.split(resp.result, '\n', { trimempty = true })
-    layer.render(lines)
+    M.append(resp.result, nil, { newline = false })
   end
 end
 
@@ -377,10 +376,14 @@ function M.append(line, lnum, opts)
     lnum = api.nvim_buf_line_count(buf) - 1
     if opts.newline == false then
       local last_line = api.nvim_buf_get_lines(buf, -2, -1, true)[1]
-      if vim.startswith(last_line, 'dap> ') then
+      local col_start = #last_line
+      if last_line == 'dap> ' then
+        -- remove the empty prompt
+        col_start = 0
+      elseif vim.startswith(last_line, 'dap> ') then
         table.insert(lines, 1, '')
       end
-      api.nvim_buf_set_text(buf, lnum, #last_line, lnum, #last_line, lines)
+      api.nvim_buf_set_text(buf, lnum, col_start, lnum, #last_line, lines)
     else
       api.nvim_buf_set_lines(buf, -1, -1, true, lines)
     end
