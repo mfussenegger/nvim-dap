@@ -154,15 +154,17 @@ M.scopes = {
     local layer = view.layer()
     local scopes = frame.scopes or {}
     local render
-    render = function(idx, scope)
+    render = function(idx, scope, replace)
       if not scope then
         return
       end
+
       tree.render(layer, scope, function()
         render(next(scopes, idx))
-      end)
+      end, replace and 0 or nil, replace and -1 or nil)
     end
-    render(next(scopes))
+    local idx, scope = next(scopes)
+    render(idx, scope, true)
   end,
 }
 

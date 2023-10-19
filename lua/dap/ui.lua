@@ -261,8 +261,6 @@ function M.new_tree(opts)
     end,
 
     render = function(layer, value, on_done, lnum, end_)
-      lnum = lnum or 0
-      end_ = end_ or -1
       layer.render({value}, opts.render_parent, nil, lnum, end_)
       if not opts.has_children(value) then
         if on_done then
