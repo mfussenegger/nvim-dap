@@ -164,18 +164,13 @@ local function evaluate_handler(err, resp)
     -- Appending twice would result in a intermediate "dap> " prompt
     -- To avoid that this eagerly fetches the children; pre-renders the region
     -- and lets tree.render override it
+    local lnum = api.nvim_buf_line_count(repl.buf) - 1
     if spec.has_children(resp) then
       spec.fetch_children(resp, function()
-        local lnum = api.nvim_buf_line_count(repl.buf) - 1
-        local lines = {''}
-        for _ = 1, #resp.variables do
-          table.insert(lines, '')
-        end
-        api.nvim_buf_set_lines(repl.buf, -1, -1, true, lines)
         tree.render(layer, resp, nil, lnum, -1)
       end)
     else
-      tree.render(layer, resp)
+      tree.render(layer, resp, nil, lnum, -1)
     end
   else
     M.append(resp.result, nil, { newline = false })
