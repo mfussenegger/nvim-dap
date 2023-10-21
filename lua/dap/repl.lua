@@ -376,14 +376,17 @@ function M.append(line, lnum, opts)
     lnum = api.nvim_buf_line_count(buf) - 1
     if opts.newline == false then
       local last_line = api.nvim_buf_get_lines(buf, -2, -1, true)[1]
-      local col_start = #last_line
+      local insert_pos = #last_line
       if last_line == 'dap> ' then
-        -- remove the empty prompt
-        col_start = 0
+        -- insert right in front of the empty prompt
+        insert_pos = 0
+        if lines[#lines] ~= '' then
+          table.insert(lines, #lines + 1, '')
+        end
       elseif vim.startswith(last_line, 'dap> ') then
         table.insert(lines, 1, '')
       end
-      api.nvim_buf_set_text(buf, lnum, col_start, lnum, #last_line, lines)
+      api.nvim_buf_set_text(buf, lnum, insert_pos, lnum, insert_pos, lines)
     else
       api.nvim_buf_set_lines(buf, -1, -1, true, lines)
     end
