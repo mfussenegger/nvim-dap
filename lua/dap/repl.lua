@@ -151,7 +151,7 @@ local function evaluate_handler(err, resp)
   if err then
     local message = utils.fmt_error(err)
     if message then
-      M.append(message)
+      M.append(message, nil, { newline = false })
     end
     return
   end
