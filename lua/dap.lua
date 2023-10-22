@@ -480,7 +480,7 @@ function M.run(config, opts)
   if opts.before then
     config = opts.before(config)
   end
-  local trigger_run = coroutine.wrap(function()
+  local trigger_run = function()
     local mt = getmetatable(config)
     if mt and type(mt.__call) == "function" then
       config = config()
@@ -515,8 +515,13 @@ function M.run(config, opts)
         vim.log.levels.ERROR
       )
     end
-  end)
-  trigger_run()
+  end
+  coroutine.wrap(function()
+    xpcall(trigger_run, function(err)
+      local msg = debug.traceback(err, 2)
+      notify(msg, vim.log.levels.ERROR)
+    end)
+  end)()
 end
 
 
