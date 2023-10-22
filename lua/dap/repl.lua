@@ -151,7 +151,7 @@ local function evaluate_handler(err, resp)
   if err then
     local message = utils.fmt_error(err)
     if message then
-      M.append(message)
+      M.append(message, nil, { newline = false })
     end
     return
   end
@@ -164,22 +164,16 @@ local function evaluate_handler(err, resp)
     -- Appending twice would result in a intermediate "dap> " prompt
     -- To avoid that this eagerly fetches the children; pre-renders the region
     -- and lets tree.render override it
+    local lnum = api.nvim_buf_line_count(repl.buf) - 1
     if spec.has_children(resp) then
       spec.fetch_children(resp, function()
-        local lnum = api.nvim_buf_line_count(repl.buf) - 1
-        local lines = {''}
-        for _ = 1, #resp.variables do
-          table.insert(lines, '')
-        end
-        api.nvim_buf_set_lines(repl.buf, -1, -1, true, lines)
         tree.render(layer, resp, nil, lnum, -1)
       end)
     else
-      tree.render(layer, resp)
+      tree.render(layer, resp, nil, lnum, -1)
     end
   else
-    local lines = vim.split(resp.result, '\n', { trimempty = true })
-    layer.render(lines)
+    M.append(resp.result, nil, { newline = false })
   end
 end
 
@@ -377,10 +371,17 @@ function M.append(line, lnum, opts)
     lnum = api.nvim_buf_line_count(buf) - 1
     if opts.newline == false then
       local last_line = api.nvim_buf_get_lines(buf, -2, -1, true)[1]
-      if vim.startswith(last_line, 'dap> ') then
+      local insert_pos = #last_line
+      if last_line == 'dap> ' then
+        -- insert right in front of the empty prompt
+        insert_pos = 0
+        if lines[#lines] ~= '' then
+          table.insert(lines, #lines + 1, '')
+        end
+      elseif vim.startswith(last_line, 'dap> ') then
         table.insert(lines, 1, '')
       end
-      api.nvim_buf_set_text(buf, lnum, #last_line, lnum, #last_line, lines)
+      api.nvim_buf_set_text(buf, lnum, insert_pos, lnum, insert_pos, lines)
     else
       api.nvim_buf_set_lines(buf, -1, -1, true, lines)
     end
