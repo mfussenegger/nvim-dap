@@ -74,6 +74,9 @@
 ---@field variables? table<string, dap.Variable> by variable name. Not part of spec
 
 
+---@class dap.VariableResponse
+---@field variables dap.Variable[]
+
 ---@class dap.Variable
 ---@field name string
 ---@field value string

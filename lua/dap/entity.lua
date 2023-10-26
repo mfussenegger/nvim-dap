@@ -62,24 +62,16 @@ function variable.get_children(var)
 end
 
 
-local function sort_vars(vars)
-  local sorted_variables = {}
-  for _, v in pairs(vars) do
-    table.insert(sorted_variables, v)
+---@param a dap.Variable
+---@param b dap.Variable
+local function cmp_vars(a, b)
+  local num_a = string.match(a.name, '^%[?(%d+)%]?$')
+  local num_b = string.match(b.name, '^%[?(%d+)%]?$')
+  if num_a and num_b then
+    return tonumber(num_a) < tonumber(num_b)
+  else
+    return a.name < b.name
   end
-  table.sort(
-    sorted_variables,
-    function(a, b)
-      local num_a = string.match(a.name, '^%[?(%d+)%]?$')
-      local num_b = string.match(b.name, '^%[?(%d+)%]?$')
-      if num_a and num_b then
-        return tonumber(num_a) < tonumber(num_b)
-      else
-        return a.name < b.name
-      end
-    end
-  )
-  return sorted_variables
 end
 
 
@@ -88,15 +80,37 @@ function variable.fetch_children(var, cb)
   if var.variables then
     cb(variable.get_children(var))
   elseif session and var.variablesReference then
-    local params = { variablesReference = var.variablesReference }
-    session:request('variables', params, function(err, resp)
+
+    ---@param resp dap.VariableResponse
+    local function on_variables(err, resp)
       if err then
         utils.notify('Error fetching variables: ' .. err.message, vim.log.levels.ERROR)
       else
-        var.variables = sort_vars(resp.variables)
-        cb(var.variables)
+        local variables = resp.variables
+        local unloaded = #variables
+        local function countdown()
+            unloaded = unloaded - 1
+            if unloaded == 0 then
+              var.variables = variables
+              cb(variables)
+            end
+        end
+
+        table.sort(variables, cmp_vars)
+        for i, v in ipairs(variables) do
+          if variable.is_lazy(v) then
+            variable.load_value(v, function(loaded_v)
+              variables[i] = loaded_v
+              countdown()
+            end)
+          else
+            countdown()
+          end
+        end
       end
-    end)
+    end
+    local params = { variablesReference = var.variablesReference }
+    session:request('variables', params, on_variables)
   else
     cb({})
   end
