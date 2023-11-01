@@ -885,7 +885,7 @@ do
           for _, bp in pairs(resp.breakpoints) do
             breakpoints.set_state(bufnr, bp.line, bp)
             if not bp.verified then
-              log.info('Server rejected breakpoint', bp)
+              log.info('Breakpoint unverified', bp)
             end
           end
         end
