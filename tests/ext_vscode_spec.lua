@@ -1,5 +1,11 @@
+---@diagnostic disable: duplicate-set-field
+local ui_input = vim.ui.input
 local vscode = require('dap.ext.vscode')
 describe('dap.ext.vscode', function()
+  after_each(function()
+    vim.ui.input = ui_input
+  end)
+
   it('can load launch.json file and map adapter type to filetypes', function()
     local dap = require('dap')
     vscode.load_launchjs('tests/launch.json', { bar = { 'c', 'cpp' } })
@@ -12,10 +18,10 @@ describe('dap.ext.vscode', function()
   it('supports promptString input', function()
     local prompt
     local default
-    vim.fn.input = function(prompt_, default_, _)
-      prompt = prompt_
-      default = default_
-      return 'Fake input'
+    vim.ui.input = function(opts, on_input)
+      prompt = opts.prompt
+      default = opts.default
+      on_input('Fake input')
     end
     local jsonstr = [[
       {
@@ -96,8 +102,8 @@ describe('dap.ext.vscode', function()
   end)
 
   it('inputs can be used in arrays or dicts', function()
-    vim.fn.input = function(_, default_value, _)
-      return default_value
+    vim.fn.input = function(opts)
+      return opts.default
     end
     local jsonstr = [[
       {
@@ -133,8 +139,8 @@ describe('dap.ext.vscode', function()
     assert.are.same("the default value", result)
   end)
   it('can use two inputs within one property', function()
-    vim.fn.input = function(_, default_value, _)
-      return default_value
+    vim.fn.input = function(opts)
+      return opts.default
     end
     local jsonstr = [[
       {
@@ -196,9 +202,9 @@ describe('dap.ext.vscode', function()
   it('supports promptString without default value', function()
     local prompt
     local default
-    vim.fn.input = function(prompt_, default_, _)
-      prompt = prompt_
-      default = default_
+    vim.fn.input = function(opts)
+      prompt = opts.prompt
+      default = opts.default
       return 'Fake input'
     end
     local jsonstr = [[
