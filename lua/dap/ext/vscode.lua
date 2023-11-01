@@ -12,7 +12,21 @@ local function create_input(type_, input)
       if not vim.endswith(description, ': ') then
         description = description .. ': '
       end
-      return vim.fn.input(description, input.default or '')
+      if vim.ui.input then
+        local co = coroutine.running()
+        local opts = {
+          prompt = description,
+          default = input.default or '',
+        }
+        vim.ui.input(opts, function(result)
+          vim.schedule(function()
+            coroutine.resume(co, result)
+          end)
+        end)
+        return coroutine.yield()
+      else
+        return vim.fn.input(description, input.default or '')
+      end
     end
   elseif type_ == "pickString" then
     return function()
