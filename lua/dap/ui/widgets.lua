@@ -347,26 +347,32 @@ M.expression = {
     local expression = expr or view.__expression
     local variable
     local scopes = frame.scopes or {}
-    for _, s in pairs(scopes) do
-      variable = s.variables and s.variables[expression]
-      if variable then
-        break
-      end
-    end
-    if variable then
-      local tree = ui.new_tree(require('dap.entity').variable.tree_spec)
-      tree.render(view.layer(), variable)
-    else
-      session:evaluate(expression, function(err, resp)
-        if err then
+    session:evaluate(expression, function(err, resp)
+      if err then
+        for _, s in pairs(scopes) do
+          variable = s.variables and s.variables[expression]
+          if variable then
+            break
+          end
+        end
+        if variable then
+          local tree = ui.new_tree(require('dap.entity').variable.tree_spec)
+          tree.render(view.layer(), variable)
+        else
           local msg = 'Cannot evaluate "'..expression..'"!'
           layer.render({msg})
-        elseif resp and resp.result then
+        end
+      elseif resp and resp.result then
+        local attributes = (resp.presentationHint or {}).attributes or {}
+        if resp.variablesReference > 0 or vim.tbl_contains(attributes, "rawString") then
           local tree = ui.new_tree(require('dap.entity').variable.tree_spec)
           tree.render(layer, resp)
+        else
+          local lines = vim.split(resp.result, "\n", { plain = true })
+          layer.render(lines)
         end
-      end)
-    end
+      end
+    end)
   end,
 }
 
