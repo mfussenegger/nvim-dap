@@ -280,6 +280,20 @@ Things to note:
     end,
 <
 
+- Functions for top level properties can return the `dap.ABORT` constant to
+  signal that you want to abort starting a debug session. An example:
+
+>lua
+    program = function()
+      local path = vim.fn.input({
+        prompt = 'Path to executable: ',
+        default = vim.fn.getcwd() .. '/',
+        completion = 'file'
+      })
+      return (path and path ~= "") and path or dap.ABORT
+    end
+<
+
 - The configuration can have an optional metatable with `__call`
   implementation. The function will get called when the configuration is used
   and it must return a new configuration table. This can be used to

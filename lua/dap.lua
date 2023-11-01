@@ -24,6 +24,8 @@ local function notify(...)
   lazy.utils.notify(...)
 end
 
+--- Sentinel value; signals an operation should be aborted.
+M.ABORT = {}
 
 M.status = function(...)
   return lazy.progress.status(...)
@@ -321,6 +323,9 @@ local var_placeholders = {
 
 local function expand_config_variables(option)
   option = eval_option(option)
+  if option == M.ABORT then
+    return option
+  end
   if type(option) == "table" then
     local mt = getmetatable(option)
     local result = {}
@@ -487,6 +492,12 @@ function M.run(config, opts)
       assert(config and type(config) == "table", "config metatable __call must return a config table")
     end
     config = vim.tbl_map(expand_config_variables, config)
+    for _, val in pairs(config) do
+      if val == M.ABORT then
+        notify("Run aborted", vim.log.levels.INFO)
+        return
+      end
+    end
     local adapter = M.adapters[config.type]
     if type(adapter) == 'table' then
       lazy.progress.report('Launching debug adapter')
