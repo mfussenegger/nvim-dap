@@ -32,7 +32,7 @@ local function create_input(type_, input, command_callbacks)
     return function()
       local options = {}
       assert(type ~= "pickString" or input.options, "input of type pickString must have an `options` property")
-      assert(type ~= "pickString" or input.command, "input of type command must have a `command` property")
+      assert(type ~= "command" or input.command, "input of type command must have a `command` property")
       if input.options then
         options = input.options
       elseif input.command then
