@@ -5,7 +5,7 @@ local M = {}
 M.json_decode = vim.json.decode
 M.type_to_filetypes = {}
 
-local function create_input(type_, input)
+local function create_input(type_, input, command_callbacks)
   if type_ == "promptString" then
     return function()
       local description = input.description or 'Input'
@@ -28,9 +28,20 @@ local function create_input(type_, input)
         return vim.fn.input(description, input.default or '')
       end
     end
-  elseif type_ == "pickString" then
+  elseif type_ == "pickString" or type_ == "command" then
     return function()
-      local options = assert(input.options, "input of type pickString must have an `options` property")
+      local options = {}
+      assert(type ~= "pickString" or input.options, "input of type pickString must have an `options` property")
+      assert(type ~= "pickString" or input.command, "input of type command must have a `command` property")
+      if input.options then
+        options = input.options
+      elseif input.command then
+        if command_callbacks[input.command] then
+          options = command_callbacks[input.command](input.command, input.args)
+        elseif command_callbacks[1] then
+          options = command_callbacks[1](input.command, input.args)
+        end
+      end
       local opts = {
         prompt = input.description,
         format_item = function(x)
@@ -53,13 +64,13 @@ local function create_input(type_, input)
 end
 
 
-local function create_inputs(inputs)
+local function create_inputs(inputs, command_callbacks)
   local result = {}
   for _, input in ipairs(inputs) do
     local id = assert(input.id, "input must have a `id`")
     local key = "${input:" .. id .. "}"
     local type_ = assert(input.type, "input must have a `type`")
-    local fn = create_input(type_, input)
+    local fn = create_input(type_, input, command_callbacks)
     if fn then
       result[key] = fn
     end
@@ -132,9 +143,9 @@ local function lift(tbl, key)
 end
 
 
-function M._load_json(jsonstr)
+function M._load_json(jsonstr, command_callbacks)
   local data = assert(M.json_decode(jsonstr), "launch.json must contain a JSON object")
-  local inputs = create_inputs(data.inputs or {})
+  local inputs = create_inputs(data.inputs or {}, command_callbacks)
   local has_inputs = next(inputs) ~= nil
 
   local sysname
@@ -156,8 +167,9 @@ end
 
 
 --- Extends dap.configurations with entries read from .vscode/launch.json
-function M.load_launchjs(path, type_to_filetypes)
+function M.load_launchjs(path, type_to_filetypes, command_callbacks)
   type_to_filetypes = vim.tbl_extend('keep', type_to_filetypes or {}, M.type_to_filetypes)
+  command_callbacks = command_callbacks or {}
   local resolved_path = path or (vim.fn.getcwd() .. '/.vscode/launch.json')
   if not vim.loop.fs_stat(resolved_path) then
     return
@@ -169,7 +181,7 @@ function M.load_launchjs(path, type_to_filetypes)
     end
   end
   local contents = table.concat(lines, '\n')
-  local configurations = M._load_json(contents)
+  local configurations = M._load_json(contents, command_callbacks)
 
   assert(configurations, "launch.json must have a 'configurations' key")
   for _, config in ipairs(configurations) do
