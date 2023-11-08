@@ -1664,8 +1664,7 @@ end
 --- Send a request to the debug adapter
 ---@param command string command to execute
 ---@param arguments any|nil object containing arguments for the command
----@param callback fun(err: table, result: any)|nil
---  callback called with the response result.
+---@param callback fun(err: table, result: any)|nil called with the response result.
 --- If nil and running within a coroutine the function will yield the result
 function Session:request(command, arguments, callback)
   local payload = {
