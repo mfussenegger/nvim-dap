@@ -280,6 +280,20 @@ Things to note:
     end,
 <
 
+- Functions for top level properties can return the `dap.ABORT` constant to
+  signal that you want to abort starting a debug session. An example:
+
+>lua
+    program = function()
+      local path = vim.fn.input({
+        prompt = 'Path to executable: ',
+        default = vim.fn.getcwd() .. '/',
+        completion = 'file'
+      })
+      return (path and path ~= "") and path or dap.ABORT
+    end
+<
+
 - The configuration can have an optional metatable with `__call`
   implementation. The function will get called when the configuration is used
   and it must return a new configuration table. This can be used to
@@ -939,6 +953,10 @@ repl.close()                                                  *dap.repl.close()*
         Closes the REPL if it is open.
 
 
+repl.execute({text})                                        *dap.repl.execute()*
+        Add and execute text as if entered directly
+
+
 set_log_level(level)                                       *dap.set_log_level()*
         Sets the log level. Defaults to `INFO`  >
 
@@ -964,6 +982,8 @@ set_log_level(level)                                       *dap.set_log_level()*
 session()                                                        *dap.session()*
         Returns the currently focused session or nil if no session exists or
         has focus.
+
+        See |dap-session| for a description of a session object.
 
 sessions()                                                      *dap.sessions()*
         Returns a table with the active top-level debug sessions.
@@ -1216,5 +1236,69 @@ pick_process({opts})                                    *dap.utils.pick_process*
       filter = function(proc) return vim.endswith(proc.name, "sway") end
     })
 <
+==============================================================================
+DAP Session                                                        *dap-session*
+
+nvim-dap creates a session object per debug session. You can either get the current
+session via |dap.session()|, or get access to one via a listener (|dap-extensions|).
+
+The session object is a low level primitive, used to interact with the debug
+session. This is not indented for regular debug-client users, but rather for
+extension authors, or power users.
+
+The session contains methods - functions where the first parameter is the
+session itself. To call them, you can use the method call syntax:
+`obj:function_name()`, instead of `obj.function_name(obj)`.
+See |lua-function|.
+
+
+request({command}, {arguments}, {callback})             *dap-session:request()*
+
+    Send a request to the debug adapter.
+    See the requests section in https://microsoft.github.io/debug-adapter-protocol/specification
+    for a list of supported payloads.
+
+    Parameters:
+      {command} string      The command to execute
+      {arguments} any|nil   Arguments
+      {callback} function   Callback called with two parameters: err and result.
+
+    For example, to make a `evaluate` request, you'd use:
+
+>lua
+      local session = assert(require("dap").session(), "has active session")
+      local arguments = {
+        expression = "1 + 2"
+      }
+      session:request("evaluate", arguments, function(err, result)
+        vim.print(err or "No error")
+        vim.print(result or "No result")
+      end)
+<
+
+    The method is coroutine aware. If it is running inside a coroutine you can
+    omit the callback and it will default to resume the coroutine with the
+    result.
+
+    An example:
+
+>lua
+      local session = assert(require("dap").session(), "has active session")
+      local arguments = {
+        expression = "1 + 2"
+      }
+      coroutine.wrap(function()
+        local err, result = session:request("evaluate", arguments)
+        vim.print(err or "No error")
+        vim.print(result or "No result")
+      end)()
+<
+
+    This is convenient if you want to make multiple requests as it helps
+    prevent callback nesting.
+
+    Note that `coroutine.wrap` doesn't propagate errors but you could setup
+    error handling via |xpcall()|
+
 
 vim:ft=help

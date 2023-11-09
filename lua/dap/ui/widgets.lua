@@ -154,15 +154,17 @@ M.scopes = {
     local layer = view.layer()
     local scopes = frame.scopes or {}
     local render
-    render = function(idx, scope)
+    render = function(idx, scope, replace)
       if not scope then
         return
       end
+
       tree.render(layer, scope, function()
         render(next(scopes, idx))
-      end)
+      end, replace and 0 or nil, replace and -1 or nil)
     end
-    render(next(scopes))
+    local idx, scope = next(scopes)
+    render(idx, scope, true)
   end,
 }
 
@@ -345,26 +347,32 @@ M.expression = {
     local expression = expr or view.__expression
     local variable
     local scopes = frame.scopes or {}
-    for _, s in pairs(scopes) do
-      variable = s.variables and s.variables[expression]
-      if variable then
-        break
-      end
-    end
-    if variable then
-      local tree = ui.new_tree(require('dap.entity').variable.tree_spec)
-      tree.render(view.layer(), variable)
-    else
-      session:evaluate(expression, function(err, resp)
-        if err then
+    session:evaluate(expression, function(err, resp)
+      if err then
+        for _, s in pairs(scopes) do
+          variable = s.variables and s.variables[expression]
+          if variable then
+            break
+          end
+        end
+        if variable then
+          local tree = ui.new_tree(require('dap.entity').variable.tree_spec)
+          tree.render(view.layer(), variable)
+        else
           local msg = 'Cannot evaluate "'..expression..'"!'
           layer.render({msg})
-        elseif resp and resp.result then
+        end
+      elseif resp and resp.result then
+        local attributes = (resp.presentationHint or {}).attributes or {}
+        if resp.variablesReference > 0 or vim.tbl_contains(attributes, "rawString") then
           local tree = ui.new_tree(require('dap.entity').variable.tree_spec)
           tree.render(layer, resp)
+        else
+          local lines = vim.split(resp.result, "\n", { plain = true })
+          layer.render(lines)
         end
-      end)
-    end
+      end
+    end)
   end,
 }
 

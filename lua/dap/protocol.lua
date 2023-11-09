@@ -74,6 +74,9 @@
 ---@field variables? table<string, dap.Variable> by variable name. Not part of spec
 
 
+---@class dap.VariableResponse
+---@field variables dap.Variable[]
+
 ---@class dap.Variable
 ---@field name string
 ---@field value string
@@ -84,6 +87,7 @@
 ---@field namedVariables? number
 ---@field indexedVariables? number
 ---@field memoryReference? string
+---@field variables? dap.Variable[] resolved variablesReference. Not part of the spec; added by nvim-dap
 
 
 ---@class dap.VariablePresentationHint

@@ -363,6 +363,24 @@ describe('dap with fake server', function()
     dap.step_over()
     assert.are.same(session, dap.session())
   end)
+
+  it("Run aborts if config value is dap.ABORT", function()
+    local msg = nil
+    require('dap.utils').notify = function(m)
+      msg = m
+    end
+    dap.run({
+      name = "dummy",
+      type = "dummy",
+      request = "launch",
+      foo = function()
+        return dap.ABORT
+      end,
+    })
+    wait(function() return msg ~= nil end)
+    assert.is_nil(dap.session())
+    assert.are.same("Run aborted", msg)
+  end)
 end)
 
 describe('session disconnect', function()

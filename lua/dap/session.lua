@@ -47,7 +47,7 @@ end
 ---@field private message_callbacks table<number, fun(err: nil|dap.ErrorResponse, body: nil|table, seq: number)>
 ---@field private message_requests table<number, any>
 ---@field private client Client
----@field private handle uv_stream_t
+---@field private handle uv.uv_stream_t
 ---@field current_frame dap.StackFrame|nil
 ---@field initialized boolean
 ---@field stopped_thread_id number|nil
@@ -885,7 +885,7 @@ do
           for _, bp in pairs(resp.breakpoints) do
             breakpoints.set_state(bufnr, bp.line, bp)
             if not bp.verified then
-              log.info('Server rejected breakpoint', bp)
+              log.info('Breakpoint unverified', bp)
             end
           end
         end
@@ -1089,7 +1089,7 @@ local default_reverse_request_handlers = {
 local next_session_id = 1
 
 ---@param adapter Adapter
----@param handle uv_stream_t
+---@param handle uv.uv_stream_t
 ---@return Session
 local function new_session(adapter, opts, handle)
   local handlers = {}
@@ -1664,8 +1664,7 @@ end
 --- Send a request to the debug adapter
 ---@param command string command to execute
 ---@param arguments any|nil object containing arguments for the command
----@param callback fun(err: table, result: any)|nil
---  callback called with the response result.
+---@param callback fun(err: table, result: any)|nil called with the response result.
 --- If nil and running within a coroutine the function will yield the result
 function Session:request(command, arguments, callback)
   local payload = {
