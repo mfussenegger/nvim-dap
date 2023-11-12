@@ -411,7 +411,7 @@ end
 
 
 local function select_config_and_run(opts)
-  local filetype = vim.bo.filetype
+  local filetype = opts.filetype or vim.bo.filetype
   local configurations = M.configurations[filetype] or {}
   assert(
     vim.tbl_islist(configurations),
@@ -427,7 +427,7 @@ local function select_config_and_run(opts)
     return
   end
   opts = opts or {}
-  opts.filetype = opts.filetype or filetype
+  opts.filetype = filetype
   lazy.ui.pick_if_many(
     configurations,
     "Configuration: ",
@@ -903,7 +903,7 @@ function M.run_to_cursor()
 end
 
 
----@param opts? {new?: boolean}
+---@param opts? {new?: boolean, filetype?: string}
 function M.continue(opts)
   if not session then
     session = first_stopped_session()
