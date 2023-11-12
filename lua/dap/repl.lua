@@ -147,7 +147,7 @@ local function print_commands()
 end
 
 
-local function evaluate_handler(err, resp)
+function M.evaluate_handler(err, resp)
   if err then
     local message = utils.fmt_error(err)
     if message then
@@ -290,7 +290,7 @@ function execute(text)
     local args = string.sub(text, string.len(command)+2)
     M.commands.custom_commands[command](args)
   else
-    session:evaluate(text, evaluate_handler)
+    session:evaluate(text, M.evaluate_handler)
   end
 end
 
