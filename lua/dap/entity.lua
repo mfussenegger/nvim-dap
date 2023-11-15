@@ -81,11 +81,12 @@ function variable.fetch_children(var, cb)
     cb(variable.get_children(var))
   elseif session and var.variablesReference then
 
-    ---@param resp dap.VariableResponse
+    ---@param err? dap.ErrorResponse
+    ---@param resp? dap.VariableResponse
     local function on_variables(err, resp)
       if err then
         utils.notify('Error fetching variables: ' .. err.message, vim.log.levels.ERROR)
-      else
+      elseif resp then
         local variables = resp.variables
         local unloaded = #variables
         local function countdown()
@@ -109,6 +110,7 @@ function variable.fetch_children(var, cb)
         end
       end
     end
+    ---@type dap.VariablesArguments
     local params = { variablesReference = var.variablesReference }
     session:request('variables', params, on_variables)
   else
@@ -123,11 +125,14 @@ function variable.load_value(var, cb)
   if not session then
     cb(var)
   else
+    ---@type dap.VariablesArguments
     local params = { variablesReference = var.variablesReference }
-    session:request('variables', params, function(err, resp)
+    ---@param err? dap.ErrorResponse
+    ---@param resp? dap.VariableResponse
+    local function on_variables(err, resp)
       if err then
         utils.notify('Error fetching variable: ' .. err.message, vim.log.levels.ERROR)
-      else
+      elseif resp then
         local new_var = resp.variables[1]
         -- keep using the old variable;
         -- it has parent references and the parent contains references to the child
@@ -138,7 +143,8 @@ function variable.load_value(var, cb)
         var.indexedVariables = new_var.indexedVariables
         cb(var)
       end
-    end)
+    end
+    session:request('variables', params, on_variables)
   end
 end
 
