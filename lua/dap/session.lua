@@ -1763,6 +1763,8 @@ function Session:initialize(config)
 end
 
 
+---@param expression string
+---@param fn fun(err?: dap.ErrorResponse, result?: dap.EvaluateResponse)
 function Session:evaluate(expression, fn)
   self:request('evaluate', {
     expression = expression;
