@@ -51,8 +51,29 @@ end
 
 --- Return running processes as a list with { pid, name } tables.
 ---
+--- Takes an optional `opts` table with the following options:
+---
+--- - filter string|fun: A lua pattern or function to filter the processes.
+---                      If a function the parameter is a table with
+---                      {pid: integer, name: string}
+---                      and it must return a boolean.
+---                      Matches are included.
+---
+--- <pre>
+--- require("dap.utils").pick_process({ filter = "sway" })
+--- </pre>
+---
+--- <pre>
+--- require("dap.utils").pick_process({
+---   filter = function(proc) return vim.endswith(proc.name, "sway") end
+--- })
+--- </pre>
+---
+---@param opts? {filter: string|(fun(proc: {pid: integer, name: string}): boolean)}
+---
 ---@return {pid: integer, name: string}[]
-function M.get_processes()
+function M.get_processes(opts)
+  opts = opts or {}
   local is_windows = vim.fn.has('win32') == 1
   local separator = is_windows and ',' or ' \\+'
   local command = is_windows and {'tasklist', '/nh', '/fo', 'csv'} or {'ps', 'ah', '-U', os.getenv("USER")}
@@ -92,6 +113,22 @@ function M.get_processes()
     end
   end
 
+  if opts.filter then
+    local filter
+    if type(opts.filter) == "string" then
+      filter = function(proc)
+        return proc.name:find(opts.filter)
+      end
+    elseif type(opts.filter) == "function" then
+      filter = function(proc)
+        return opts.filter(proc)
+      end
+    else
+      error("opts.filter must be a string or a function")
+    end
+    procs = vim.tbl_filter(filter, procs)
+  end
+
   return procs
 end
 
@@ -123,22 +160,7 @@ function M.pick_process(opts)
   local label_fn = function(proc)
     return string.format("id=%d name=%s", proc.pid, proc.name)
   end
-  local procs = M.get_processes()
-  if opts.filter then
-    local filter
-    if type(opts.filter) == "string" then
-      filter = function(proc)
-        return proc.name:find(opts.filter)
-      end
-    elseif type(opts.filter) == "function" then
-      filter = function(proc)
-        return opts.filter(proc)
-      end
-    else
-      error("opts.filter must be a string or a function")
-    end
-    procs = vim.tbl_filter(filter, procs)
-  end
+  local procs = M.get_processes(opts)
   local co = coroutine.running()
   if co then
     return coroutine.create(function()
