@@ -527,12 +527,7 @@ function M.run(config, opts)
       )
     end
   end
-  coroutine.wrap(function()
-    xpcall(trigger_run, function(err)
-      local msg = debug.traceback(err, 2)
-      notify(msg, vim.log.levels.ERROR)
-    end)
-  end)()
+  lazy.async.run(trigger_run)
 end
 
 

@@ -153,6 +153,8 @@ function M.pick_process(opts)
 end
 
 
+---@param msg string
+---@param log_level? integer
 function M.notify(msg, log_level)
   if vim.in_fast_event() then
     vim.schedule(function()
