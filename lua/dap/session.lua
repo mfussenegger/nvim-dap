@@ -1715,8 +1715,8 @@ function Session:initialize(config)
   local adapter_responded = false
   self.config = config
   self:request('initialize', {
-    clientId = 'neovim';
-    clientname = 'neovim';
+    clientID = 'neovim';
+    clientName = 'neovim';
     adapterID = self.adapter.id or 'nvim-dap';
     pathFormat = 'path';
     columnsStartAt1 = true;
