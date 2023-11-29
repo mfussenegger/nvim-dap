@@ -11,7 +11,11 @@ local config = {
 local function wait(predicate, msg)
   vim.wait(1000, predicate)
   local result = predicate()
-  assert.are_not.same(false, result, msg and vim.inspect(msg()) or nil)
+  if type(msg) == "string" then
+    assert.are_not.same(false, result, msg)
+  else
+    assert.are_not.same(false, result, msg and vim.inspect(msg()) or nil)
+  end
   assert.are_not.same(nil, result)
 end
 
@@ -1016,7 +1020,8 @@ describe("run_last", function()
   after_each(function()
     server.stop()
     dap.terminate()
-    wait(function() return dap.session() == nil end)
+    wait(function() return dap.session() == nil end, "Session should become nil after terminate")
+    assert.are.same(0, vim.tbl_count(dap.sessions()), "Sessions should go down to 0 after terminate/stop")
   end)
 
   it('can repeat run_last and it always clears session', function()
@@ -1040,6 +1045,36 @@ describe("run_last", function()
     commands = vim.tbl_map(function(x) return x.command end, server.spy.requests)
     assert.are.same({"terminate", "initialize", "launch"}, commands)
     assert.are.same(1, vim.tbl_count(dap.sessions()))
+  end)
+
+  it("re-evaluates functions if adapter supports restart", function()
+    server.client.initialize = function(self, request)
+      self:send_response(request, {
+        supportsRestartRequest = true,
+      })
+      self:send_event("initialized", {})
+    end
+    server.client.restart = function(self, request)
+      self:send_response(request, {})
+    end
+    local num_called = 0
+    local dummy_config = {
+      type = 'dummy',
+      request = 'launch',
+      name = 'Launch file',
+      called = function()
+        num_called = num_called + 1
+        return num_called
+      end
+    }
+    run_and_wait_until_initialized(dummy_config, server)
+    assert.are.same(1, num_called)
+    server.spy.clear()
+    dap.run_last()
+    wait_for_response(server, "restart")
+    local commands = vim.tbl_map(function(x) return x.command end, server.spy.requests)
+    assert.are.same({"restart"}, commands)
+    assert.are.same(2, num_called)
   end)
 end)
 
