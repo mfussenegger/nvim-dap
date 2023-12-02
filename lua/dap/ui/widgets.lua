@@ -343,11 +343,16 @@ M.expression = {
       layer.render({'No active session'})
       return
     end
-    local frame = session.current_frame or {}
     local expression = expr or view.__expression
+    local context = session.capabilities.supportsEvaluateForHovers and "hover" or "repl"
+    local args = {
+      expression = expression,
+      context = context
+    }
+    local frame = session.current_frame or {}
     local variable
     local scopes = frame.scopes or {}
-    session:evaluate(expression, function(err, resp)
+    session:evaluate(args, function(err, resp)
       if err then
         for _, s in pairs(scopes) do
           variable = s.variables and s.variables[expression]

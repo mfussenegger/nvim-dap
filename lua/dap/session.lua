@@ -1763,14 +1763,17 @@ function Session:initialize(config)
 end
 
 
----@param expression string
+---@param args string|dap.EvaluateArguments expression as string, or evaluate arguments
 ---@param fn fun(err?: dap.ErrorResponse, result?: dap.EvaluateResponse)
-function Session:evaluate(expression, fn)
-  self:request('evaluate', {
-    expression = expression;
-    context = 'repl';
-    frameId = (self.current_frame or {}).id;
-  }, fn)
+function Session:evaluate(args, fn)
+  if type(args) == "string" then
+    args = {
+      expression = args,
+      context = "repl"
+    }
+  end
+  args.frameId = args.frameId or (self.current_frame or {}).id
+  return self:request('evaluate', args, fn)
 end
 
 
