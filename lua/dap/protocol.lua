@@ -98,6 +98,12 @@
 ---@field memoryReference? string
 ---@field variables? dap.Variable[] resolved variablesReference. Not part of the spec; added by nvim-dap
 
+---@class dap.EvaluateArguments
+---@field expression string
+---@field frameId? number
+---@field context? "watch"|"repl"|"hover"|"clipboard"|"variables"|string
+---@field format? dap.ValueFormat
+
 ---@class dap.EvaluateResponse
 ---@field result string
 ---@field type? string

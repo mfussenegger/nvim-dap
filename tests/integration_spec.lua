@@ -1,5 +1,9 @@
-local dap = require('dap')
 local api = vim.api
+local dap = require('dap')
+local helpers = require("tests.helpers")
+local wait = helpers.wait
+local wait_for_response= helpers.wait_for_response
+local run_and_wait_until_initialized = helpers.run_and_wait_until_initialized
 
 local config = {
   type = 'dummy',
@@ -7,40 +11,6 @@ local config = {
   name = 'Launch file',
 }
 
-
-local function wait(predicate, msg)
-  vim.wait(1000, predicate)
-  local result = predicate()
-  if type(msg) == "string" then
-    assert.are_not.same(false, result, msg)
-  else
-    assert.are_not.same(false, result, msg and vim.inspect(msg()) or nil)
-  end
-  assert.are_not.same(nil, result)
-end
-
-
-local function wait_for_response(server, command)
-  wait(function()
-    for _, response in pairs(server.spy.responses) do
-      if response.command == command then
-        return true
-      end
-    end
-    return false
-  end)
-end
-
-
-local function run_and_wait_until_initialized(conf, server)
-  dap.run(conf)
-  vim.wait(1000, function()
-    local session = dap.session()
-    -- wait for initialize and launch requests
-    return (session and session.initialized and #server.spy.requests == 2)
-  end, 100)
-  return assert(dap.session(), "Must have session after run")
-end
 
 describe('dap with fake server', function()
   local server
