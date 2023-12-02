@@ -1106,7 +1106,7 @@ local function new_session(adapter, opts, handle)
     message_callbacks = {};
     message_requests = {};
     initialized = false;
-    seq = 0;
+    seq = 1;
     stopped_thread_id = nil;
     current_frame = nil;
     threads = {};
