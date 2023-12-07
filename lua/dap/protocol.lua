@@ -297,6 +297,11 @@
 ---|'reference'
 ---|'customcolor'
 
+---@class dap.CompletionsArguments
+---@field frameId? number
+---@field text string
+---@field column integer utf-16 code units, 0- or 1-based depending on columnsStartAt1
+---@field line? integer
 
 ---@class dap.CompletionItem
 ---@field label string By default this is also the text that is inserted when selecting this completion
