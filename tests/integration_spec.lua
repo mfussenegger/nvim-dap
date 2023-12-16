@@ -1,5 +1,9 @@
-local dap = require('dap')
 local api = vim.api
+local dap = require('dap')
+local helpers = require("tests.helpers")
+local wait = helpers.wait
+local wait_for_response= helpers.wait_for_response
+local run_and_wait_until_initialized = helpers.run_and_wait_until_initialized
 
 local config = {
   type = 'dummy',
@@ -7,36 +11,6 @@ local config = {
   name = 'Launch file',
 }
 
-
-local function wait(predicate, msg)
-  vim.wait(1000, predicate)
-  local result = predicate()
-  assert.are_not.same(false, result, msg and vim.inspect(msg()) or nil)
-  assert.are_not.same(nil, result)
-end
-
-
-local function wait_for_response(server, command)
-  wait(function()
-    for _, response in pairs(server.spy.responses) do
-      if response.command == command then
-        return true
-      end
-    end
-    return false
-  end)
-end
-
-
-local function run_and_wait_until_initialized(conf, server)
-  dap.run(conf)
-  vim.wait(1000, function()
-    local session = dap.session()
-    -- wait for initialize and launch requests
-    return (session and session.initialized and #server.spy.requests == 2)
-  end, 100)
-  return assert(dap.session(), "Must have session after run")
-end
 
 describe('dap with fake server', function()
   local server
@@ -1016,7 +990,8 @@ describe("run_last", function()
   after_each(function()
     server.stop()
     dap.terminate()
-    wait(function() return dap.session() == nil end)
+    wait(function() return dap.session() == nil end, "Session should become nil after terminate")
+    assert.are.same(0, vim.tbl_count(dap.sessions()), "Sessions should go down to 0 after terminate/stop")
   end)
 
   it('can repeat run_last and it always clears session', function()
@@ -1040,6 +1015,36 @@ describe("run_last", function()
     commands = vim.tbl_map(function(x) return x.command end, server.spy.requests)
     assert.are.same({"terminate", "initialize", "launch"}, commands)
     assert.are.same(1, vim.tbl_count(dap.sessions()))
+  end)
+
+  it("re-evaluates functions if adapter supports restart", function()
+    server.client.initialize = function(self, request)
+      self:send_response(request, {
+        supportsRestartRequest = true,
+      })
+      self:send_event("initialized", {})
+    end
+    server.client.restart = function(self, request)
+      self:send_response(request, {})
+    end
+    local num_called = 0
+    local dummy_config = {
+      type = 'dummy',
+      request = 'launch',
+      name = 'Launch file',
+      called = function()
+        num_called = num_called + 1
+        return num_called
+      end
+    }
+    run_and_wait_until_initialized(dummy_config, server)
+    assert.are.same(1, num_called)
+    server.spy.clear()
+    dap.run_last()
+    wait_for_response(server, "restart")
+    local commands = vim.tbl_map(function(x) return x.command end, server.spy.requests)
+    assert.are.same({"restart"}, commands)
+    assert.are.same(2, num_called)
   end)
 end)
 

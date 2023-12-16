@@ -1106,7 +1106,7 @@ local function new_session(adapter, opts, handle)
     message_callbacks = {};
     message_requests = {};
     initialized = false;
-    seq = 0;
+    seq = 1;
     stopped_thread_id = nil;
     current_frame = nil;
     threads = {};
@@ -1715,8 +1715,8 @@ function Session:initialize(config)
   local adapter_responded = false
   self.config = config
   self:request('initialize', {
-    clientId = 'neovim';
-    clientname = 'neovim';
+    clientID = 'neovim';
+    clientName = 'neovim';
     adapterID = self.adapter.id or 'nvim-dap';
     pathFormat = 'path';
     columnsStartAt1 = true;
@@ -1763,12 +1763,17 @@ function Session:initialize(config)
 end
 
 
-function Session:evaluate(expression, fn)
-  self:request('evaluate', {
-    expression = expression;
-    context = 'repl';
-    frameId = (self.current_frame or {}).id;
-  }, fn)
+---@param args string|dap.EvaluateArguments expression as string, or evaluate arguments
+---@param fn fun(err?: dap.ErrorResponse, result?: dap.EvaluateResponse)
+function Session:evaluate(args, fn)
+  if type(args) == "string" then
+    args = {
+      expression = args,
+      context = "repl"
+    }
+  end
+  args.frameId = args.frameId or (self.current_frame or {}).id
+  return self:request('evaluate', args, fn)
 end
 
 

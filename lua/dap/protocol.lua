@@ -73,6 +73,15 @@
 ---@field endColumn? number
 ---@field variables? table<string, dap.Variable> by variable name. Not part of spec
 
+---@class dap.ValueFormat
+---@field hex? boolean Display the value in hex
+
+---@class dap.VariablesArguments
+---@field variablesReference number variable for which to retrieve its children
+---@field filter? "indexed"|"named" filter to limit child variables. Both are fetched if nil
+---@field start? number index of the first variable to return. If nil children start at 0. Requires `supportsVariablePaging`
+---@field count? number number of variables to return. If missing or 0, all variables are returned. Requires `supportsVariablePaging`
+---@field format? dap.ValueFormat
 
 ---@class dap.VariableResponse
 ---@field variables dap.Variable[]
@@ -88,6 +97,21 @@
 ---@field indexedVariables? number
 ---@field memoryReference? string
 ---@field variables? dap.Variable[] resolved variablesReference. Not part of the spec; added by nvim-dap
+
+---@class dap.EvaluateArguments
+---@field expression string
+---@field frameId? number
+---@field context? "watch"|"repl"|"hover"|"clipboard"|"variables"|string
+---@field format? dap.ValueFormat
+
+---@class dap.EvaluateResponse
+---@field result string
+---@field type? string
+---@field presentationHint? dap.VariablePresentationHint
+---@field variablesReference number
+---@field namedVariables? number
+---@field indexedVariables? number
+---@field memoryReference? string
 
 
 ---@class dap.VariablePresentationHint
@@ -273,6 +297,11 @@
 ---|'reference'
 ---|'customcolor'
 
+---@class dap.CompletionsArguments
+---@field frameId? number
+---@field text string
+---@field column integer utf-16 code units, 0- or 1-based depending on columnsStartAt1
+---@field line? integer
 
 ---@class dap.CompletionItem
 ---@field label string By default this is also the text that is inserted when selecting this completion

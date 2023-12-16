@@ -473,11 +473,13 @@ do
       end
     end
     assert(session, 'Session must exist if supportsCompletionsRequest is true')
-    session:request('completions', {
-      frameId = (session.current_frame or {}).id;
-      text = line_to_cursor;
-      column = col + 1 - offset;
-    }, function(err, response)
+    ---@type dap.CompletionsArguments
+    local args = {
+      frameId = (session.current_frame or {}).id,
+      text = line_to_cursor,
+      column = col + 1 - offset
+    }
+    session:request('completions', args, function(err, response)
       if err then
         require('dap.utils').notify('completions request failed: ' .. err.message, vim.log.levels.WARN)
         return

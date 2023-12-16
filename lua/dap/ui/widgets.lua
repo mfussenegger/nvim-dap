@@ -343,11 +343,16 @@ M.expression = {
       layer.render({'No active session'})
       return
     end
-    local frame = session.current_frame or {}
     local expression = expr or view.__expression
+    local context = session.capabilities.supportsEvaluateForHovers and "hover" or "repl"
+    local args = {
+      expression = expression,
+      context = context
+    }
+    local frame = session.current_frame or {}
     local variable
     local scopes = frame.scopes or {}
-    session:evaluate(expression, function(err, resp)
+    session:evaluate(args, function(err, resp)
       if err then
         for _, s in pairs(scopes) do
           variable = s.variables and s.variables[expression]
@@ -607,6 +612,85 @@ function M.sidebar(widget, winopts, wincmd)
     .new_win(mk_sidebar_win_func(winopts, wincmd))
     .new_buf(M.with_refresh(widget.new_buf, widget.refresh_listener or 'event_stopped'))
     .build()
+end
+
+
+---@param session Session
+---@param expr string
+---@param max_level integer
+local function get_var_lines(session, expr, max_level)
+  local req_args = {
+    expression = expr,
+    context = "repl",
+    frameId = (session.current_frame or {}).id
+  }
+  local eval_err, eval_result = session:request("evaluate", req_args)
+  assert(not eval_err, vim.inspect(eval_err))
+
+  local lines = {}
+  local value = eval_result.result:gsub("\n", "\\n")
+  table.insert(lines, value)
+
+  local function add_children(ref, level)
+    require("dap.progress").report("Fetching " .. tostring(ref))
+
+    ---@type dap.VariablesArguments
+    local vargs = {
+      variablesReference = ref,
+    }
+    ---@type dap.ErrorResponse, dap.VariableResponse
+    local err, result = session:request("variables", vargs)
+    assert(not err, vim.inspect(err))
+    for _, variable in ipairs(result.variables) do
+      local val = variable.value:gsub("\n", "\\n")
+      local indent = level * 2
+      local line = string.rep(" ", indent) .. variable.name .. ": " .. val
+      table.insert(lines, line)
+      if level < max_level and variable.variablesReference > 0 then
+        add_children(variable.variablesReference, level + 1)
+      end
+    end
+  end
+
+  if eval_result.variablesReference > 0 then
+    add_children(eval_result.variablesReference, 0)
+  end
+
+  return lines
+end
+
+
+--- Generate a diff between two expressions
+---
+--- Opens a new tab with two windows and buffers in diff mode.
+--- The diff is based on the lines of the variable tree's, expanded up to `max_level`
+---
+---@param expr1 string
+---@param expr2 string
+---@param max_level? integer default: 10
+function M.diff_var(expr1, expr2, max_level)
+  local dap = require("dap")
+  local session = dap.session()
+  if not session then
+    utils.notify("No active session", vim.log.levels.INFO)
+    return
+  end
+  max_level = max_level or 10
+  require("dap.async").run(function()
+    local lines1 = get_var_lines(session, expr1, max_level)
+    local lines2 = get_var_lines(session, expr2, max_level)
+    require("dap.progress").report("Diff operation done")
+    require("dap.progress").report("Running: " .. session.config.name)
+    vim.cmd.tabnew()
+    local buf1 = api.nvim_get_current_buf()
+    api.nvim_buf_set_lines(buf1, 0, -1, true, lines1)
+    vim.cmd.diffthis()
+
+    vim.cmd.vnew()
+    local buf2 = api.nvim_get_current_buf()
+    api.nvim_buf_set_lines(buf2, 0, -1, true, lines2)
+    vim.cmd.diffthis()
+  end)
 end
 
 

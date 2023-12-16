@@ -527,12 +527,7 @@ function M.run(config, opts)
       )
     end
   end
-  coroutine.wrap(function()
-    xpcall(trigger_run, function(err)
-      local msg = debug.traceback(err, 2)
-      notify(msg, vim.log.levels.ERROR)
-    end)
-  end)()
+  lazy.async.run(trigger_run)
 end
 
 
@@ -754,12 +749,20 @@ function M.restart(config, opts)
   end
   config = config or lsession.config
   if lsession.capabilities.supportsRestartRequest then
-    lsession:request('restart', config, function(err0, _)
-      if err0 then
-        notify('Error restarting debug adapter: ' .. lazy.utils.fmt_error(err0), vim.log.levels.ERROR)
-      else
-        notify('Restarted debug adapter', vim.log.levels.INFO)
+    require("dap.async").run(function()
+      local mt = getmetatable(config)
+      if mt and type(mt.__call) == "function" then
+        config = config()
+        assert(config and type(config) == "table", "config metatable __call must return a config table")
       end
+      config = vim.tbl_map(expand_config_variables, config)
+      lsession:request('restart', config, function(err0, _)
+        if err0 then
+          notify('Error restarting debug adapter: ' .. lazy.utils.fmt_error(err0), vim.log.levels.ERROR)
+        else
+          notify('Restarted debug adapter', vim.log.levels.INFO)
+        end
+      end)
     end)
   else
     terminate(lsession, nil, nil, vim.schedule_wrap(function()
