@@ -5,8 +5,19 @@ local M = {}
 M.json_decode = vim.json.decode
 M.type_to_filetypes = {}
 
-local function create_input(type_, input)
-  if type_ == "promptString" then
+
+---@class dap.vscode.launch.Input
+---@field id string
+---@field type "promptString"|"pickString"
+---@field description string
+---@field default? string
+---@field options string[]|{label: string, value: string}[]
+
+
+---@param input dap.vscode.launch.Input
+---@return function
+local function create_input(input)
+  if input.type == "promptString" then
     return function()
       local description = input.description or 'Input'
       if not vim.endswith(description, ': ') then
@@ -28,7 +39,7 @@ local function create_input(type_, input)
         return vim.fn.input(description, input.default or '')
       end
     end
-  elseif type_ == "pickString" then
+  elseif input.type == "pickString" then
     return function()
       local options = assert(input.options, "input of type pickString must have an `options` property")
       local opts = {
@@ -47,19 +58,24 @@ local function create_input(type_, input)
       return coroutine.yield()
     end
   else
-    local msg = "Unsupported input type in vscode launch.json: " .. type_
+    local msg = "Unsupported input type in vscode launch.json: " .. input.type
     notify(msg, vim.log.levels.WARN)
+    return function()
+      return "${input:" .. input.id .. "}"
+    end
   end
 end
 
 
+---@param inputs dap.vscode.launch.Input[]
+---@return table<string, function> inputs map from ${input:<id>} to function resolving the input value
 local function create_inputs(inputs)
   local result = {}
   for _, input in ipairs(inputs) do
     local id = assert(input.id, "input must have a `id`")
     local key = "${input:" .. id .. "}"
-    local type_ = assert(input.type, "input must have a `type`")
-    local fn = create_input(type_, input)
+    assert(input.type, "input must have a `type`")
+    local fn = create_input(input)
     if fn then
       result[key] = fn
     end
@@ -67,55 +83,51 @@ local function create_inputs(inputs)
   return result
 end
 
-local function chain(default, fns)
-  return function()
-    local result = default
-    for _, fn in ipairs(fns) do
-      result = fn(result)
-    end
-    return result
-  end
-end
 
-
-local function apply_input(inputs, value)
+---@param inputs table<string, function>
+---@param value any
+---@param cache table<string, any>
+local function apply_input(inputs, value, cache)
   if type(value) == "table" then
     local new_value = {}
     for k, v in pairs(value) do
-      new_value[k] = apply_input(inputs, v)
+      new_value[k] = apply_input(inputs, v, cache)
     end
     value = new_value
   end
   if type(value) ~= "string" then
     return value
   end
+
   local matches = string.gmatch(value, "${input:([%w_]+)}")
-  local input_functions = {}
   for input_id in matches do
     local input_key = "${input:" .. input_id .. "}"
-    local input = inputs[input_key]
-    if not input then
-      local msg = "No input with id `" .. input_id .. "` found in inputs"
-      notify(msg, vim.log.levels.WARN)
+    local result = cache[input_key]
+    if not result then
+      local input = inputs[input_key]
+      if not input then
+        local msg = "No input with id `" .. input_id .. "` found in inputs"
+        notify(msg, vim.log.levels.WARN)
+      else
+        result = input()
+        cache[input_key] = result
+      end
     end
-    table.insert(input_functions, function(val)
-      assert(coroutine.running(), "Must run in coroutine")
-      local input_value = input()
-      return val:gsub(input_key, input_value)
-    end)
+    if result then
+      value = value:gsub(input_key, result)
+    end
   end
-  if next(input_functions) then
-    return chain(value, input_functions)
-  else
-    return value
-  end
+  return value
 end
 
 
+---@param config table<string, any>
+---@param inputs table<string, function>
 local function apply_inputs(config, inputs)
   local result = {}
+  local cache = {}
   for key, value in pairs(config) do
-    result[key] = apply_input(inputs, value)
+    result[key] = apply_input(inputs, value, cache)
   end
   return result
 end
@@ -149,7 +161,15 @@ function M._load_json(jsonstr)
   local configs = {}
   for _, config in ipairs(data.configurations or {}) do
     config = lift(config, sysname)
-    table.insert(configs, has_inputs and apply_inputs(config, inputs) or config)
+    if (has_inputs) then
+      config = setmetatable(config, {
+        __call = function()
+          local c = vim.deepcopy(config)
+          return apply_inputs(c, inputs)
+        end
+      })
+    end
+    table.insert(configs, config)
   end
   return configs
 end

@@ -47,7 +47,8 @@ describe('dap.ext.vscode', function()
     local ok = false
     local result
     coroutine.wrap(function()
-      result = configs[1].program()
+      local conf = configs[1]()
+      result = conf.program
       ok = true
     end)()
     vim.wait(1000, function() return ok end)
@@ -90,7 +91,8 @@ describe('dap.ext.vscode', function()
     local ok = false
     local result
     coroutine.wrap(function()
-      result = configs[1].program()
+      local config = configs[1]()
+      result = config.program
       ok = true
     end)()
     vim.wait(1000, function() return ok end)
@@ -128,15 +130,15 @@ describe('dap.ext.vscode', function()
     local config = vscode._load_json(jsonstr)[1]
     assert.are.same(3, #config.args)
     assert.are.same("one", config.args[1])
-    assert.are.same("function", type(config.args[2]))
+    assert.are.same("${input:myInput}", config.args[2])
     assert.are.same("three", config.args[3])
     local ok = false
-    local result
     coroutine.wrap(function()
-      ok, result = true, config.args[2]()
+      config = config()
+      ok = true
     end)()
     vim.wait(1000, function() return ok end)
-    assert.are.same("the default value", result)
+    assert.are.same("the default value", config.args[2])
   end)
   it('can use two inputs within one property', function()
     vim.fn.input = function(opts)
@@ -170,12 +172,11 @@ describe('dap.ext.vscode', function()
     ]]
     local config = vscode._load_json(jsonstr)[1]
     local ok = false
-    local result
     coroutine.wrap(function()
-      ok, result = true, config.program()
+      ok, config = true, config()
     end)()
     vim.wait(1000, function() return ok end)
-    assert.are.same("one-two", result)
+    assert.are.same("one-two", config.program)
   end)
 
   it('supports OS specific properties which are lifted to top-level', function()
@@ -227,14 +228,12 @@ describe('dap.ext.vscode', function()
       }
     ]]
     local configs = vscode._load_json(jsonstr)
-    local ok = false
-    local result
+    local config
     coroutine.wrap(function()
-      result = configs[1].program()
-      ok = true
+      config = configs[1]()
     end)()
-    vim.wait(1000, function() return ok end)
-    assert.are.same("${workspaceFolder}/Fake input", result)
+    vim.wait(1000, function() return config ~= nil end)
+    assert.are.same("${workspaceFolder}/Fake input", config.program)
     assert.are.same("Your input: ", prompt)
     assert.are.same("", default)
   end)
@@ -271,15 +270,13 @@ describe('dap.ext.vscode', function()
       }
     ]]
     local configs = vscode._load_json(jsonstr)
-    local ok = false
-    local result
+    local config
     coroutine.wrap(function()
-      result = configs[1].program()
-      ok = true
+      config = configs[1]()
     end)()
-    vim.wait(1000, function() return ok end)
-    assert.are.same(true, ok, "coroutine must finish")
-    assert.are.same("${workspaceFolder}/one", result)
+    vim.wait(1000, function() return config ~= nil end)
+    assert(config, "coroutine must finish")
+    assert.are.same("${workspaceFolder}/one", config.program)
     assert.are.same("Select input", opts.prompt)
     assert.are.same("First value", label)
   end)
@@ -312,15 +309,59 @@ describe('dap.ext.vscode', function()
       }
     ]]
     local configs = vscode._load_json(jsonstr)
-    local ok = false
-    local result
+    local config
     coroutine.wrap(function()
-      result = configs[1].program()
-      ok = true
+      config = configs[1]()
     end)()
-    vim.wait(1000, function() return ok end)
-    assert.are.same(true, ok, "coroutine must finish")
+    vim.wait(1000, function() return config ~= nil end)
+    assert(config, "coroutine must finish")
     -- input defaults to ''
-    assert.are.same("${workspaceFolder}/", result)
+    assert.are.same("${workspaceFolder}/", config.program)
+  end)
+
+  it("evaluates input once per config use", function()
+    local prompt
+    local default
+    local calls = 0
+    vim.fn.input = function(opts)
+      prompt = opts.prompt
+      default = opts.default
+      calls = calls + 1
+      return 'Fake input'
+    end
+    local jsonstr = [[
+      {
+        "configurations": [
+          {
+            "type": "dummy",
+            "request": "launch",
+            "name": "Dummy",
+            "program": "${input:myInput}",
+            "args": [
+              "${input:myInput}",
+              "foo",
+              "${input:myInput}"
+            ]
+          }
+        ],
+        "inputs": [
+          {
+            "id": "myInput",
+            "type": "promptString",
+            "description": "Your input"
+          }
+        ]
+      }
+    ]]
+    local configs = vscode._load_json(jsonstr)
+    local config
+    coroutine.wrap(function()
+      config = configs[1]()
+    end)()
+    vim.wait(1000, function() return config ~= nil end)
+
+    assert.are.same(calls, 1)
+    assert.are.same("Your input: ", prompt)
+    assert.are.same("", default)
   end)
 end)
