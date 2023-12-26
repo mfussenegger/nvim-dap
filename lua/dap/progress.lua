@@ -48,13 +48,12 @@ function M.status()
   if not session then
     return ''
   end
-  local msg = M.poll_msg() or last_msg
-  if msg then
-    last_msg = msg
-    return msg
-  else
-    return ''
+  local msg = last_msg
+  for more in M.poll_msg do
+    msg = more
   end
+  last_msg = msg
+  return msg or ''
 end
 
 
