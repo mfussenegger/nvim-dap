@@ -29,6 +29,8 @@ local function get_sign_name(bp)
     return 'DapBreakpointCondition'
   elseif non_empty(bp.logMessage) then
     return 'DapLogPoint'
+  elseif non_empty(bp.hitCondition) then
+    return 'DapBreakpointHitCondition'
   else
     return 'DapBreakpoint'
   end
