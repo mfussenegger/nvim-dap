@@ -38,7 +38,7 @@ local function new_buf()
   vim.fn.prompt_setcallback(buf, execute)
   if vim.fn.has('nvim-0.7') == 1 then
     vim.keymap.set('n', 'G', function()
-      autoscroll = true
+      autoscroll = vim.v.count == 0
       vim.cmd(string.format('normal! %dG', vim.v.count))
     end, { silent = true, buffer = buf })
     api.nvim_create_autocmd({'InsertEnter', 'CursorMoved'}, {
