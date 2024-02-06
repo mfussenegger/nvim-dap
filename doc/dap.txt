@@ -402,7 +402,7 @@ Inputs can be referenced with `${input:<id>}` placeholders.
       "configurations": [
           {
               "type": "python",
-              "request": "launch"
+              "request": "launch",
               "name": "Launch",
               "program": "${input:myPrompt}"
           }
