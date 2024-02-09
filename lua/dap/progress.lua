@@ -44,10 +44,6 @@ function M.poll_msg()
 end
 
 function M.status()
-  local session = require('dap').session()
-  if not session then
-    return ''
-  end
   local msg = M.poll_msg() or last_msg
   if msg then
     last_msg = msg
