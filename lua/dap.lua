@@ -1089,9 +1089,8 @@ function M.set_session(new_session)
     session = new_session
   else
     local _, lsession = next(sessions)
-    if lsession then
-      lazy.progress.report('Running: ' .. lsession.config.name)
-    end
+    local msg = lsession and ("Running: " .. lsession.config.name) or ""
+    lazy.progress.report(msg)
     session = lsession
   end
 end
