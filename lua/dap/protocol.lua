@@ -46,6 +46,9 @@
 ---@field stopped nil|boolean not part of the spec; added by nvim-dap
 
 
+---@class dap.ThreadResponse
+---@field threads dap.Thread[]
+
 ---@class dap.StackFrame
 ---@field id number
 ---@field name string
