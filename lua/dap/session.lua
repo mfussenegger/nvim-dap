@@ -618,8 +618,9 @@ function Session:update_threads(cb)
     for _, thread in pairs(response.threads) do
       threads[thread.id] = thread
       local old_thread = self.threads[thread.id]
-      if old_thread and old_thread.stopped then
-        thread.stopped = true
+      if old_thread then
+        thread.stopped = old_thread.stopped
+        thread.frames = old_thread.frames
       end
     end
     self.threads = threads
@@ -646,61 +647,61 @@ end
 
 ---@param stopped dap.StoppedEvent
 function Session:event_stopped(stopped)
-  if self.dirty.threads or (stopped.threadId and self.threads[stopped.threadId] == nil) then
-    self:update_threads(function(err)
+  coroutine.wrap(function()
+    local co = coroutine.running()
+
+    if self.dirty.threads or (stopped.threadId and self.threads[stopped.threadId] == nil) then
+      self:update_threads(co_resume(co))
+      local err = coroutine.yield()
       if err then
         utils.notify('Error retrieving threads: ' .. utils.fmt_error(err), vim.log.levels.ERROR)
         return
       end
-      self:event_stopped(stopped)
-    end)
-    return
-  end
+    end
 
-  local should_jump = stopped.reason ~= 'pause' or stopped.allThreadsStopped
+    local should_jump = stopped.reason ~= 'pause' or stopped.allThreadsStopped
 
-  -- Some debug adapters allow to continue/step via custom REPL commands (via evaluate)
-  -- That by-passes `clear_running`, resulting in self.stopped_thread_id still being set
-  -- Dont auto-continue if`threadId == self.stopped_thread_id`, but stop & jump
-  if self.stopped_thread_id and self.stopped_thread_id ~= stopped.threadId and should_jump then
-    if defaults(self).auto_continue_if_many_stopped then
-      local thread = self.threads[self.stopped_thread_id]
-      local thread_name = thread and thread.name or self.stopped_thread_id
-      log.debug(
-        'Received stopped event, but ' .. thread_name .. ' is already stopped. ' ..
-        'Resuming newly stopped thread. ' ..
-        'To disable this set the `auto_continue_if_many_stopped` option to false.')
-      self:request('continue', { threadId = stopped.threadId })
-      return
+    -- Some debug adapters allow to continue/step via custom REPL commands (via evaluate)
+    -- That by-passes `clear_running`, resulting in self.stopped_thread_id still being set
+    -- Dont auto-continue if`threadId == self.stopped_thread_id`, but stop & jump
+    if self.stopped_thread_id and self.stopped_thread_id ~= stopped.threadId and should_jump then
+      if defaults(self).auto_continue_if_many_stopped then
+        local thread = self.threads[self.stopped_thread_id]
+        local thread_name = thread and thread.name or self.stopped_thread_id
+        log.debug(
+          'Received stopped event, but ' .. thread_name .. ' is already stopped. ' ..
+          'Resuming newly stopped thread. ' ..
+          'To disable this set the `auto_continue_if_many_stopped` option to false.')
+        self:request('continue', { threadId = stopped.threadId }, function() end)
+        return
+      else
+        -- Allow thread to stop, but don't jump to it because stepping
+        -- interleaved between threads is confusing
+        should_jump = false
+      end
+    end
+    if should_jump then
+      self.stopped_thread_id = stopped.threadId
+    end
+
+    if stopped.allThreadsStopped then
+      progress.report('All threads stopped')
+      for _, thread in pairs(self.threads) do
+        thread.stopped = true
+      end
+    elseif stopped.threadId then
+      progress.report('Thread stopped: ' .. stopped.threadId)
+      self.threads[stopped.threadId].stopped = true
     else
-      -- Allow thread to stop, but don't jump to it because stepping
-      -- interleaved between threads is confusing
-      should_jump = false
+      utils.notify('Stopped event received, but no threadId or allThreadsStopped', vim.log.levels.WARN)
     end
-  end
-  if should_jump then
-    self.stopped_thread_id = stopped.threadId
-  end
 
-  if stopped.allThreadsStopped then
-    progress.report('All threads stopped')
-    for _, thread in pairs(self.threads) do
-      thread.stopped = true
+    if not stopped.threadId then
+      return
     end
-  elseif stopped.threadId then
-    progress.report('Thread stopped: ' .. stopped.threadId)
-    self.threads[stopped.threadId].stopped = true
-  else
-    utils.notify('Stopped event received, but no threadId or allThreadsStopped', vim.log.levels.WARN)
-  end
+    local thread = self.threads[stopped.threadId]
+    assert(thread, 'Thread not found: ' .. stopped.threadId)
 
-  if not stopped.threadId then
-    return
-  end
-  local thread = self.threads[stopped.threadId]
-  assert(thread, 'Thread not found: ' .. stopped.threadId)
-
-  coroutine.wrap(function()
     local err, response = self:request('stackTrace', { threadId = stopped.threadId; })
     if err then
       utils.notify('Error retrieving stack traces: ' .. utils.fmt_error(err), vim.log.levels.ERROR)

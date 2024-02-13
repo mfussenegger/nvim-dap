@@ -2,7 +2,7 @@ local M = {}
 
 
 ---@param err dap.ErrorResponse
----@return string?
+---@return string
 function M.fmt_error(err)
   local body = err.body or {}
   if body.error and body.error.showUser then
