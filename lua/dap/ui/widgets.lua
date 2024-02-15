@@ -236,30 +236,38 @@ M.frames = {
       layer.render({msg})
       return
     end
+
     local frames = thread.frames
-    if not frames then
-      layer.render({"Stopped thread has no frames"})
-      return
-    end
-    local context = {}
-    context.actions = {
-      {
-        label = "Jump to frame",
-        fn = function(_, frame)
-          if session then
-            local close = vim.bo.bufhidden == "wipe"
-            session:_frame_set(frame)
-            if close then
-              view.close()
-            end
-          else
-            utils.notify('Cannot navigate to frame without active session', vim.log.levels.INFO)
-          end
+    require("dap.async").run(function()
+      if not frames then
+        local err, response = session:request("stackTrace", { threadId = thread.id })
+        ---@cast response dap.StackTraceResponse
+        if err or not response then
+          layer.render({"Stopped thread has no frames"})
+          return
         end
-      },
-    }
-    local render_frame = require('dap.entity').frames.render_item
-    layer.render(frames, render_frame, context)
+        frames = response.stackFrames
+      end
+      local context = {}
+      context.actions = {
+        {
+          label = "Jump to frame",
+          fn = function(_, frame)
+            if session then
+              local close = vim.bo.bufhidden == "wipe"
+              session:_frame_set(frame)
+              if close then
+                view.close()
+              end
+            else
+              utils.notify('Cannot navigate to frame without active session', vim.log.levels.INFO)
+            end
+          end
+        },
+      }
+      local render_frame = require('dap.entity').frames.render_item
+      layer.render(frames, render_frame, context)
+    end)
   end
 }
 

@@ -61,6 +61,9 @@
 ---@field presentationHint nil|"normal"|"label"|"subtle";
 ---@field scopes? dap.Scope[] Not part of spec; added by nvim-dap
 
+---@class dap.StackTraceResponse
+---@field stackFrames dap.StackFrame[]
+---@field totalFrames? number
 
 ---@class dap.Scope
 ---@field name string
