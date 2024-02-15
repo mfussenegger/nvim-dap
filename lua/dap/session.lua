@@ -647,7 +647,7 @@ end
 
 ---@param stopped dap.StoppedEvent
 function Session:event_stopped(stopped)
-  coroutine.wrap(function()
+  require("dap.async").run(function()
     local co = coroutine.running()
 
     if self.dirty.threads or (stopped.threadId and self.threads[stopped.threadId] == nil) then
@@ -724,7 +724,7 @@ function Session:event_stopped(stopped)
         self:_show_exception_info(stopped.threadId, bufnr, current_frame)
       end
     end
-  end)()
+  end)
 end
 
 
