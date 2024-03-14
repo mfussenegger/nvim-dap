@@ -77,7 +77,7 @@ The `Adapter` needs to contain a `type`, which can be one of:
   The adapter must be running, or started with a debug session via a
   `executable` configuration of the adapter. See the options further below.
 
-- `pipe`, to connect to a adebug adapter via a unix domain socket or named pipe.
+- `pipe`, to connect to a debug adapter via a unix domain socket or named pipe.
   The adapter must be running, or started with a debug session via a
   `executable` configuration of the adapter. See the options further below.
 
