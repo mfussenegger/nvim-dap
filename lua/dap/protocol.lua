@@ -277,6 +277,21 @@
 ---@field message? string
 
 
+---@class dap.OutputEvent
+---@field category? "console"|"important"|"stdout"|"stderr"|"telemetry"|string
+---@field output string
+---@field group? "start"|"startCollapsed"|"end"
+---
+--- if > 0 the output contains objects which
+--- can be retrieved by passing `variablesReference` to the `variables` request
+--- as long as execution remains suspended.
+---@field variablesReference? number
+---@field source? dap.Source
+---@field line? integer
+---@field column? integer
+---@field data? any
+
+
 ---@class dap.StartDebuggingRequestArguments
 ---@field configuration table<string, any>
 ---@field request 'launch'|'attach'

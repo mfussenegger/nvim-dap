@@ -1074,3 +1074,41 @@ describe("bad debug adapter", function()
     assert.are.same(vim.log.levels.WARN, captured_log_level)
   end)
 end)
+
+
+describe("on_output", function()
+  local server
+  before_each(function()
+    server = require('tests.server').spawn()
+    dap.adapters.dummy = server.adapter
+  end)
+  after_each(function()
+    server.stop()
+    dap.terminate()
+    wait(function() return dap.session() == nil end, "Session should become nil after terminate")
+    assert.are.same(0, vim.tbl_count(dap.sessions()), "Sessions should go down to 0 after terminate/stop")
+  end)
+
+  it("can override output handling", function()
+    local captured_output = nil
+
+    function dap.defaults.fallback.on_output(_, output)
+      captured_output = output
+    end
+
+    server.client.initialize = function(self, request)
+      self:send_response(request, {})
+      self:send_event("initialized", {})
+      self:send_event("output", {
+        category = "stdout",
+        output = "dummy output"
+      })
+    end
+
+    run_and_wait_until_initialized(config, server)
+    assert.are.same(captured_output, {
+      category = "stdout",
+      output = "dummy output"
+    })
+  end)
+end)
