@@ -740,7 +740,13 @@ function Session:event_terminated(body)
 end
 
 
-function Session.event_output(_, body)
+---@param body dap.OutputEvent
+function Session:event_output(body)
+  local on_output = defaults(self).on_output
+  if on_output then
+    on_output(self, body)
+    return
+  end
   if body.category == 'telemetry' then
     log.info('Telemetry', body.output)
   else

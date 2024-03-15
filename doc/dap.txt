@@ -572,8 +572,25 @@ The configuration values are set via `dap.defaults.fallback` (for global) or
                        See |'switchbuf'|. Defaults to the global `'switchbuf'`
                        setting.
 
+- `on_output`. A function with two parameters: `session` and `output_event`:
+  Overrides the default output handling with a custom handler.
 
-Some examples:
+  If you'd like to keep the default handling and still execute custom logic
+  for output events you can instead use the listener system. See |dap-extensions|.
+
+  See https://microsoft.github.io/debug-adapter-protocol/specification#Events_Output
+  for a description of the payload.
+
+  An example:
+>lua
+  ---@param session dap.Session
+  ---@param output_event dap.OutputEvent
+  dap.defaults.fallback.on_output = function(session, output_event)
+    -- ignore all outputs
+  end
+<
+
+Some more examples:
 >lua
   local dap = require('dap')
   -- Use "tabnew" for all debug adapters
