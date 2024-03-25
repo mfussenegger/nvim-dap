@@ -233,7 +233,7 @@ In addition, a `Configuration` accepts an arbitrary number of further options
 which are debug-adapter-specific.
 
 Configurations are set in the `dap.configurations` table. The keys are
-filetypes. If you run |dap-continue| it will look up configurations under the
+filetypes. If you run |dap.continue()| it will look up configurations under the
 current filetype.
 
 For example:
