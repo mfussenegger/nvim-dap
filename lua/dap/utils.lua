@@ -192,5 +192,97 @@ function M.if_nil(x, default)
   return x == nil and default or x
 end
 
+--- @param opts table
+--- @return table|nil
+local find_files = function(opts)
+  local search_path = opts.search_path or './'
+
+  local find = 'find'
+
+  local cmd_opts = '-type f -follow'
+  if opts.executables_only then
+    -- The order of options matters!
+    cmd_opts = '-type f -executable -follow'
+  end
+
+  -- Use 'bfs' if possible
+  -- https://github.com/tavianator/bfs
+  if vim.fn.executable('bfs') == 1 then
+    find = 'bfs'
+    cmd_opts = cmd_opts .. ' -nocolor'
+  end
+
+  local cmd = string.format('%s %s %s', find, search_path, cmd_opts)
+  local output = vim.fn.system(cmd)
+  local files = vim.split(output, '\n')
+  if not files then
+    return nil
+  end
+
+  if opts.filter then
+    local filter
+
+    if type(opts.filter) == 'string' then
+      filter = function(exec)
+        return exec:find(opts.filter)
+      end
+    elseif type(opts.filter) == 'function' then
+      filter = function(proc)
+        return opts.filter(proc)
+      end
+    else
+      error('opts.filter must be a string or a function')
+    end
+
+    files = vim.tbl_filter(filter, files)
+  end
+
+  return files or nil
+end
+
+--- Show a prompt to select a file
+--- Requires 'find' or 'bfs'
+---
+--- Takes an optional `opts` table with following options:
+---
+--- - filter string|fun: A lua pattern or function to filter the files.
+---                      If a function the parameter is a string and it
+---                      must return a boolean. Matches are included if
+---                      is returned.
+---
+--- <pre>
+--- require('dap.utils').pick_file({ filter = '*.py', executables_only = true })
+--- </pre>
+---@param opts? {filter: string|(fun(name: string): boolean), executables_only: boolean}
+---
+---@return thread|nil
+function M.pick_file(opts)
+  opts = opts or {}
+
+  local label_fn = function(exec)
+    return string.format('%s', exec)
+  end
+
+  local files = find_files(opts)
+  if not files then
+    return nil
+  end
+
+  local prompt = 'Select file: '
+  if opts.executables_only then
+    prompt = 'Select executable: '
+  end
+  local co = coroutine.running()
+  if co then
+    return coroutine.create(function()
+      require('dap.ui').pick_one(files, prompt, label_fn, function(choice)
+        coroutine.resume(co, choice or nil)
+      end)
+    end)
+  else
+    local result = require('dap.ui').pick_one_sync(files, prompt, label_fn)
+    return result or nil
+  end
+end
 
 return M
