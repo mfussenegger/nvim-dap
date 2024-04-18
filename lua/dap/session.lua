@@ -1252,7 +1252,10 @@ function Session.pipe(adapter, opts, on_connect)
     log.debug(
       "Debug adapter server executable started with pipe " .. adapter.pipe)
     -- The adapter should create the pipe
-    vim.wait(5000, function()
+
+    local adapter_opts = adapter.options or {}
+    local timeout = adapter_opts.timeout or 5000
+    vim.wait(timeout, function()
       return uv.fs_stat(adapter.pipe) ~= nil
     end)
   end

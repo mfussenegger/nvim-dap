@@ -193,10 +193,15 @@ local DAP_QUICKFIX_CONTEXT = DAP_QUICKFIX_TITLE
 ---@field executable nil|ServerAdapterExecutable
 ---@field options nil|ServerOptions
 
+
+---@class DapPipeOptions
+---@field timeout? integer max amount of time in ms to wait between spawning the executable and connecting. This gives the executable time to create the pipe. Defaults to 5000
+
 ---@class PipeAdapter : Adapter
 ---@field type "pipe"
 ---@field pipe string absolute path to the pipe or ${pipe} to use random tmp path
 ---@field executable? ServerAdapterExecutable
+---@field options? DapPipeOptions
 
 ---@class ServerAdapterExecutable
 ---@field command string
