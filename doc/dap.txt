@@ -150,6 +150,13 @@ For `pipe` the following options are supported:
       cwd?: string          -- Working directory
     }
 
+    options?: {
+      timeout?: integer  -- Max amount of time in ms to wait between spawning
+                         -- the executable and connecting to the pipe. This
+                         -- gives the executable time to create the pipe.
+                         -- Defaults to 5000ms
+    }
+
 
 All types support the following additional options:
 
