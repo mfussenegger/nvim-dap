@@ -406,7 +406,7 @@ local function jump_to_location(bufnr, line, column, switchbuf, filetype)
   -- vscode-go sends columns with 0
   -- That would cause a "Column value outside range" error calling nvim_win_set_cursor
   -- nvim-dap says "columnsStartAt1 = true" on initialize :/
-  if column == 0 then
+  if column == nil or column == 0 then
     column = 1
   end
   local cur_buf = api.nvim_get_current_buf()
