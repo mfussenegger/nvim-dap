@@ -1381,29 +1381,36 @@ function Session.spawn(_, adapter, opts)
   local handle
   local pid_or_err
   local closed = false
+
   local function onexit(cb)
     if closed then
       return
     end
     cb = cb or function() end
     closed = true
-    stdin:shutdown(function()
-      stdin:close()
-      stdout:shutdown(function()
-        stdout:close()
-        stderr:close()
-        if handle and not handle:is_closing() then
-          handle:close(function()
-            log.info('Process closed', pid_or_err, handle:is_active())
-            handle = nil
-            cb()
-          end)
-        else
-          cb()
-        end
-      end)
+    if not handle or handle:is_closing() then
+      cb()
+      return
+    end
+    handle:kill("sigint")
+    local timer = assert(uv.new_timer())
+    local start = uv.hrtime()
+    timer:start(0, 50, function()
+      if handle:is_closing() then
+        timer:stop()
+        timer:close()
+        handle = nil
+        cb()
+      elseif (uv.hrtime() - start) > 5000000000 then
+        handle:kill("sigkill")
+        timer:stop()
+        timer:close()
+        handle = nil
+        cb()
+      end
     end)
   end
+
   local options = adapter.options or {}
   local spawn_opts = {
     args = adapter.args;
@@ -1414,7 +1421,11 @@ function Session.spawn(_, adapter, opts)
   }
   local session
   handle, pid_or_err = uv.spawn(adapter.command, spawn_opts, function(code)
+    stdin:close()
+    stdout:close()
+    stderr:close()
     onexit()
+    log.info('Process closed', pid_or_err)
     if code ~= 0 then
       utils.notify(adapter.command .. " exited with code: " .. tostring(code), vim.log.levels.WARN)
     end
@@ -1423,6 +1434,9 @@ function Session.spawn(_, adapter, opts)
     end
   end)
   if not handle then
+    stdin:close()
+    stdout:close()
+    stderr:close()
     onexit()
     if adapter.command == "" then
       error("adapter.command must not be empty. Got: " .. vim.inspect(adapter))
