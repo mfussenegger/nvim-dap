@@ -86,9 +86,7 @@ describe('dap with debugpy', function()
     -- ensure `called_with` below passes
     config.dummy_payload = dummy_payload
 
-    it('passed cwd to adapter process', function()
-      luassert.spy(launch).was.called_with(dap.adapters.python, config, { cwd = venv_dir, filetype = 'python' })
-    end)
+    luassert.spy(launch).was.called_with(dap.adapters.python, config, { cwd = venv_dir, filetype = 'python' })
   end)
 end)
 vim.fn.delete(venv_dir, 'rf')
