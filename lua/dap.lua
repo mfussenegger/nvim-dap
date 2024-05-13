@@ -800,6 +800,9 @@ function M.list_breakpoints(open_quickfix)
   end
 end
 
+---@param condition string?
+---@param hit_condition string?
+---@param log_message string?
 function M.set_breakpoint(condition, hit_condition, log_message)
   M.toggle_breakpoint(condition, hit_condition, log_message, true)
 end
@@ -815,7 +818,23 @@ local function broadcast(lsessions, fn)
 end
 
 
+---@param condition string?
+---@param hit_condition string?
+---@param log_message string?
+---@param replace_old boolean?
 function M.toggle_breakpoint(condition, hit_condition, log_message, replace_old)
+  assert(
+    not condition or type(condition) == "string",
+    "breakpoint condition must be a string. Got: " .. vim.inspect(condition)
+  )
+  assert(
+    not hit_condition or type(hit_condition) == "string",
+    "breakpoint hit-condition must be a string. Got: " .. vim.inspect(hit_condition)
+  )
+  assert(
+    not log_message or type(log_message) == "string",
+    "breakpoint log-message must be a string. Got: " .. vim.inspect(log_message)
+  )
   lazy.breakpoints.toggle({
     condition = condition,
     hit_condition = hit_condition,
