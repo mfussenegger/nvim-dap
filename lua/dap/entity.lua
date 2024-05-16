@@ -1,6 +1,9 @@
 local utils = require('dap.utils')
 local M = {}
 
+---@diagnostic disable-next-line: deprecated
+local islist = vim.islist or vim.tbl_islist
+
 
 local variable = {}
 M.variable = variable
@@ -54,7 +57,7 @@ function variable.has_children(var)
 end
 
 function variable.get_children(var)
-  if vim.tbl_islist(var.variables) then
+  if islist(var.variables) then
     return var.variables
   else
     return var.variables and vim.tbl_values(var.variables) or {}
