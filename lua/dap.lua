@@ -1,6 +1,9 @@
 local api = vim.api
 local M = {}
 
+---@diagnostic disable-next-line: deprecated
+local islist = vim.tbl_islist or vim.islist
+
 ---@type table<number, Session>
 local sessions = {}
 
@@ -419,7 +422,7 @@ local function select_config_and_run(opts)
   local filetype = vim.bo.filetype
   local configurations = M.configurations[filetype] or {}
   assert(
-    vim.tbl_islist(configurations),
+    islist(configurations),
     string.format(
       '`dap.configurations.%s` must be a list of configurations, got %s',
       filetype,

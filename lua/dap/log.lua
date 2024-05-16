@@ -23,10 +23,11 @@ function M.create_logger(filename)
   loggers[filename] = logger
 
   local path_sep = vim.loop.os_uname().sysname == "Windows" and "\\" or "/"
-  local function path_join(...)
+  local joinpath = vim.fs.joinpath or function(...)
+    ---@diagnostic disable-next-line: deprecated
     return table.concat(vim.tbl_flatten{...}, path_sep)
   end
-  local logfilename = path_join(vim.fn.stdpath('cache'), filename)
+  local logfilename = joinpath(vim.fn.stdpath('cache'), filename)
 
   local current_log_level = M.levels.INFO
 

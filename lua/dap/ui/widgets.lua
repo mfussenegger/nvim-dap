@@ -38,8 +38,8 @@ end
 function M.new_centered_float_win(buf)
   vim.bo[buf].bufhidden = "wipe"
   vim.bo[buf].filetype = "dap-float"
-  local columns = api.nvim_get_option('columns')
-  local lines = api.nvim_get_option('lines')
+  local columns = vim.o.columns
+  local lines = vim.o.lines
   local width = math.floor(columns * 0.9)
   local height = math.floor(lines * 0.8)
   local opts = {
@@ -99,10 +99,10 @@ local function resize_window(win, buf)
   for _, line in pairs(lines) do
     width = math.max(width, #line)
   end
-  local columns = api.nvim_get_option('columns')
+  local columns = vim.o.columns
   local max_win_width = math.floor(columns * 0.9)
   width = math.min(width, max_win_width)
-  local max_win_height = api.nvim_get_option('lines')
+  local max_win_height = vim.o.lines
   height = math.min(height, max_win_height)
   api.nvim_win_set_width(win, width)
   api.nvim_win_set_height(win, height)
@@ -112,6 +112,7 @@ end
 local function resizing_layer(win, buf)
   local layer = ui.layer(buf)
   local orig_render = layer.render
+  ---@diagnostic disable-next-line: inject-field
   layer.render = function(...)
     orig_render(...)
     if api.nvim_win_get_config(win).relative ~= '' then
@@ -184,6 +185,7 @@ M.threads = {
       return
     end
 
+    ---@diagnostic disable-next-line: invisible
     if session.dirty.threads then
       session:update_threads(function()
         M.threads.render(view)
