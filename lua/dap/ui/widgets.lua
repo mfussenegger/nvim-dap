@@ -675,7 +675,7 @@ end
 ---
 ---@param expr1 string
 ---@param expr2 string
----@param max_level? integer default: 10
+---@param max_level? integer default: 1
 function M.diff_var(expr1, expr2, max_level)
   local dap = require("dap")
   local session = dap.session()
@@ -683,7 +683,7 @@ function M.diff_var(expr1, expr2, max_level)
     utils.notify("No active session", vim.log.levels.INFO)
     return
   end
-  max_level = max_level or 10
+  max_level = max_level or 1
   require("dap.async").run(function()
     local lines1 = get_var_lines(session, expr1, max_level)
     local lines2 = get_var_lines(session, expr2, max_level)
@@ -692,11 +692,15 @@ function M.diff_var(expr1, expr2, max_level)
     vim.cmd.tabnew()
     local buf1 = api.nvim_get_current_buf()
     api.nvim_buf_set_lines(buf1, 0, -1, true, lines1)
+    vim.bo[buf1].modified = false
+    vim.bo[buf1].bufhidden = "wipe"
     vim.cmd.diffthis()
 
     vim.cmd.vnew()
     local buf2 = api.nvim_get_current_buf()
     api.nvim_buf_set_lines(buf2, 0, -1, true, lines2)
+    vim.bo[buf2].modified = false
+    vim.bo[buf2].bufhidden = "wipe"
     vim.cmd.diffthis()
   end)
 end
