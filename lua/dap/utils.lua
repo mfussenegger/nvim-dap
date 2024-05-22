@@ -161,17 +161,11 @@ function M.pick_process(opts)
     return string.format("id=%d name=%s", proc.pid, proc.name)
   end
   local procs = M.get_processes(opts)
-  local co = coroutine.running()
-  if co then
-    return coroutine.create(function()
-      require('dap.ui').pick_one(procs, "Select process: ", label_fn, function(choice)
-        coroutine.resume(co, choice and choice.pid or nil)
-      end)
-    end)
-  else
-    local result = require('dap.ui').pick_one_sync(procs, "Select process: ", label_fn)
-    return result and result.pid or nil
-  end
+  local co, ismain = coroutine.running()
+  local ui = require("dap.ui")
+  local pick = (co and not ismain) and ui.pick_one or ui.pick_one_sync
+  local result = pick(procs, "Select process: ", label_fn)
+  return result and result.pid or nil
 end
 
 
@@ -192,97 +186,82 @@ function M.if_nil(x, default)
   return x == nil and default or x
 end
 
---- @param opts table
---- @return table|nil
-local find_files = function(opts)
-  local search_path = opts.search_path or './'
 
-  local find = 'find'
-
-  local cmd_opts = '-type f -follow'
-  if opts.executables_only then
-    -- The order of options matters!
-    cmd_opts = '-type f -executable -follow'
+---@param opts {filter?: string|(fun(name: string):boolean), executables?: boolean}
+---@return string[]
+local function get_files(path, opts)
+  if not vim.fs.dir then
+    error("pick_file requires nvim-0.11 with vim.fs.dir support")
   end
-
-  -- Use 'bfs' if possible
-  -- https://github.com/tavianator/bfs
-  if vim.fn.executable('bfs') == 1 then
-    find = 'bfs'
-    cmd_opts = cmd_opts .. ' -nocolor'
-  end
-
-  local cmd = string.format('%s %s %s', find, search_path, cmd_opts)
-  local output = vim.fn.system(cmd)
-  local files = vim.split(output, '\n')
-  if not files then
-    return nil
-  end
-
+  local filter = function(_) return true end
   if opts.filter then
-    local filter
-
-    if type(opts.filter) == 'string' then
-      filter = function(exec)
-        return exec:find(opts.filter)
+    if type(opts.filter) == "string" then
+      filter = function(filepath)
+        return filepath:find(opts.filter)
       end
-    elseif type(opts.filter) == 'function' then
-      filter = function(proc)
-        return opts.filter(proc)
+    elseif type(opts.filter) == "function" then
+      filter = function(filepath)
+        return opts.filter(filepath)
       end
     else
       error('opts.filter must be a string or a function')
     end
-
-    files = vim.tbl_filter(filter, files)
+  end
+  if opts.executables then
+    local f = filter
+    local uv = vim.uv or vim.loop
+    local user_execute = tonumber("00100", 8)
+    filter = function(filepath)
+      if not f(filepath) then
+        return false
+      end
+      local stat = uv.fs_stat(filepath)
+      return stat and bit.band(stat.mode, user_execute) == user_execute or false
+    end
   end
 
-  return files or nil
+  local files = {}
+  for name, type in vim.fs.dir(path, { depth = 50 }) do
+    if type == "file" and filter(name) then
+      table.insert(files, path .. "/" .. name)
+    end
+  end
+  return files
 end
 
---- Show a prompt to select a file
---- Requires 'find' or 'bfs'
+
+--- Show a prompt to select a file.
+--- Returns the path to the selected file.
+--- Requires nvim 0.11
 ---
 --- Takes an optional `opts` table with following options:
 ---
 --- - filter string|fun: A lua pattern or function to filter the files.
 ---                      If a function the parameter is a string and it
----                      must return a boolean. Matches are included if
----                      is returned.
+---                      must return a boolean. Matches are included.
+---
+--- - executables boolean: Show only executables. Defaults to true
 ---
 --- <pre>
---- require('dap.utils').pick_file({ filter = '*.py', executables_only = true })
+--- require('dap.utils').pick_file({ filter = '.*%.py', executables = true })
 --- </pre>
----@param opts? {filter: string|(fun(name: string): boolean), executables_only: boolean}
+---@param opts? {filter?: string|(fun(name: string): boolean), executables?: boolean}
 ---
----@return thread|nil
+---@return thread|string|nil
 function M.pick_file(opts)
   opts = opts or {}
+  opts.executables = opts.executables == nil and true or opts.executables
+  local files = get_files(vim.fn.getcwd(), opts)
+  local prompt = opts.executables and "Select executable: " or "Select file: "
 
-  local label_fn = function(exec)
-    return string.format('%s', exec)
+  local co, ismain = coroutine.running()
+  local ui = require("dap.ui")
+  local pick = (co and not ismain) and ui.pick_one or ui.pick_one_sync
+  local label_fn = function(filepath)
+    return vim.fn.fnamemodify(filepath, ":.")
   end
-
-  local files = find_files(opts)
-  if not files then
-    return nil
-  end
-
-  local prompt = 'Select file: '
-  if opts.executables_only then
-    prompt = 'Select executable: '
-  end
-  local co = coroutine.running()
-  if co then
-    return coroutine.create(function()
-      require('dap.ui').pick_one(files, prompt, label_fn, function(choice)
-        coroutine.resume(co, choice or nil)
-      end)
-    end)
-  else
-    local result = require('dap.ui').pick_one_sync(files, prompt, label_fn)
-    return result or nil
-  end
+  return pick(files, prompt, label_fn)
 end
+
 
 return M
