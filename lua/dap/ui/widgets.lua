@@ -27,17 +27,22 @@ end
 
 function M.new_cursor_anchored_float_win(buf)
   vim.bo[buf].bufhidden = "wipe"
-  vim.bo[buf].filetype = "dap-float"
   local opts = vim.lsp.util.make_floating_popup_options(50, 30, {border = 'single'})
   local win = api.nvim_open_win(buf, true, opts)
-  vim.wo[win].scrolloff = 0
+  if vim.fn.has("nvim-0.11") == 1 then
+    vim.wo[win][0].scrolloff = 0
+    vim.wo[win][0].wrap = false
+  else
+    vim.wo[win].scrolloff = 0
+    vim.wo[win].wrap = false
+  end
+  vim.bo[buf].filetype = "dap-float"
   return win
 end
 
 
 function M.new_centered_float_win(buf)
   vim.bo[buf].bufhidden = "wipe"
-  vim.bo[buf].filetype = "dap-float"
   local columns = vim.o.columns
   local lines = vim.o.lines
   local width = math.floor(columns * 0.9)
@@ -51,7 +56,16 @@ function M.new_centered_float_win(buf)
     height = height,
     border = 'single',
   }
-  return api.nvim_open_win(buf, true, opts)
+  local win = api.nvim_open_win(buf, true, opts)
+  if vim.fn.has("nvim-0.11") == 1 then
+    vim.wo[win][0].scrolloff = 0
+    vim.wo[win][0].wrap = false
+  else
+    vim.wo[win].scrolloff = 0
+    vim.wo[win].wrap = false
+  end
+  vim.bo[buf].filetype = "dap-float"
+  return win
 end
 
 
