@@ -1265,7 +1265,7 @@ pick_process({opts})                                    *dap.utils.pick_process*
 pick_file({opts})                                         *dap.utils.pick_file*
     Show a prompt to select a file.
     Returns the path to the selected file.
-    Requires nvim 0.11
+    Requires nvim 0.10+
 
     Parameters:
       {opts} optional table with:

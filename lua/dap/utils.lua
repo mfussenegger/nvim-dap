@@ -191,7 +191,7 @@ end
 ---@return string[]
 local function get_files(path, opts)
   if not vim.fs.dir then
-    error("pick_file requires nvim-0.11 with vim.fs.dir support")
+    error("pick_file requires nvim-0.10 with vim.fs.dir support")
   end
   local filter = function(_) return true end
   if opts.filter then
@@ -232,7 +232,7 @@ end
 
 --- Show a prompt to select a file.
 --- Returns the path to the selected file.
---- Requires nvim 0.11
+--- Requires nvim 0.10+
 ---
 --- Takes an optional `opts` table with following options:
 ---
