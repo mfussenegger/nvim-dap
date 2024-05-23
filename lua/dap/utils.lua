@@ -165,7 +165,7 @@ function M.pick_process(opts)
   local ui = require("dap.ui")
   local pick = (co and not ismain) and ui.pick_one or ui.pick_one_sync
   local result = pick(procs, "Select process: ", label_fn)
-  return result and result.pid or nil
+  return result and result.pid or require("dap").ABORT
 end
 
 
@@ -261,7 +261,7 @@ end
 --- </pre>
 ---@param opts? {filter?: string|(fun(name: string): boolean), executables?: boolean, path?: string}
 ---
----@return thread|string|nil|table
+---@return thread|string|dap.Abort
 function M.pick_file(opts)
   opts = opts or {}
   local executables = opts.executables == nil and true or opts.executables
