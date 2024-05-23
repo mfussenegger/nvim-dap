@@ -28,6 +28,7 @@ local function notify(...)
 end
 
 --- Sentinel value; signals an operation should be aborted.
+---@class dap.Abort
 M.ABORT = {}
 
 M.status = function(...)
