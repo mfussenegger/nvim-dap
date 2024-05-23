@@ -190,9 +190,6 @@ end
 ---@param opts {filter?: string|(fun(name: string):boolean), executables?: boolean}
 ---@return string[]
 local function get_files(path, opts)
-  if not vim.fs.dir then
-    error("pick_file requires nvim-0.10 with vim.fs.dir support")
-  end
   local filter = function(_) return true end
   if opts.filter then
     if type(opts.filter) == "string" then
@@ -207,7 +204,7 @@ local function get_files(path, opts)
       error('opts.filter must be a string or a function')
     end
   end
-  if opts.executables then
+  if opts.executables and vim.fs.dir then
     local f = filter
     local uv = vim.uv or vim.loop
     local user_execute = tonumber("00100", 8)
@@ -220,19 +217,32 @@ local function get_files(path, opts)
     end
   end
 
-  local files = {}
-  for name, type in vim.fs.dir(path, { depth = 50 }) do
-    if type == "file" and filter(name) then
-      table.insert(files, path .. "/" .. name)
+  if vim.fs.dir then
+    local files = {}
+    for name, type in vim.fs.dir(path, { depth = 50 }) do
+      if type == "file" and filter(name) then
+        table.insert(files, path .. "/" .. name)
+      end
     end
+    return files
   end
-  return files
+
+
+  local cmd = {"find", path, "-type", "f"}
+  if opts.executables then
+    -- The order of options matters!
+    table.insert(cmd, "-executable")
+  end
+  table.insert(cmd, "-follow")
+
+  local output = vim.fn.system(cmd)
+  return vim.tbl_filter(filter, vim.split(output, '\n'))
 end
 
 
 --- Show a prompt to select a file.
 --- Returns the path to the selected file.
---- Requires nvim 0.10+
+--- Requires nvim 0.10+ or a `find` executable
 ---
 --- Takes an optional `opts` table with following options:
 ---
@@ -247,7 +257,7 @@ end
 --- </pre>
 ---@param opts? {filter?: string|(fun(name: string): boolean), executables?: boolean}
 ---
----@return thread|string|nil
+---@return thread|string|nil|table
 function M.pick_file(opts)
   opts = opts or {}
   opts.executables = opts.executables == nil and true or opts.executables
@@ -260,7 +270,7 @@ function M.pick_file(opts)
   local label_fn = function(filepath)
     return vim.fn.fnamemodify(filepath, ":.")
   end
-  return pick(files, prompt, label_fn)
+  return pick(files, prompt, label_fn) or require("dap").ABORT
 end
 
 
