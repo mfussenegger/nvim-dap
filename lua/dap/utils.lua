@@ -220,8 +220,11 @@ local function get_files(path, opts)
   if vim.fs.dir then
     local files = {}
     for name, type in vim.fs.dir(path, { depth = 50 }) do
-      if type == "file" and filter(name) then
-        table.insert(files, name)
+      if type == "file" then
+        local filepath = vim.fs.joinpath(path, name)
+        if filter(filepath) then
+          table.insert(files, filepath)
+        end
       end
     end
     return files
@@ -262,7 +265,8 @@ end
 function M.pick_file(opts)
   opts = opts or {}
   local executables = opts.executables == nil and true or opts.executables
-  local files = get_files(opts.path or vim.fn.getcwd(), {
+  local path = opts.path or vim.fn.getcwd()
+  local files = get_files(path, {
     filter = opts.filter,
     executables = executables
   })
@@ -270,7 +274,18 @@ function M.pick_file(opts)
   local co, ismain = coroutine.running()
   local ui = require("dap.ui")
   local pick = (co and not ismain) and ui.pick_one or ui.pick_one_sync
-  return pick(files, prompt, tostring) or require("dap").ABORT
+
+  if not vim.endswith(path, "/") then
+    path = path .. "/"
+  end
+
+  ---@param abspath string
+  ---@return string
+  local function relpath(abspath)
+    local _, end_ = abspath:find(path)
+    return end_ and abspath:sub(end_ + 1) or abspath
+  end
+  return pick(files, prompt, relpath) or require("dap").ABORT
 end
 
 
