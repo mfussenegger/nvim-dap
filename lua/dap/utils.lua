@@ -221,7 +221,7 @@ local function get_files(path, opts)
     local files = {}
     for name, type in vim.fs.dir(path, { depth = 50 }) do
       if type == "file" and filter(name) then
-        table.insert(files, path .. "/" .. name)
+        table.insert(files, name)
       end
     end
     return files
@@ -251,26 +251,26 @@ end
 ---                      must return a boolean. Matches are included.
 ---
 --- - executables boolean: Show only executables. Defaults to true
+--- - path string: Path to search for files. Defaults to cwd
 ---
 --- <pre>
 --- require('dap.utils').pick_file({ filter = '.*%.py', executables = true })
 --- </pre>
----@param opts? {filter?: string|(fun(name: string): boolean), executables?: boolean}
+---@param opts? {filter?: string|(fun(name: string): boolean), executables?: boolean, path?: string}
 ---
 ---@return thread|string|nil|table
 function M.pick_file(opts)
   opts = opts or {}
-  opts.executables = opts.executables == nil and true or opts.executables
-  local files = get_files(vim.fn.getcwd(), opts)
-  local prompt = opts.executables and "Select executable: " or "Select file: "
-
+  local executables = opts.executables == nil and true or opts.executables
+  local files = get_files(opts.path or vim.fn.getcwd(), {
+    filter = opts.filter,
+    executables = executables
+  })
+  local prompt = executables and "Select executable: " or "Select file: "
   local co, ismain = coroutine.running()
   local ui = require("dap.ui")
   local pick = (co and not ismain) and ui.pick_one or ui.pick_one_sync
-  local label_fn = function(filepath)
-    return vim.fn.fnamemodify(filepath, ":.")
-  end
-  return pick(files, prompt, label_fn) or require("dap").ABORT
+  return pick(files, prompt, tostring) or require("dap").ABORT
 end
 
 

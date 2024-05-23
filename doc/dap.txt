@@ -1278,6 +1278,9 @@ pick_file({opts})                                         *dap.utils.pick_file*
               - executables? boolean: Show only executables. Defaults
                 to true
 
+              - path? string: Path to search for files.
+                              Defaults to the current working directory.
+
     >lua
     require("dap.utils").pick_file({ filter = ".*%.py", executables = false })
     require("dap.utils").pick_file({
