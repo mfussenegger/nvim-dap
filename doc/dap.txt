@@ -1260,6 +1260,34 @@ pick_process({opts})                                    *dap.utils.pick_process*
       filter = function(proc) return vim.endswith(proc.name, "sway") end
     })
 <
+
+
+pick_file({opts})                                         *dap.utils.pick_file*
+    Show a prompt to select a file.
+    Returns the path to the selected file.
+    Requires nvim 0.10+ or a `find` executable
+
+    Parameters:
+      {opts} optional table with:
+
+              - filter? string|fun: A |lua-pattern| or a function to filter the
+                files.
+                If a function the parameter is a string and it must return a
+                boolean. Matches are included.
+
+              - executables? boolean: Show only executables. Defaults
+                to true
+
+    >lua
+    require("dap.utils").pick_file({ filter = ".*%.py", executables = false })
+    require("dap.utils").pick_file({
+      executables = false,
+      filter = function(filepath)
+        return vim.endswith(filepath, ".py")
+      end,
+    })
+<
+
 ==============================================================================
 DAP Session                                                        *dap-session*
 
