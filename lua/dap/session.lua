@@ -68,6 +68,7 @@ end
 
 ---@class Session
 local Session = {}
+local session_mt = { __index = Session }
 
 
 local function json_decode(payload)
@@ -1110,16 +1111,16 @@ local function new_session(adapter, opts, handle)
   local state = {
     id = next_session_id,
     handlers = handlers;
-    message_callbacks = {};
-    message_requests = {};
-    initialized = false;
-    seq = 1;
-    stopped_thread_id = nil;
-    current_frame = nil;
-    threads = {};
-    adapter = adapter;
-    dirty = {};
-    capabilities = {};
+    message_callbacks = {},
+    message_requests = {},
+    initialized = false,
+    seq = 1,
+    stopped_thread_id = nil,
+    current_frame = nil,
+    threads = {},
+    adapter = adapter,
+    dirty = {},
+    capabilities = {},
     filetype = opts.filetype or vim.bo.filetype,
     ns = ns,
     sign_group = 'dap-' .. tostring(ns),
@@ -1146,7 +1147,7 @@ local function new_session(adapter, opts, handle)
     end)
   end
   next_session_id = next_session_id + 1
-  return setmetatable(state, { __index = Session })
+  return setmetatable(state, session_mt)
 end
 
 
