@@ -56,8 +56,8 @@ function M.attach(bufnr)
   vim.cmd(string.format([[
     augroup dap_autocomplete-%d
     au!
-    autocmd InsertCharPre <buffer=%d> lua require('dap.ext.autocompl')._InsertCharPre()
-    autocmd InsertLeave <buffer=%d> lua require('dap.ext.autocompl')._InsertLeave()
+    autocmd InsertCharPre <silent> <buffer=%d> lua require('dap.ext.autocompl')._InsertCharPre()
+    autocmd InsertLeave <silent> <buffer=%d> lua require('dap.ext.autocompl')._InsertLeave()
     augroup end
     ]],
     bufnr,
