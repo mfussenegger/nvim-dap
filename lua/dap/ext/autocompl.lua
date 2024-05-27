@@ -53,17 +53,33 @@ end
 
 function M.attach(bufnr)
   bufnr = bufnr or api.nvim_get_current_buf()
-  vim.cmd(string.format([[
-    augroup dap_autocomplete-%d
-    au!
-    autocmd InsertCharPre <silent> <buffer=%d> lua require('dap.ext.autocompl')._InsertCharPre()
-    autocmd InsertLeave <silent> <buffer=%d> lua require('dap.ext.autocompl')._InsertLeave()
-    augroup end
-    ]],
-    bufnr,
-    bufnr,
-    bufnr
-  ))
+  if api.nvim_create_autocmd then
+    local group = api.nvim_create_augroup(("dap.ext.autocmpl-%d"):format(bufnr), { clear = true })
+    api.nvim_create_autocmd("InsertCharPre", {
+      group = group,
+      buffer = bufnr,
+      callback = function()
+        pcall(M._InsertCharPre)
+      end,
+    })
+    api.nvim_create_autocmd("InsertLeave", {
+      group = group,
+      buffer = bufnr,
+      callback = destroy_timer
+    })
+  else
+    vim.cmd(string.format([[
+      augroup dap_autocomplete-%d
+      au!
+      autocmd InsertCharPre <buffer=%d> lua require('dap.ext.autocompl')._InsertCharPre()
+      autocmd InsertLeave <buffer=%d> lua require('dap.ext.autocompl')._InsertLeave()
+      augroup end
+      ]],
+      bufnr,
+      bufnr,
+      bufnr
+    ))
+  end
 end
 
 
