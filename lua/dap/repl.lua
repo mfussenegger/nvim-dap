@@ -303,6 +303,13 @@ end
 --- Add and execute text as if entered directly
 function M.execute(text)
   M.append("dap> " .. text .. "\n", "$", { newline = true })
+  local numlines = api.nvim_buf_line_count(repl.buf)
+  if repl.win and api.nvim_win_is_valid(repl.win) then
+    pcall(api.nvim_win_set_cursor, repl.win, { numlines, 0 })
+    api.nvim_win_call(repl.win, function()
+      vim.cmd.normal({"zt", bang = true })
+    end)
+  end
   execute(text)
 end
 
@@ -344,8 +351,10 @@ local function select_history(delta)
   local text = history.entries[history.idx]
   if text then
     local lnum = vim.fn.line('$')
-    api.nvim_buf_set_lines(repl.buf, lnum - 1, lnum, true, {'dap> ' .. text })
-    vim.fn.setcursorcharpos({ lnum, vim.fn.col('$') })  -- move cursor to the end of line
+    local lines = vim.split(text, "\n", { plain = true })
+    lines[1] = "dap> " .. lines[1]
+    api.nvim_buf_set_lines(repl.buf, lnum - 1, -1, true, lines)
+    vim.fn.setcursorcharpos({ vim.fn.line("$"), vim.fn.col('$') })  -- move cursor to the end of line
   end
 end
 
