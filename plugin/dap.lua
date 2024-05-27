@@ -29,10 +29,10 @@ cmd('DapRestartFrame', function() require('dap').restart_frame() end, { nargs = 
 
 
 if api.nvim_create_autocmd then
-  local group = api.nvim_create_augroup('dap-launch.json', { clear = true })
+  local launchjson_group = api.nvim_create_augroup('dap-launch.json', { clear = true })
   local pattern =  '*/.vscode/launch.json'
   api.nvim_create_autocmd('BufNewFile', {
-    group = group,
+    group = launchjson_group,
     pattern = pattern,
     callback = function(args)
       local lines = {
@@ -51,10 +51,41 @@ if api.nvim_create_autocmd then
     end
   })
   api.nvim_create_autocmd('BufWritePost', {
-    group = group,
+    group = launchjson_group,
     pattern = pattern,
     callback = function(args)
       require('dap.ext.vscode').load_launchjs(args.file)
     end
+  })
+
+  api.nvim_create_autocmd("BufReadCmd", {
+    group = api.nvim_create_augroup("dap-readcmds", { clear = true }),
+    pattern = "dap-eval://*",
+    callback = function()
+      local bufnr = api.nvim_get_current_buf()
+      local fname = api.nvim_buf_get_name(bufnr)
+      vim.bo[bufnr].swapfile = false
+      vim.bo[bufnr].buftype = "acwrite"
+      vim.bo[bufnr].bufhidden = "wipe"
+      local ft = fname:match("dap%-eval://(%w+)(.*)")
+      if ft and ft ~= "" then
+        vim.bo[bufnr].filetype = ft
+      else
+        local altbuf = vim.fn.bufnr("#", false)
+        if altbuf then
+          vim.bo[bufnr].filetype = vim.bo[altbuf].filetype
+        end
+      end
+      api.nvim_create_autocmd("BufWriteCmd", {
+        buffer = bufnr,
+        callback = function(args)
+          vim.bo[args.buf].modified = false
+          local repl = require("dap.repl")
+          local lines = api.nvim_buf_get_lines(args.buf, 0, -1, true)
+          repl.execute(table.concat(lines, "\n"))
+          repl.open()
+        end,
+      })
+    end,
   })
 end
