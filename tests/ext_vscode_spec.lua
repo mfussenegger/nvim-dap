@@ -15,6 +15,15 @@ describe('dap.ext.vscode', function()
     assert.are.same({ { type = 'bar', request = 'attach', name = "bar test" }, }, dap.configurations.cpp)
   end)
 
+  it('can load launch.json file and map type to adapter', function()
+    local dap = require('dap')
+    vscode.load_launchjs('tests/launch.json', { bar = { 'c', 'cpp' } }, { bar = "foo" })
+    assert.are.same(3, vim.tbl_count(dap.configurations))
+    assert.are.same({ { type = 'java', request = 'launch', name = "java test" }, }, dap.configurations.java)
+    assert.are.same({ { type = 'foo', request = 'attach', name = "bar test" }, }, dap.configurations.c)
+    assert.are.same({ { type = 'foo', request = 'attach', name = "bar test" }, }, dap.configurations.cpp)
+  end)
+
   it('supports promptString input', function()
     local prompt
     local default

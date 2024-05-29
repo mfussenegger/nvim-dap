@@ -4,6 +4,7 @@ local M = {}
 
 M.json_decode = vim.json.decode
 M.type_to_filetypes = {}
+M.type_to_adapter = {}
 
 
 ---@class dap.vscode.launch.Input
@@ -176,8 +177,9 @@ end
 
 
 --- Extends dap.configurations with entries read from .vscode/launch.json
-function M.load_launchjs(path, type_to_filetypes)
+function M.load_launchjs(path, type_to_filetypes, type_to_adapter)
   type_to_filetypes = vim.tbl_extend('keep', type_to_filetypes or {}, M.type_to_filetypes)
+  type_to_adapter = vim.tbl_extend('keep', type_to_adapter or {}, M.type_to_adapter)
   local resolved_path = path or (vim.fn.getcwd() .. '/.vscode/launch.json')
   if not vim.loop.fs_stat(resolved_path) then
     return
@@ -196,6 +198,7 @@ function M.load_launchjs(path, type_to_filetypes)
     assert(config.type, "Configuration in launch.json must have a 'type' key")
     assert(config.name, "Configuration in launch.json must have a 'name' key")
     local filetypes = type_to_filetypes[config.type] or { config.type, }
+    config.type = type_to_adapter[config.type] or config.type
     for _, filetype in pairs(filetypes) do
       local dap_configurations = dap.configurations[filetype] or {}
       for i, dap_config in pairs(dap_configurations) do

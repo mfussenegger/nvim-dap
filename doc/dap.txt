@@ -333,7 +333,7 @@ function to support json5 features like trailing comma.
 (One json5 parser implementation is https://github.com/Joakker/lua-json5)
 
 
-load_launchjs({path}, {type_to_filetypes})        *dap.ext.vscode.load_launchjs*
+load_launchjs({path}, {type_to_filetypes}, {type_to_adapter})        *dap.ext.vscode.load_launchjs*
 
   Parses a JSON file at {path} and adds the entries to `dap.configurations`.
   Configurations are overwritten by name, so if filetype and name matches a
@@ -348,6 +348,11 @@ load_launchjs({path}, {type_to_filetypes})        *dap.ext.vscode.load_launchjs*
                            one or more filetypes.
                            By default, the `type` values in `launch.json` will
                            be used as filetypes verbatim.
+
+      {type_to_adapter}  A table mapping `type` values in `launch.json` to
+                         a defined adapter.
+                         By default, the `type` values in `launch.json` will
+                         be used to match adapters verbatim.
 
 An example `launch.json` might look like this:
 
