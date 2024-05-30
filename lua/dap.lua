@@ -301,6 +301,98 @@ providers.configs["dap.launch.json"] = function()
   return ok and configs or {}
 end
 
+do
+  local function eval_option(option)
+    if type(option) == 'function' then
+      option = option()
+    end
+    if type(option) == "thread" then
+      assert(coroutine.status(option) == "suspended", "If option is a thread it must be suspended")
+      local co = coroutine.running()
+      -- Schedule ensures `coroutine.resume` happens _after_ coroutine.yield
+      -- This is necessary in case the option coroutine is synchronous and
+      -- gives back control immediately
+      vim.schedule(function()
+        coroutine.resume(option, co)
+      end)
+      option = coroutine.yield()
+    end
+    return option
+  end
+
+  local var_placeholders_once = {
+    ['${command:pickProcess}'] = lazy.utils.pick_process,
+    ['${command:pickFile}'] = lazy.utils.pick_file,
+  }
+
+  local var_placeholders = {
+    ['${file}'] = function(_)
+      return vim.fn.expand("%:p")
+    end,
+    ['${fileBasename}'] = function(_)
+      return vim.fn.expand("%:t")
+    end,
+    ['${fileBasenameNoExtension}'] = function(_)
+      return vim.fn.fnamemodify(vim.fn.expand("%:t"), ":r")
+    end,
+    ['${fileDirname}'] = function(_)
+      return vim.fn.expand("%:p:h")
+    end,
+    ['${fileExtname}'] = function(_)
+      return vim.fn.expand("%:e")
+    end,
+    ['${relativeFile}'] = function(_)
+      return vim.fn.expand("%:.")
+    end,
+    ['${relativeFileDirname}'] = function(_)
+      return vim.fn.fnamemodify(vim.fn.expand("%:.:h"), ":r")
+    end,
+    ['${workspaceFolder}'] = function(_)
+      return vim.fn.getcwd()
+    end,
+    ['${workspaceFolderBasename}'] = function(_)
+      return vim.fn.fnamemodify(vim.fn.getcwd(), ":t")
+    end,
+    ['${env:([%w_]+)}'] = function(match)
+      return os.getenv(match) or ''
+    end,
+  }
+
+
+  local function expand_config_variables(option)
+    option = eval_option(option)
+    if option == M.ABORT then
+      return option
+    end
+    if type(option) == "table" then
+      local mt = getmetatable(option)
+      local result = {}
+      for k, v in pairs(option) do
+        result[expand_config_variables(k)] = expand_config_variables(v)
+      end
+      return setmetatable(result, mt)
+    end
+    if type(option) ~= "string" then
+      return option
+    end
+    local ret = option
+    for key, fn in pairs(var_placeholders) do
+      ret = ret:gsub(key, fn)
+    end
+    for key, fn in pairs(var_placeholders_once) do
+      if ret:find(key) then
+        local val = eval_option(fn)
+        ret = ret:gsub(key, val)
+      end
+    end
+    return ret
+  end
+
+  providers.on_config["dap.expand_variable"] = function(config)
+    return vim.tbl_map(expand_config_variables, config)
+  end
+end
+
 
 local signs = {
   DapBreakpoint = { text = "B", texthl = "", linehl = "", numhl = "" },
@@ -320,92 +412,6 @@ end
 
 for name in pairs(signs) do
   sign_try_define(name)
-end
-
-local function eval_option(option)
-  if type(option) == 'function' then
-    option = option()
-  end
-  if type(option) == "thread" then
-    assert(coroutine.status(option) == "suspended", "If option is a thread it must be suspended")
-    local co = coroutine.running()
-    -- Schedule ensures `coroutine.resume` happens _after_ coroutine.yield
-    -- This is necessary in case the option coroutine is synchronous and
-    -- gives back control immediately
-    vim.schedule(function()
-      coroutine.resume(option, co)
-    end)
-    option = coroutine.yield()
-  end
-  return option
-end
-
-local var_placeholders_once = {
-  ['${command:pickProcess}'] = lazy.utils.pick_process,
-  ['${command:pickFile}'] = lazy.utils.pick_file,
-}
-
-local var_placeholders = {
-  ['${file}'] = function(_)
-    return vim.fn.expand("%:p")
-  end,
-  ['${fileBasename}'] = function(_)
-    return vim.fn.expand("%:t")
-  end,
-  ['${fileBasenameNoExtension}'] = function(_)
-    return vim.fn.fnamemodify(vim.fn.expand("%:t"), ":r")
-  end,
-  ['${fileDirname}'] = function(_)
-    return vim.fn.expand("%:p:h")
-  end,
-  ['${fileExtname}'] = function(_)
-    return vim.fn.expand("%:e")
-  end,
-  ['${relativeFile}'] = function(_)
-    return vim.fn.expand("%:.")
-  end,
-  ['${relativeFileDirname}'] = function(_)
-    return vim.fn.fnamemodify(vim.fn.expand("%:.:h"), ":r")
-  end,
-  ['${workspaceFolder}'] = function(_)
-    return vim.fn.getcwd()
-  end,
-  ['${workspaceFolderBasename}'] = function(_)
-    return vim.fn.fnamemodify(vim.fn.getcwd(), ":t")
-  end,
-  ['${env:([%w_]+)}'] = function(match)
-    return os.getenv(match) or ''
-  end,
-}
-
-
-local function expand_config_variables(option)
-  option = eval_option(option)
-  if option == M.ABORT then
-    return option
-  end
-  if type(option) == "table" then
-    local mt = getmetatable(option)
-    local result = {}
-    for k, v in pairs(option) do
-      result[expand_config_variables(k)] = expand_config_variables(v)
-    end
-    return setmetatable(result, mt)
-  end
-  if type(option) ~= "string" then
-    return option
-  end
-  local ret = option
-  for key, fn in pairs(var_placeholders) do
-    ret = ret:gsub(key, fn)
-  end
-  for key, fn in pairs(var_placeholders_once) do
-    if ret:find(key) then
-      local val = eval_option(fn)
-      ret = ret:gsub(key, val)
-    end
-  end
-  return ret
 end
 
 
@@ -544,7 +550,7 @@ local function prepare_config(config)
   for _, on_config in pairs(providers.on_config) do
     config = on_config(config)
   end
-  return vim.tbl_map(expand_config_variables, config)
+  return config
 end
 
 
