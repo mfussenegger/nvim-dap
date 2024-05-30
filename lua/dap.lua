@@ -265,20 +265,24 @@ M.adapters = {}
 ---@type table<string, dap.Configuration[]>
 M.configurations = {}
 
-local providers_mt = {
-  __newindex = function()
-    error("Cannot add item to dap.providers")
-  end,
-}
-M.providers = setmetatable({
-
+local providers = {
   ---@type table<string, fun(bufnr: integer): thread|dap.Configuration[]>
-  configs = {
-  },
-}, providers_mt)
+  configs = {},
+
+  ---@type table<string, fun(config: dap.Configuration):dap.Configuration>
+  on_config = {},
+}
+do
+  local providers_mt = {
+    __newindex = function()
+      error("Cannot add item to dap.providers")
+    end,
+  }
+  M.providers = setmetatable(providers, providers_mt)
+end
 
 
-M.providers.configs["dap.global"] = function(bufnr)
+providers.configs["dap.global"] = function(bufnr)
   local filetype = vim.bo[bufnr].filetype
   local configurations = M.configurations[filetype] or {}
   assert(
@@ -292,8 +296,7 @@ M.providers.configs["dap.global"] = function(bufnr)
   return configurations
 end
 
-
-M.providers.configs["dap.launch.json"] = function()
+providers.configs["dap.launch.json"] = function()
   local ok, configs = pcall(require("dap.ext.vscode").getconfigs)
   return ok and configs or {}
 end
@@ -375,6 +378,7 @@ local var_placeholders = {
   end,
 }
 
+
 local function expand_config_variables(option)
   option = eval_option(option)
   if option == M.ABORT then
@@ -403,6 +407,7 @@ local function expand_config_variables(option)
   end
   return ret
 end
+
 
 ---@param lsession dap.Session
 local function add_reset_session_hook(lsession)
@@ -470,10 +475,10 @@ local function select_config_and_run(opts)
   lazy.async.run(function()
     local all_configs = {}
     local co = coroutine.running()
-    local providers = vim.tbl_keys(M.providers.configs)
-    table.sort(providers)
-    for _, provider in ipairs(providers) do
-      local config_provider = M.providers.configs[provider]
+    local provider_keys = vim.tbl_keys(providers.configs)
+    table.sort(provider_keys)
+    for _, provider in ipairs(provider_keys) do
+      local config_provider = providers.configs[provider]
       local configs = config_provider(bufnr)
       if type(configs) == "thread" then
         assert(
@@ -537,6 +542,23 @@ local function first_stopped_session()
 end
 
 
+---@param config dap.Configuration
+---@result dap.Configuration
+local function prepare_config(config)
+  local co, is_main = coroutine.running()
+  assert(co and not is_main, "prepare_config must be running in coroutine")
+  local mt = getmetatable(config)
+  if mt and type(mt.__call) == "function" then
+    config = config()
+    assert(config and type(config) == "table", "config metatable __call must return a config table")
+  end
+  for _, on_config in pairs(providers.on_config) do
+    config = on_config(config)
+  end
+  return vim.tbl_map(expand_config_variables, config)
+end
+
+
 ---@class dap.run.opts
 ---@field new? boolean force new session
 ---@field before? fun(config: dap.Configuration): dap.Configuration pre-process config
@@ -565,12 +587,7 @@ function M.run(config, opts)
     config = opts.before(config)
   end
   local trigger_run = function()
-    local mt = getmetatable(config)
-    if mt and type(mt.__call) == "function" then
-      config = config()
-      assert(config and type(config) == "table", "config metatable __call must return a config table")
-    end
-    config = vim.tbl_map(expand_config_variables, config)
+    config = prepare_config(config)
     for _, val in pairs(config) do
       if val == M.ABORT then
         notify("Run aborted", vim.log.levels.INFO)
@@ -832,12 +849,7 @@ function M.restart(config, opts)
   config = config or lsession.config
   if lsession.capabilities.supportsRestartRequest then
     lazy.async.run(function()
-      local mt = getmetatable(config)
-      if mt and type(mt.__call) == "function" then
-        config = config()
-        assert(config and type(config) == "table", "config metatable __call must return a config table")
-      end
-      config = vim.tbl_map(expand_config_variables, config)
+      config = prepare_config(config)
       lsession:request('restart', config, function(err0, _)
         if err0 then
           notify('Error restarting debug adapter: ' .. lazy.utils.fmt_error(err0), vim.log.levels.ERROR)
