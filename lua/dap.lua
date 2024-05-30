@@ -4,15 +4,22 @@ local M = {}
 ---@diagnostic disable-next-line: deprecated
 local islist = vim.islist or vim.tbl_islist
 
----@type table<number, Session>
+---@type table<number, dap.Session>
 local sessions = {}
 
----@type Session|nil
+---@type dap.Session|nil
 local session = nil
 local last_run = nil
 
+
 -- lazy import other modules to have a lower startup footprint
-local lazy = setmetatable({}, {
+local lazy = setmetatable({
+  async = nil, --- @module "dap.async"
+  utils = nil, --- @module "dap.utils"
+  progress = nil, --- @module "dap.progress"
+  ui = nil, --- @module "dap.ui"
+  breakpoints = nil, --- @module "dap.breakpoints"
+  }, {
   __index = function(_, key)
     return require('dap.' .. key)
   end
@@ -31,9 +38,11 @@ end
 ---@class dap.Abort
 M.ABORT = {}
 
-M.status = function(...)
-  return lazy.progress.status(...)
+M.status = function()
+  return lazy.progress.status()
 end
+
+--- @module "dap.repl"
 M.repl = setmetatable({}, {
   __index = function(_, key)
     return require('dap.repl')[key]
@@ -41,76 +50,76 @@ M.repl = setmetatable({}, {
 })
 
 
----@class DapListeners
----@field event_breakpoint table<string, fun(session: Session, body: any)>
----@field event_capabilities table<string, fun(session: Session, body: any)>
----@field event_continued table<string, fun(session: Session, body: any)>
----@field event_exited table<string, fun(session: Session, body: any)>
----@field event_initialized table<string, fun(session: Session, body: any)>
----@field event_invalidated table<string, fun(session: Session, body: any)>
----@field event_loadedSource table<string, fun(session: Session, body: any)>
----@field event_memory table<string, fun(session: Session, body: any)>
----@field event_module table<string, fun(session: Session, body: any)>
----@field event_output table<string, fun(session: Session, body: any)>
----@field event_process table<string, fun(session: Session, body: any)>
----@field event_progressEnd table<string, fun(session: Session, body: dap.ProgressEndEvent)>
----@field event_progressStart table<string, fun(session: Session, body: dap.ProgressStartEvent)>
----@field event_progressUpdate table<string, fun(session: Session, body: dap.ProgressUpdateEvent)>
----@field event_stopped table<string, fun(session: Session, body: dap.StoppedEvent)>
----@field event_terminated table<string, fun(session: Session, body: dap.TerminatedEvent)>
----@field event_thread table<string, fun(session: Session, body: any)>
----@field attach table<string, fun(session: Session, err: any, body: any, request: any, seq: number)>
----@field breakpointLocations table<string, fun(session: Session, err: any, body: any, request: any, seq: number)>
----@field completions table<string, fun(session: Session, err: any, body: any, request: any, seq: number)>
----@field configurationDone table<string, fun(session: Session, err: any, body: any, request: any, seq: number)>
----@field continue table<string, fun(session: Session, err: any, body: any, request: any, seq: number)>
----@field dataBreakpointInfo table<string, fun(session: Session, err: any, body: any, request: any, seq: number)>
----@field disassemble table<string, fun(session: Session, err: any, body: any, request: any, seq: number)>
----@field disconnect table<string, fun(session: Session, err: any, body: any, request: any, seq: number)>
----@field evaluate table<string, fun(session: Session, err: any, body: any, request: any, seq: number)>
----@field exceptionInfo table<string, fun(session: Session, err: any, body: any, request: any, seq: number)>
----@field goto table<string, fun(session: Session, err: any, body: any, request: any, seq: number)>
----@field gotoTargets table<string, fun(session: Session, err: any, body: any, request: any, seq: number)>
----@field initialize table<string, fun(session: Session, err: any, body: any, request: any, seq: number)>
----@field launch table<string, fun(session: Session, err: any, body: any, request: any, seq: number)>
----@field loadedSources table<string, fun(session: Session, err: any, body: any, request: any, seq: number)>
----@field modules table<string, fun(session: Session, err: any, body: any, request: any, seq: number)>
----@field next table<string, fun(session: Session, err: any, body: any, request: any, seq: number)>
----@field pause table<string, fun(session: Session, err: any, body: any, request: any, seq: number)>
----@field readMemory table<string, fun(session: Session, err: any, body: any, request: any, seq: number)>
----@field restart table<string, fun(session: Session, err: any, body: any, request: any, seq: number)>
----@field restartFrame table<string, fun(session: Session, err: any, body: any, request: any, seq: number)>
----@field reverseContinue table<string, fun(session: Session, err: any, body: any, request: any, seq: number)>
----@field scopes table<string, fun(session: Session, err: any, body: any, request: any, seq: number)>
----@field setBreakpoints table<string, fun(session: Session, err: any, body: any, request: any, seq: number)>
----@field setDataBreakpoints table<string, fun(session: Session, err: any, body: any, request: any, seq: number)>
----@field setExceptionBreakpoints table<string, fun(session: Session, err: any, body: any, request: any, seq: number)>
----@field setExpression table<string, fun(session: Session, err: any, body: any, request: any, seq: number)>
----@field setFunctionBreakpoints table<string, fun(session: Session, err: any, body: any, request: any, seq: number)>
----@field setInstructionBreakpoints table<string, fun(session: Session, err: any, body: any, request: any, seq: number)>
----@field setVariable table<string, fun(session: Session, err: any, body: any, request: any, seq: number)>
----@field source table<string, fun(session: Session, err: any, body: any, request: any, seq: number)>
----@field stackTrace table<string, fun(session: Session, err: any, body: any, request: any, seq: number)>
----@field stepBack table<string, fun(session: Session, err: any, body: any, request: any, seq: number)>
----@field stepIn table<string, fun(session: Session, err: any, body: any, request: any, seq: number)>
----@field stepInTargets table<string, fun(session: Session, err: any, body: any, request: any, seq: number)>
----@field stepOut table<string, fun(session: Session, err: any, body: any, request: any, seq: number)>
----@field terminate table<string, fun(session: Session, err: any, body: any, request: any, seq: number)>
----@field terminateThreads table<string, fun(session: Session, err: any, body: any, request: any, seq: number)>
----@field threads table<string, fun(session: Session, err: any, body: any, request: any, seq: number)>
----@field variables table<string, fun(session: Session, err: any, body: any, request: any, seq: number)>
----@field writeMemory table<string, fun(session: Session, err: any, body: any, request: any, seq: number)>
+---@class dap.listeners
+---@field event_breakpoint table<string, fun(session: dap.Session, body: any)>
+---@field event_capabilities table<string, fun(session: dap.Session, body: any)>
+---@field event_continued table<string, fun(session: dap.Session, body: any)>
+---@field event_exited table<string, fun(session: dap.Session, body: any)>
+---@field event_initialized table<string, fun(session: dap.Session, body: any)>
+---@field event_invalidated table<string, fun(session: dap.Session, body: any)>
+---@field event_loadedSource table<string, fun(session: dap.Session, body: any)>
+---@field event_memory table<string, fun(session: dap.Session, body: any)>
+---@field event_module table<string, fun(session: dap.Session, body: any)>
+---@field event_output table<string, fun(session: dap.Session, body: any)>
+---@field event_process table<string, fun(session: dap.Session, body: any)>
+---@field event_progressEnd table<string, fun(session: dap.Session, body: dap.ProgressEndEvent)>
+---@field event_progressStart table<string, fun(session: dap.Session, body: dap.ProgressStartEvent)>
+---@field event_progressUpdate table<string, fun(session: dap.Session, body: dap.ProgressUpdateEvent)>
+---@field event_stopped table<string, fun(session: dap.Session, body: dap.StoppedEvent)>
+---@field event_terminated table<string, fun(session: dap.Session, body: dap.TerminatedEvent)>
+---@field event_thread table<string, fun(session: dap.Session, body: any)>
+---@field attach table<string, fun(session: dap.Session, err: any, body: any, request: any, seq: number)>
+---@field breakpointLocations table<string, fun(session: dap.Session, err: any, body: any, request: any, seq: number)>
+---@field completions table<string, fun(session: dap.Session, err: any, body: any, request: any, seq: number)>
+---@field configurationDone table<string, fun(session: dap.Session, err: any, body: any, request: any, seq: number)>
+---@field continue table<string, fun(session: dap.Session, err: any, body: any, request: any, seq: number)>
+---@field dataBreakpointInfo table<string, fun(session: dap.Session, err: any, body: any, request: any, seq: number)>
+---@field disassemble table<string, fun(session: dap.Session, err: any, body: any, request: any, seq: number)>
+---@field disconnect table<string, fun(session: dap.Session, err: any, body: any, request: any, seq: number)>
+---@field evaluate table<string, fun(session: dap.Session, err: any, body: any, request: any, seq: number)>
+---@field exceptionInfo table<string, fun(session: dap.Session, err: any, body: any, request: any, seq: number)>
+---@field goto table<string, fun(session: dap.Session, err: any, body: any, request: any, seq: number)>
+---@field gotoTargets table<string, fun(session: dap.Session, err: any, body: any, request: any, seq: number)>
+---@field initialize table<string, fun(session: dap.Session, err: any, body: any, request: any, seq: number)>
+---@field launch table<string, fun(session: dap.Session, err: any, body: any, request: any, seq: number)>
+---@field loadedSources table<string, fun(session: dap.Session, err: any, body: any, request: any, seq: number)>
+---@field modules table<string, fun(session: dap.Session, err: any, body: any, request: any, seq: number)>
+---@field next table<string, fun(session: dap.Session, err: any, body: any, request: any, seq: number)>
+---@field pause table<string, fun(session: dap.Session, err: any, body: any, request: any, seq: number)>
+---@field readMemory table<string, fun(session: dap.Session, err: any, body: any, request: any, seq: number)>
+---@field restart table<string, fun(session: dap.Session, err: any, body: any, request: any, seq: number)>
+---@field restartFrame table<string, fun(session: dap.Session, err: any, body: any, request: any, seq: number)>
+---@field reverseContinue table<string, fun(session: dap.Session, err: any, body: any, request: any, seq: number)>
+---@field scopes table<string, fun(session: dap.Session, err: any, body: any, request: any, seq: number)>
+---@field setBreakpoints table<string, fun(session: dap.Session, err: any, body: any, request: any, seq: number)>
+---@field setDataBreakpoints table<string, fun(session: dap.Session, err: any, body: any, request: any, seq: number)>
+---@field setExceptionBreakpoints table<string, fun(session: dap.Session, err: any, body: any, request: any, seq: number)>
+---@field setExpression table<string, fun(session: dap.Session, err: any, body: any, request: any, seq: number)>
+---@field setFunctionBreakpoints table<string, fun(session: dap.Session, err: any, body: any, request: any, seq: number)>
+---@field setInstructionBreakpoints table<string, fun(session: dap.Session, err: any, body: any, request: any, seq: number)>
+---@field setVariable table<string, fun(session: dap.Session, err: any, body: any, request: any, seq: number)>
+---@field source table<string, fun(session: dap.Session, err: any, body: any, request: any, seq: number)>
+---@field stackTrace table<string, fun(session: dap.Session, err: any, body: any, request: any, seq: number)>
+---@field stepBack table<string, fun(session: dap.Session, err: any, body: any, request: any, seq: number)>
+---@field stepIn table<string, fun(session: dap.Session, err: any, body: any, request: any, seq: number)>
+---@field stepInTargets table<string, fun(session: dap.Session, err: any, body: any, request: any, seq: number)>
+---@field stepOut table<string, fun(session: dap.Session, err: any, body: any, request: any, seq: number)>
+---@field terminate table<string, fun(session: dap.Session, err: any, body: any, request: any, seq: number)>
+---@field terminateThreads table<string, fun(session: dap.Session, err: any, body: any, request: any, seq: number)>
+---@field threads table<string, fun(session: dap.Session, err: any, body: any, request: any, seq: number)>
+---@field variables table<string, fun(session: dap.Session, err: any, body: any, request: any, seq: number)>
+---@field writeMemory table<string, fun(session: dap.Session, err: any, body: any, request: any, seq: number)>
 
 
 M.listeners = {
-  ---@type DapListeners
+  ---@type dap.listeners
   before = setmetatable({}, {
     __index = function(tbl, key)
       rawset(tbl, key, {})
       return rawget(tbl, key)
     end
   });
-  ---@type DapListeners
+  ---@type dap.listeners
   after = setmetatable({}, {
     __index = function(tbl, key)
       rawset(tbl, key, {})
@@ -164,57 +173,57 @@ M.defaults = setmetatable(
 local DAP_QUICKFIX_TITLE = "DAP Breakpoints"
 local DAP_QUICKFIX_CONTEXT = DAP_QUICKFIX_TITLE
 
----@class Adapter
+---@class dap.Adapter
 ---@field type string
 ---@field id string|nil
----@field options nil|AdapterOptions
----@field enrich_config? fun(config: Configuration, on_config: fun(config: Configuration))
----@field reverse_request_handlers? table<string, fun(session: Session, request: dap.Request)>
+---@field options nil|dap.Adapter.options
+---@field enrich_config? fun(config: dap.Configuration, on_config: fun(config: dap.Configuration))
+---@field reverse_request_handlers? table<string, fun(session: dap.Session, request: dap.Request)>
 
----@class AdapterOptions
+---@class dap.Adapter.options
 ---@field initialize_timeout_sec nil|number
 ---@field disconnect_timeout_sec nil|number
 ---@field source_filetype nil|string
 
----@class ExecutableAdapter : Adapter
+---@class dap.ExecutableAdapter : dap.Adapter
 ---@field type "executable"
 ---@field command string
 ---@field args string[]
----@field options nil|ExecutableOptions
+---@field options nil|dap.ExecutableAdapter.options
 
----@class ExecutableOptions : AdapterOptions
+---@class dap.ExecutableAdapter.options : dap.Adapter.options
 ---@field env nil|table<string, string>
 ---@field cwd nil|string
 ---@field detached nil|boolean
 
----@class ServerOptions : AdapterOptions
+---@class ServerOptions : dap.Adapter.options
 ---@field max_retries nil|number
 
----@class ServerAdapter : Adapter
+---@class dap.ServerAdapter : dap.Adapter
 ---@field type "server"
 ---@field host string|nil
 ---@field port integer
----@field executable nil|ServerAdapterExecutable
+---@field executable nil|dap.ServerAdapterExecutable
 ---@field options nil|ServerOptions
 
 
----@class DapPipeOptions
+---@class dap.PipeAdapter.options
 ---@field timeout? integer max amount of time in ms to wait between spawning the executable and connecting. This gives the executable time to create the pipe. Defaults to 5000
 
----@class PipeAdapter : Adapter
+---@class dap.PipeAdapter : dap.Adapter
 ---@field type "pipe"
 ---@field pipe string absolute path to the pipe or ${pipe} to use random tmp path
----@field executable? ServerAdapterExecutable
----@field options? DapPipeOptions
+---@field executable? dap.ServerAdapterExecutable
+---@field options? dap.PipeAdapter.options
 
----@class ServerAdapterExecutable
+---@class dap.ServerAdapterExecutable
 ---@field command string
 ---@field args nil|string[]
 ---@field cwd nil|string
 ---@field detached nil|boolean
 
 
----@alias Dap.AdapterFactory fun(callback: fun(adapter: Adapter), config: Configuration, parent?: Session)
+---@alias Dap.AdapterFactory fun(callback: fun(adapter: dap.Adapter), config: dap.Configuration, parent?: dap.Session)
 
 --- Adapter definitions. See `:help dap-adapter` for more help
 ---
@@ -229,11 +238,11 @@ local DAP_QUICKFIX_CONTEXT = DAP_QUICKFIX_TITLE
 ---   },
 --- }
 --- ```
----@type table<string, Adapter|Dap.AdapterFactory>
+---@type table<string, dap.Adapter|Dap.AdapterFactory>
 M.adapters = {}
 
 
----@class Configuration
+---@class dap.Configuration
 ---@field type string
 ---@field request "launch"|"attach"
 ---@field name string
@@ -253,7 +262,7 @@ M.adapters = {}
 ---   },
 --- }
 --- ```
----@type table<string, Configuration[]>
+---@type table<string, dap.Configuration[]>
 M.configurations = {}
 
 local providers_mt = {
@@ -263,7 +272,7 @@ local providers_mt = {
 }
 M.providers = setmetatable({
 
-  ---@type table<string, fun(bufnr: integer): thread|Configuration[]>
+  ---@type table<string, fun(bufnr: integer): thread|dap.Configuration[]>
   configs = {
   },
 }, providers_mt)
@@ -395,7 +404,7 @@ local function expand_config_variables(option)
   return ret
 end
 
----@param lsession Session
+---@param lsession dap.Session
 local function add_reset_session_hook(lsession)
   lsession.on_close['dap.session'] = function(s)
     assert(s.id == lsession.id, "on_close must not be called with a foreign session")
@@ -510,7 +519,7 @@ end
 
 --- Get the first stopped session.
 --- If no session is stopped, it returns the active session or next in sessions.
----@return Session|nil
+---@return dap.Session|nil
 local function first_stopped_session()
   if session and session.stopped_thread_id then
     return session
@@ -529,7 +538,7 @@ end
 
 
 --- Start a debug session
----@param config Configuration
+---@param config dap.Configuration
 ---@param opts table|nil
 function M.run(config, opts)
   assert(
@@ -645,6 +654,7 @@ function M.step_into(opts)
   if not session then
     return
   end
+  ---@type {[any]: any}
   opts = opts or {}
   local askForTargets = opts.askForTargets
   opts.askForTargets = nil
@@ -868,8 +878,8 @@ function M.set_breakpoint(condition, hit_condition, log_message)
 end
 
 
----@param lsessions table<integer, Session>
----@param fn fun(lsession: Session)
+---@param lsessions table<integer, dap.Session>
+---@param fn fun(lsession: dap.Session)
 local function broadcast(lsessions, fn)
   for _, lsession in pairs(lsessions) do
     fn(lsession)
@@ -1088,8 +1098,8 @@ end
 
 
 --- Connect to a debug adapter via TCP
----@param adapter ServerAdapter
----@param config Configuration
+---@param adapter dap.ServerAdapter
+---@param config dap.Configuration
 ---@param opts table
 function M.attach(adapter, config, opts)
   if not config.request then
@@ -1118,8 +1128,8 @@ end
 
 --- Launch an executable debug adapter and initialize a session
 ---
----@param adapter ExecutableAdapter
----@param config Configuration
+---@param adapter dap.ExecutableAdapter
+---@param config dap.Configuration
 ---@param opts table
 function M.launch(adapter, config, opts)
   local s = require('dap.session'):spawn(adapter, opts)
@@ -1152,19 +1162,19 @@ end
 
 
 --- Currently focused session
----@return Session|nil
+---@return dap.Session|nil
 function M.session()
   return session
 end
 
 
----@return table<number, Session>
+---@return table<number, dap.Session>
 function M.sessions()
   return sessions
 end
 
 
----@param new_session Session|nil
+---@param new_session dap.Session|nil
 function M.set_session(new_session)
   if new_session then
     if new_session.parent == nil then

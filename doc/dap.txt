@@ -1381,16 +1381,18 @@ request({command}, {arguments}, {callback})             *dap-session:request()*
       {callback} function   Callback called with two parameters: err and result.
 
     For example, to make a `evaluate` request, you'd use:
-
 >lua
       local session = assert(require("dap").session(), "has active session")
       local arguments = {
         expression = "1 + 2"
       }
-      session:request("evaluate", arguments, function(err, result)
+      ---@param err dap.ErrorResponse
+      ---@param result dap.EvaluateResponse
+      local function on_result(err, result)
         vim.print(err or "No error")
         vim.print(result or "No result")
-      end)
+      end
+      session:request("evaluate", arguments, on_result)
 <
 
     The method is coroutine aware. If it is running inside a coroutine you can
