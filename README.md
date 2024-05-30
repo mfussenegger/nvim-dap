@@ -24,8 +24,8 @@
 Supported Neovim versions:
 
 - Latest nightly
-- 0.9.x (Recommended)
-- 0.8.3
+- 0.10.x (Recommended)
+- 0.9.5
 
 You'll need to install and configure a debug adapter per language. See
 
