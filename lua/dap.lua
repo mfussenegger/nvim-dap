@@ -294,7 +294,8 @@ local function eval_option(option)
 end
 
 local var_placeholders_once = {
-  ['${command:pickProcess}'] = lazy.utils.pick_process
+  ['${command:pickProcess}'] = lazy.utils.pick_process,
+  ['${command:pickFile}'] = lazy.utils.pick_file,
 }
 
 local var_placeholders = {
