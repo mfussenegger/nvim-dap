@@ -537,9 +537,14 @@ local function first_stopped_session()
 end
 
 
+---@class dap.run.opts
+---@field new? boolean force new session
+---@field before? fun(config: dap.Configuration): dap.Configuration pre-process config
+
+
 --- Start a debug session
 ---@param config dap.Configuration
----@param opts table|nil
+---@param opts dap.run.opts?
 function M.run(config, opts)
   assert(
     type(config) == 'table',
@@ -816,15 +821,17 @@ function M.goto_(line)
 end
 
 
+---@param config dap.Configuration?
+---@param opts? dap.run.opts
 function M.restart(config, opts)
-  local lsession = opts and opts.session or session
+  local lsession = session
   if not lsession then
     notify('No active session', vim.log.levels.INFO)
     return
   end
   config = config or lsession.config
   if lsession.capabilities.supportsRestartRequest then
-    require("dap.async").run(function()
+    lazy.async.run(function()
       local mt = getmetatable(config)
       if mt and type(mt.__call) == "function" then
         config = config()
@@ -841,7 +848,7 @@ function M.restart(config, opts)
     end)
   else
     terminate(lsession, nil, nil, vim.schedule_wrap(function()
-      local nopts = vim.deepcopy(opts) or {}
+      local nopts = opts and vim.deepcopy(opts) or {}
       nopts.new = true
       M.run(config, nopts)
     end))
@@ -849,7 +856,8 @@ function M.restart(config, opts)
 end
 
 
-function M.list_breakpoints(open_quickfix)
+---@param openqf boolean?
+function M.list_breakpoints(openqf)
   local qf_list = lazy.breakpoints.to_qf_list(lazy.breakpoints.get())
   local current_qflist_title = vim.fn.getqflist({ title = 1 }).title
   local action = ' '
@@ -861,7 +869,7 @@ function M.list_breakpoints(open_quickfix)
     context = DAP_QUICKFIX_CONTEXT,
     title = DAP_QUICKFIX_TITLE
   })
-  if open_quickfix then
+  if openqf then
     if #qf_list == 0 then
       notify('No breakpoints set!', vim.log.levels.INFO)
     else
@@ -1191,4 +1199,6 @@ end
 
 
 api.nvim_command("autocmd ExitPre * lua require('dap')._vim_exit_handler()")
+
+
 return M

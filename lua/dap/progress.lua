@@ -16,6 +16,7 @@ function M.reset()
 end
 
 
+---@param msg string
 function M.report(msg)
   messages[idx_write] = msg
   idx_write = (idx_write + 1) % max_size
@@ -33,6 +34,7 @@ function M.report(msg)
 end
 
 
+---@return string?
 function M.poll_msg()
   if idx_read == idx_write then
     return nil
@@ -43,6 +45,8 @@ function M.poll_msg()
   return msg
 end
 
+
+---@return string
 function M.status()
   local msg = M.poll_msg() or last_msg
   if msg then
