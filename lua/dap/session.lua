@@ -39,11 +39,11 @@ do
 end
 
 
----@class Session
+---@class dap.Session
 ---@field capabilities dap.Capabilities
----@field adapter Adapter
+---@field adapter dap.Adapter
 ---@field private dirty table<string, boolean>
----@field private handlers table<string, fun(self: Session, payload: table)|fun()>
+---@field private handlers table<string, fun(self: dap.Session, payload: table)|fun()>
 ---@field private message_callbacks table<number, fun(err: nil|dap.ErrorResponse, body: nil|table, seq: number)>
 ---@field private message_requests table<number, any>
 ---@field private client Client
@@ -57,16 +57,16 @@ end
 ---@field ns number Namespace id. Valid during lifecycle of a session
 ---@field sign_group string
 ---@field closed boolean
----@field on_close table<string, fun(session: Session)> Handler per plugin-id. Invoked when a session closes (due to terminated event, disconnect or error cases like initialize errors, debug adapter process exit, ...). Session is assumed non-functional at this point and handler can be invoked within luv event loop (not API safe, may require vim.schedule)
----@field children table<number, Session>
----@field parent Session|nil
+---@field on_close table<string, fun(session: dap.Session)> Handler per plugin-id. Invoked when a session closes (due to terminated event, disconnect or error cases like initialize errors, debug adapter process exit, ...). Session is assumed non-functional at this point and handler can be invoked within luv event loop (not API safe, may require vim.schedule)
+---@field children table<number, dap.Session>
+---@field parent dap.Session|nil
 
 
 ---@class Client
 ---@field close fun(cb: function)
 ---@field write fun(line: string)
 
----@class Session
+---@class dap.Session
 local Session = {}
 local session_mt = { __index = Session }
 
@@ -203,7 +203,7 @@ do
 end
 
 
----@param lsession Session
+---@param lsession dap.Session
 local function run_in_terminal(lsession, request)
   local body = request.arguments
   log.debug('run_in_terminal', body)
@@ -512,7 +512,7 @@ end
 --- Might load source as a side effect if frame.source has sourceReference ~= 0
 --- Must be called in a coroutine
 ---
----@param session Session
+---@param session dap.Session
 ---@param frame dap.StackFrame
 ---@return number|nil
 local function frame_to_bufnr(session, frame)
@@ -539,7 +539,7 @@ local function frame_to_bufnr(session, frame)
 end
 
 
----@param session Session
+---@param session dap.Session
 ---@param frame dap.StackFrame
 ---@param preserve_focus_hint boolean
 ---@param stopped nil|dap.StoppedEvent
@@ -561,7 +561,7 @@ local function jump_to_frame(session, frame, preserve_focus_hint, stopped)
   vim.fn.bufload(bufnr)
   local ok, failure = pcall(vim.fn.sign_place, 0, session.sign_group, 'DapStopped', bufnr, { lnum = frame.line; priority = 22 })
   if not ok then
-    utils.notify(failure, vim.log.levels.ERROR)
+    utils.notify(tostring(failure), vim.log.levels.ERROR)
   end
   local switchbuf = defaults(session).switchbuf or vim.o.switchbuf or 'uselast'
   jump_to_location(bufnr, frame.line, frame.column, switchbuf, session.filetype)
@@ -734,6 +734,8 @@ function Session:event_terminated(body)
   self:close()
   if body and body.restart ~= nil and body.restart ~= false then
     local config = vim.deepcopy(self.config)
+
+    ---@diagnostic disable-next-line: inject-field
     config.__restart = body.restart
     -- This will set global session, is this still okay once startDebugging is implemented?
     dap().run(config, { filetype = self.filetype, new = true })
@@ -1021,7 +1023,7 @@ function Session:handle_body(body)
 end
 
 
----@param self Session
+---@param self dap.Session
 local function start_debugging(self, request)
   local body = request.arguments --[[@as dap.StartDebuggingRequestArguments]]
   coroutine.wrap(function()
@@ -1043,6 +1045,7 @@ local function start_debugging(self, request)
     -- Spawning a new executable is likely the wrong thing to do
     if self.adapter.type == "server" and adapter.executable then
       adapter = vim.deepcopy(self.adapter)
+      ---@diagnostic disable-next-line: inject-field
       adapter.executable = nil
     end
 
@@ -1053,7 +1056,7 @@ local function start_debugging(self, request)
       return
     end
 
-    ---@param session Session
+    ---@param session dap.Session
     local function on_child_session(session)
       session.parent = self
       self.children[session.id] = session
@@ -1096,9 +1099,9 @@ local default_reverse_request_handlers = {
 
 local next_session_id = 1
 
----@param adapter Adapter
+---@param adapter dap.Adapter
 ---@param handle uv.uv_stream_t
----@return Session
+---@return dap.Session
 local function new_session(adapter, opts, handle)
   local handlers = {}
   handlers.after = opts.after
@@ -1166,8 +1169,8 @@ end
 --- Adds a on_close hook on the session to terminate the executable once the
 --- session closes.
 ---
----@param executable ServerAdapterExecutable
----@param session Session
+---@param executable dap.ServerAdapterExecutable
+---@param session dap.Session
 local function spawn_server_executable(executable, session)
   local cmd = assert(executable.command, "executable of server adapter must have a `command` property")
   log.debug("Starting debug adapter server executable", executable)
@@ -1222,10 +1225,10 @@ local function spawn_server_executable(executable, session)
 end
 
 
----@param adapter PipeAdapter
+---@param adapter dap.PipeAdapter
 ---@param opts? table
 ---@param on_connect fun(err?: string)
----@return Session
+---@return dap.Session
 function Session.pipe(adapter, opts, on_connect)
   local pipe = assert(uv.new_pipe(), "Must be able to create pipe")
   local session = new_session(adapter, opts or {}, pipe)
@@ -1358,6 +1361,7 @@ function Session.connect(_, adapter, opts, on_connect)
   -- getaddrinfo fails for some users with `bad argument #3 to 'getaddrinfo' (Invalid protocol hint)`
   -- It should generally work with luv 1.42.0 but some still get errors
   if uv.version() >= 76288 then
+    ---@diagnostic disable-next-line: missing-fields
     local ok, err = pcall(uv.getaddrinfo, host, nil, { protocol = 'tcp' }, on_addresses)
     if not ok then
       log.warn(err)
@@ -1370,9 +1374,9 @@ function Session.connect(_, adapter, opts, on_connect)
 end
 
 
----@param adapter ExecutableAdapter
+---@param adapter dap.ExecutableAdapter
 ---@param opts table|nil
----@return Session
+---@return dap.Session
 function Session.spawn(_, adapter, opts)
   log.debug('Spawning debug adapter', adapter)
 
@@ -1511,7 +1515,7 @@ function Session:_pause(thread_id, cb)
 end
 
 
----@param session Session
+---@param session dap.Session
 local function clear_running(session, thread_id)
   vim.fn.sign_unplace(session.sign_group)
   thread_id = thread_id or session.stopped_thread_id
@@ -1734,7 +1738,7 @@ end
 
 
 --- Initialize the debug session
----@param config Configuration
+---@param config dap.Configuration
 function Session:initialize(config)
   vim.schedule(repl.clear)
   local adapter_responded = false
