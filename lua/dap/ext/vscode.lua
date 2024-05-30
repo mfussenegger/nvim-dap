@@ -174,13 +174,12 @@ function M._load_json(jsonstr)
   return configs
 end
 
-
---- Extends dap.configurations with entries read from .vscode/launch.json
-function M.load_launchjs(path, type_to_filetypes)
-  type_to_filetypes = vim.tbl_extend('keep', type_to_filetypes or {}, M.type_to_filetypes)
+---@param path string?
+---@return Configuration[]
+function M.getconfigs(path)
   local resolved_path = path or (vim.fn.getcwd() .. '/.vscode/launch.json')
   if not vim.loop.fs_stat(resolved_path) then
-    return
+    return {}
   end
   local lines = {}
   for line in io.lines(resolved_path) do
@@ -189,7 +188,14 @@ function M.load_launchjs(path, type_to_filetypes)
     end
   end
   local contents = table.concat(lines, '\n')
-  local configurations = M._load_json(contents)
+  return M._load_json(contents)
+end
+
+
+--- Extends dap.configurations with entries read from .vscode/launch.json
+function M.load_launchjs(path, type_to_filetypes)
+  type_to_filetypes = vim.tbl_extend('keep', type_to_filetypes or {}, M.type_to_filetypes)
+  local configurations = M.getconfigs(path)
 
   assert(configurations, "launch.json must have a 'configurations' key")
   for _, config in ipairs(configurations) do
