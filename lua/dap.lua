@@ -1153,22 +1153,6 @@ function M.set_log_level(level)
 end
 
 
-function M._vim_exit_handler()
-  for _, s in pairs(sessions) do
-    if s.config.request == "attach" then
-      s:disconnect({ terminateDebuggee = false })
-    else
-      terminate(s)
-    end
-  end
-  vim.wait(500, function()
-    ---@diagnostic disable-next-line: redundant-return-value
-    return session == nil and next(sessions) == nil
-  end)
-  M.repl.close()
-end
-
-
 --- Currently focused session
 ---@return dap.Session|nil
 function M.session()
@@ -1198,7 +1182,25 @@ function M.set_session(new_session)
 end
 
 
-api.nvim_command("autocmd ExitPre * lua require('dap')._vim_exit_handler()")
+
+api.nvim_create_autocmd("ExitPre", {
+  pattern = "*",
+  group = api.nvim_create_augroup("dap.exit", { clear = true }),
+  callback = function()
+    for _, s in pairs(sessions) do
+      if s.config.request == "attach" then
+        s:disconnect({ terminateDebuggee = false })
+      else
+        terminate(s)
+      end
+    end
+    vim.wait(500, function()
+      ---@diagnostic disable-next-line: redundant-return-value
+      return session == nil and next(sessions) == nil
+    end)
+    M.repl.close()
+  end
+})
 
 
 return M
