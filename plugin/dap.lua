@@ -50,13 +50,6 @@ if api.nvim_create_autocmd then
       api.nvim_buf_set_lines(args.buf, 0, -1, true, lines)
     end
   })
-  api.nvim_create_autocmd('BufWritePost', {
-    group = launchjson_group,
-    pattern = pattern,
-    callback = function(args)
-      require('dap.ext.vscode').load_launchjs(args.file)
-    end
-  })
 
   api.nvim_create_autocmd("BufReadCmd", {
     group = api.nvim_create_augroup("dap-readcmds", { clear = true }),
