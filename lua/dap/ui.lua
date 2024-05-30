@@ -257,6 +257,8 @@ function M.new_tree(opts)
         collapse(layer, value, lnum, context)
       elseif opts.has_children(value) then
         expand(layer, value, lnum, context)
+      else
+        utils.notify("No children on line " .. tostring(lnum) .. ". Can't expand", vim.log.levels.INFO)
       end
     end,
 

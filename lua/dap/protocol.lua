@@ -98,7 +98,7 @@
 ---@field type? string
 ---@field presentationHint? dap.VariablePresentationHint
 ---@field evaluateName? string
----@field variablesReference number
+---@field variablesReference number if > 0 the variable is structured
 ---@field namedVariables? number
 ---@field indexedVariables? number
 ---@field memoryReference? string
