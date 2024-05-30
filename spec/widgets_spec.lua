@@ -1,7 +1,7 @@
 local dap = require('dap')
 local widgets = require("dap.ui.widgets")
 local api = vim.api
-local helpers = require("tests.helpers")
+local helpers = require("spec.helpers")
 
 local config = {
   type = 'dummy',
@@ -14,7 +14,7 @@ describe("hover widget", function()
 
   local server
   before_each(function()
-    server = require('tests.server').spawn()
+    server = require('spec.server').spawn()
     dap.adapters.dummy = server.adapter
   end)
   after_each(function()

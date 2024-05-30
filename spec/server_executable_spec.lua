@@ -1,6 +1,8 @@
-local helpers = require("tests.helpers")
+local helpers = require("spec.helpers")
 local wait = helpers.wait
 local run_and_wait_until_initialized = helpers.run_and_wait_until_initialized
+
+local spec_root = vim.fn.fnamemodify(debug.getinfo(1, "S").source:match("@?(.*/)"), ":h:p")
 
 local dap = require('dap')
 dap.adapters.dummy = {
@@ -12,8 +14,9 @@ dap.adapters.dummy = {
       '-Es',
       '-u', 'NONE',
       '--headless',
+      '-c', 'set rtp+=.',
       '-c', 'lua DAP_PORT=${port}',
-      '-c', 'luafile tests/run_server.lua'
+      '-c', ('luafile %s/run_server.lua'):format(spec_root)
     },
   }
 }
@@ -47,6 +50,8 @@ describe('server executable', function()
       name = 'Launch',
     }
     local session = run_and_wait_until_initialized(config)
+    local adapter = session.adapter --[[@as dap.ServerAdapter]]
+    assert.are.same(adapter.port, tonumber(adapter.executable.args[8]:match("(%d+)$")))
     assert.are.same(true, session.initialized, "initialized must be true")
 
     local expected_msg = "[debug-adapter stderr] Listening on port=12345\n"

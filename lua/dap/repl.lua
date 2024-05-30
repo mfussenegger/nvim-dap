@@ -22,7 +22,7 @@ local execute  -- required for forward reference
 local function new_buf()
   local prev_buf = api.nvim_get_current_buf()
   local buf = api.nvim_create_buf(true, true)
-  api.nvim_buf_set_name(buf, '[dap-repl]')
+  api.nvim_buf_set_name(buf, string.format('[dap-repl-%d]', buf))
   vim.bo[buf].buftype = "prompt"
   vim.bo[buf].omnifunc = "v:lua.require'dap.repl'.omnifunc"
   vim.bo[buf].buflisted = false

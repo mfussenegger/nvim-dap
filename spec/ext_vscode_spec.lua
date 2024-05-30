@@ -8,7 +8,7 @@ describe('dap.ext.vscode', function()
 
   it('can load launch.json file and map adapter type to filetypes', function()
     local dap = require('dap')
-    vscode.load_launchjs('tests/launch.json', { bar = { 'c', 'cpp' } })
+    vscode.load_launchjs('spec/launch.json', { bar = { 'c', 'cpp' } })
     assert.are.same(3, vim.tbl_count(dap.configurations))
     assert.are.same({ { type = 'java', request = 'launch', name = "java test" }, }, dap.configurations.java)
     assert.are.same({ { type = 'bar', request = 'attach', name = "bar test" }, }, dap.configurations.c)

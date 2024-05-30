@@ -22,7 +22,7 @@ describe('dap with debugpy', function()
         cwd = venv_dir,
       }
     }
-    local program = vim.fn.expand('%:p:h') .. '/tests/example.py'
+    local program = vim.fn.expand('%:p:h') .. '/spec/example.py'
     local config = {
       type = 'python',
       request = 'launch',

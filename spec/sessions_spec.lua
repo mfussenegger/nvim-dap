@@ -25,8 +25,8 @@ describe('sessions', function()
   local srv2
 
   before_each(function()
-    srv1 = require('tests.server').spawn()
-    srv2 = require('tests.server').spawn()
+    srv1 = require('spec.server').spawn()
+    srv2 = require('spec.server').spawn()
     dap.adapters.dummy1 = srv1.adapter
     dap.adapters.dummy2 = srv2.adapter
   end)

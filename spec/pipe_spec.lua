@@ -11,7 +11,7 @@ end
 describe('dap with fake pipe server', function()
   local server
   before_each(function()
-    server = require('tests.server').spawn({ new_sock = vim.loop.new_pipe })
+    server = require('spec.server').spawn({ new_sock = vim.loop.new_pipe })
     dap.adapters.dummy = server.adapter
   end)
   after_each(function()
