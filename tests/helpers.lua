@@ -40,12 +40,19 @@ function M.wait_for_response(server, command)
 end
 
 
+---@param conf dap.Configuration
+---@param server table?
+---@return dap.Session
 function M.run_and_wait_until_initialized(conf, server)
   dap.run(conf)
   vim.wait(1000, function()
     local session = dap.session()
     -- wait for initialize and launch requests
-    return (session and session.initialized and #server.spy.requests == 2 or false)
+    return (
+      session ~= nil
+      and session.initialized == true
+      and (server == nil or #server.spy.requests == 2)
+    )
   end, 100)
   return assert(dap.session(), "Must have session after run")
 end

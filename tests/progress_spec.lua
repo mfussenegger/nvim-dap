@@ -3,14 +3,14 @@ describe('progress', function()
 
   after_each(progress.reset)
 
-  it('Polling on empty buffer returns nil', function()
+  it('Polling on empty buffer returns nil, report and poll after', function()
     assert.are.same(nil, progress.poll_msg())
     assert.are.same(nil, progress.poll_msg())
-    it('Can report and poll afterwards', function()
-      progress.report('hello')
-      assert.are.same('hello', progress.poll_msg())
-    end)
+
+    progress.report('hello')
+    assert.are.same('hello', progress.poll_msg())
   end)
+
   it('Interleave report and poll', function()
     progress.report('one')
     progress.report('two')

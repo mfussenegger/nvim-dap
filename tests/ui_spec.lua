@@ -2,7 +2,7 @@ local api = vim.api
 local ui = require('dap.ui')
 
 describe('ui', function()
-  it('layered buf', function()
+  describe('layered buf', function()
 
     -- note that test cases build on each other
     local render_item = function(x) return x.label end
@@ -86,7 +86,7 @@ describe('ui', function()
     get_children = function(val) return val.children end
   }
 
-  it('tree can render a tree structure', function()
+  describe('tree can render a tree structure', function()
     local tree = ui.new_tree(opts)
     local buf = api.nvim_create_buf(true, true)
     local layer = ui.layer(buf)

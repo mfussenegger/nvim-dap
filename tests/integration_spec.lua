@@ -126,7 +126,7 @@ describe('dap with fake server', function()
         end_lnum = 0,
         lnum = 0,
         message = 'Thread stopped due to exception (unhandled)',
-        namespace = 1,
+        namespace = session.ns,
         severity = 1,
         source = 'nvim-dap',
       }
@@ -1087,6 +1087,9 @@ describe("on_output", function()
     dap.terminate()
     wait(function() return dap.session() == nil end, "Session should become nil after terminate")
     assert.are.same(0, vim.tbl_count(dap.sessions()), "Sessions should go down to 0 after terminate/stop")
+
+    dap.defaults.fallback.on_output = nil
+    assert.are.is_nil(dap.defaults.fallback.on_output)
   end)
 
   it("can override output handling", function()
