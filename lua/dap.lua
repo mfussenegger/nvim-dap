@@ -266,7 +266,7 @@ M.adapters = {}
 M.configurations = {}
 
 local providers = {
-  ---@type table<string, fun(bufnr: integer): thread|dap.Configuration[]>
+  ---@type table<string, fun(bufnr: integer): dap.Configuration[]>
   configs = {},
 
   ---@type table<string, fun(config: dap.Configuration):dap.Configuration>
@@ -474,22 +474,11 @@ local function select_config_and_run(opts)
   local filetype = vim.bo[bufnr].filetype
   lazy.async.run(function()
     local all_configs = {}
-    local co = coroutine.running()
     local provider_keys = vim.tbl_keys(providers.configs)
     table.sort(provider_keys)
     for _, provider in ipairs(provider_keys) do
       local config_provider = providers.configs[provider]
       local configs = config_provider(bufnr)
-      if type(configs) == "thread" then
-        assert(
-          coroutine.status(configs) == "suspended",
-          "If configs provider returns a thread it must be suspended"
-        )
-        vim.schedule(function()
-          coroutine.resume(configs, co)
-        end)
-        configs = coroutine.yield()
-      end
       if islist(configs) then
         vim.list_extend(all_configs, configs)
       else
