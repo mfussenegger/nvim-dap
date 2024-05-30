@@ -56,6 +56,8 @@ function variable.has_children(var)
   return (var.variables and #var.variables > 0) or var.variablesReference ~= 0
 end
 
+---@param var dap.Variable
+---@result dap.Variable[]
 function variable.get_children(var)
   if islist(var.variables) then
     return var.variables
@@ -78,11 +80,12 @@ local function cmp_vars(a, b)
 end
 
 
+---@param var dap.Variable
 function variable.fetch_children(var, cb)
   local session = require('dap').session()
   if var.variables then
     cb(variable.get_children(var))
-  elseif session and var.variablesReference then
+  elseif session and var.variablesReference > 0 then
 
     ---@param err? dap.ErrorResponse
     ---@param resp? dap.VariableResponse
@@ -93,11 +96,11 @@ function variable.fetch_children(var, cb)
         local variables = resp.variables
         local unloaded = #variables
         local function countdown()
-            unloaded = unloaded - 1
-            if unloaded == 0 then
-              var.variables = variables
-              cb(variables)
-            end
+          unloaded = unloaded - 1
+          if unloaded == 0 then
+            var.variables = variables
+            cb(variables)
+          end
         end
 
         table.sort(variables, cmp_vars)
