@@ -238,6 +238,7 @@ M.adapters = {}
 ---@field request "launch"|"attach"
 ---@field name string
 
+
 --- Configurations per adapter. See `:help dap-configuration` for more help.
 ---
 --- An example:
@@ -254,6 +255,40 @@ M.adapters = {}
 --- ```
 ---@type table<string, Configuration[]>
 M.configurations = {}
+
+local providers_mt = {
+  __newindex = function()
+    error("Cannot add item to dap.providers")
+  end,
+}
+M.providers = setmetatable({
+
+  ---@type table<string, fun(bufnr: integer): thread|Configuration[]>
+  configs = {
+  },
+}, providers_mt)
+
+
+M.providers.configs["dap.global"] = function(bufnr)
+  local filetype = vim.bo[bufnr].filetype
+  local configurations = M.configurations[filetype] or {}
+  assert(
+    islist(configurations),
+    string.format(
+      '`dap.configurations.%s` must be a list of configurations, got %s',
+      filetype,
+      vim.inspect(configurations)
+    )
+  )
+  return configurations
+end
+
+
+M.providers.configs["dap.launch.json"] = function()
+  local ok, configs = pcall(require("dap.ext.vscode").getconfigs)
+  return ok and configs or {}
+end
+
 
 local signs = {
   DapBreakpoint = { text = "B", texthl = "", linehl = "", numhl = "" },
@@ -421,35 +456,55 @@ end
 
 
 local function select_config_and_run(opts)
-  local filetype = vim.bo.filetype
-  local configurations = M.configurations[filetype] or {}
-  assert(
-    islist(configurations),
-    string.format(
-      '`dap.configurations.%s` must be a list of configurations, got %s',
-      filetype,
-      vim.inspect(configurations)
-    )
-  )
-  if #configurations == 0 then
-    local msg = 'No configuration found for `%s`. You need to add configs to `dap.configurations.%s` (See `:h dap-configuration`)'
-    notify(string.format(msg, filetype, filetype), vim.log.levels.INFO)
-    return
-  end
-  opts = opts or {}
-  opts.filetype = opts.filetype or filetype
-  lazy.ui.pick_if_many(
-    configurations,
-    "Configuration: ",
-    function(i) return i.name end,
-    function(configuration)
-      if configuration then
-        M.run(configuration, opts)
+  local bufnr = api.nvim_get_current_buf()
+  local filetype = vim.bo[bufnr].filetype
+  lazy.async.run(function()
+    local all_configs = {}
+    local co = coroutine.running()
+    local providers = vim.tbl_keys(M.providers.configs)
+    table.sort(providers)
+    for _, provider in ipairs(providers) do
+      local config_provider = M.providers.configs[provider]
+      local configs = config_provider(bufnr)
+      if type(configs) == "thread" then
+        assert(
+          coroutine.status(configs) == "suspended",
+          "If configs provider returns a thread it must be suspended"
+        )
+        vim.schedule(function()
+          coroutine.resume(configs, co)
+        end)
+        configs = coroutine.yield()
+      end
+      if islist(configs) then
+        vim.list_extend(all_configs, configs)
       else
-        notify('No configuration selected', vim.log.levels.INFO)
+        local msg = "Configuration provider %s must return a list of configurations. Got: %s"
+        notify(msg:format(provider, vim.inspect(configs)), vim.log.levels.WARN)
       end
     end
-  )
+
+    if #all_configs == 0 then
+      local msg = 'No configuration found for `%s`. You need to add configs to `dap.configurations.%s` (See `:h dap-configuration`)'
+      notify(string.format(msg, filetype, filetype), vim.log.levels.INFO)
+      return
+    end
+
+    opts = opts or {}
+    opts.filetype = opts.filetype or filetype
+    lazy.ui.pick_if_many(
+      all_configs,
+      "Configuration: ",
+      function(i) return i.name end,
+      function(configuration)
+        if configuration then
+          M.run(configuration, opts)
+        else
+          notify('No configuration selected', vim.log.levels.INFO)
+        end
+      end
+    )
+  end)
 end
 
 

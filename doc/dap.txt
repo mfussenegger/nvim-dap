@@ -1178,9 +1178,17 @@ You could also customize the buffer and window creation using a low-level builde
     .build()
 <
 
-
 ==============================================================================
 EXTENSIONS API                                                *dap-extensions*
+
+nvim-dap provides extension points for plugins:
+
+- |dap-listeners|
+- |dap-providers|
+
+
+==============================================================================
+LISTENERS EXTENSIONS API                                       *dap-listeners*
 
 
 nvim-dap supports subscribing and listening to all responses or events that a
@@ -1231,6 +1239,59 @@ For events, the listeners are called with two arguments:
 
 1. The session
 2. The event payload
+
+
+==============================================================================
+PROVIDERS EXTENSIONS API                                       *dap-providers*
+
+==============================================================================
+CONFIG PROVIDERS EXTENSIONS API                         *dap-providers-configs*
+
+If a user starts a debug session via |dap.continue()|, nvim-dap looks for
+a suitable configuration (|dap-configuration|) to use.
+
+To do so it uses so called configuration providers registered in a
+`dap.providers.configs` table.
+
+Plugins can extend this table with additional config providers.
+
+There are two providers built-in:
+
+- `dap.global` - looks for configuration entries in
+  `dap.configurations.<filetype>`
+
+- `dap.launch.json` - looks for configuration entries in a
+  `.vscode/launch.json` file.
+
+
+The key for the table is a `plugin-id`. Plugins should use their plugin name.
+Do _not_ use the `dap.` namespace. It is reserved for nvim-dap itself.
+
+The value for the table is a function that takes a buffer number as parameter
+and must return |dap-configuration| entries as list.
+
+An example:
+
+>lua
+  local dap = require("dap")
+  dap.providers.configs["mydummy_provider"] = function(bufnr)
+    return {
+      {
+        name = "This config always shows up",
+        type = "gdb",
+        request = "launch",
+        program = "/usr/bin/zig",
+        args = {"run", "${file}"},
+        cwd = "${workspaceFolder}",
+      },
+    }
+  end
+<
+
+To support async operations, the config providers functions are called
+within a coroutine and they can also return a `thread` which must be suspended
+and which will be resumed at most once and must then yield the configurations
+as list.
 
 ==============================================================================
 UTILS API                                                          *dap-utils*
