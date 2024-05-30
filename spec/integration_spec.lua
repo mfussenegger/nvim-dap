@@ -1,6 +1,6 @@
 local api = vim.api
 local dap = require('dap')
-local helpers = require("tests.helpers")
+local helpers = require("spec.helpers")
 local wait = helpers.wait
 local wait_for_response= helpers.wait_for_response
 local run_and_wait_until_initialized = helpers.run_and_wait_until_initialized
@@ -15,7 +15,7 @@ local config = {
 describe('dap with fake server', function()
   local server
   before_each(function()
-    server = require('tests.server').spawn()
+    server = require('spec.server').spawn()
     dap.adapters.dummy = server.adapter
   end)
   after_each(function()
@@ -360,7 +360,7 @@ end)
 describe('session disconnect', function()
   local server
   before_each(function()
-    server = require('tests.server').spawn()
+    server = require('spec.server').spawn()
     dap.adapters.dummy = server.adapter
   end)
   after_each(function()
@@ -449,7 +449,7 @@ end)
 describe('request source', function()
   local server
   before_each(function()
-    server = require('tests.server').spawn()
+    server = require('spec.server').spawn()
     dap.adapters.dummy = server.adapter
   end)
   after_each(function()
@@ -566,7 +566,7 @@ end)
 describe('run_to_cursor', function()
   local server
   before_each(function()
-    server = require('tests.server').spawn()
+    server = require('spec.server').spawn()
     server.client.setBreakpoints = function(self, request)
       local breakpoints = request.arguments.breakpoints
       self:send_response(request, {
@@ -719,7 +719,7 @@ end)
 describe('breakpoint events', function()
   local server
   before_each(function()
-    server = require('tests.server').spawn()
+    server = require('spec.server').spawn()
     dap.adapters.dummy = server.adapter
   end)
   after_each(function()
@@ -794,7 +794,7 @@ end)
 describe('restart_frame', function()
   local server
   before_each(function()
-    server = require('tests.server').spawn()
+    server = require('spec.server').spawn()
     dap.adapters.dummy = server.adapter
   end)
   after_each(function()
@@ -909,7 +909,7 @@ end)
 describe('event_terminated', function()
   local server
   before_each(function()
-    server = require('tests.server').spawn()
+    server = require('spec.server').spawn()
     dap.adapters.dummy = server.adapter
   end)
   after_each(function()
@@ -947,7 +947,7 @@ end)
 describe('progress support', function()
   local server
   before_each(function()
-    server = require('tests.server').spawn()
+    server = require('spec.server').spawn()
     dap.adapters.dummy = server.adapter
   end)
   after_each(function()
@@ -984,7 +984,7 @@ end)
 describe("run_last", function()
   local server
   before_each(function()
-    server = require('tests.server').spawn()
+    server = require('spec.server').spawn()
     dap.adapters.dummy = server.adapter
   end)
   after_each(function()
@@ -1054,7 +1054,7 @@ describe("bad debug adapter", function()
     dap.adapters.bad = {
       type = "executable",
       command = "python",
-      args = { vim.fn.expand("%:p:h") .. "/tests/bad_adapter.py" }
+      args = { vim.fn.expand("%:p:h") .. "/spec/bad_adapter.py" }
     }
     local captured_msg
     local captured_log_level
@@ -1079,7 +1079,7 @@ end)
 describe("on_output", function()
   local server
   before_each(function()
-    server = require('tests.server').spawn()
+    server = require('spec.server').spawn()
     dap.adapters.dummy = server.adapter
   end)
   after_each(function()

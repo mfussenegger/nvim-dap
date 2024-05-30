@@ -27,6 +27,10 @@ dependencies = {
   'lua >= 5.1, < 5.4',
 }
 
+test_dependencies = {
+  "nlua",
+}
+
 source = {
    url = 'git://github.com/mfussenegger/nvim-dap',
 }

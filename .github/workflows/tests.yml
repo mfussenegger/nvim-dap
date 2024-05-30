@@ -15,25 +15,26 @@ jobs:
         neovim_version: ['nightly', 'v0.9.5', 'v0.10.0']
 
     steps:
-      - uses: actions/checkout@v2
-      - run: date +%F > todays-date
-      - name: Restore cache for today's nightly.
-        uses: actions/cache@v2
+      - uses: actions/checkout@v4
         with:
-          path: _neovim
-          key: ${{ runner.os }}-x64-${{ hashFiles('todays-date') }}
+          ref: ${{ github.ref }}
 
-      - name: Prepare plenary
-        run: |
-          git clone --depth 1 https://github.com/nvim-lua/plenary.nvim ~/.local/share/nvim/site/pack/vendor/start/plenary.nvim
-          ln -s "$(pwd)" ~/.local/share/nvim/site/pack/vendor/start
-
-      - name: Setup neovim
+      - name: Install neovim
         uses: rhysd/action-setup-vim@v1
         with:
           neovim: true
           version: ${{ matrix.neovim_version }}
 
+      - name: Install Lua
+        uses: leso-kn/gh-actions-lua@master
+        with:
+          luaVersion: "5.1"
+
+      - name: Install Luarocks
+        uses: hishamhm/gh-actions-luarocks@master
+        with:
+          luarocksVersion: "3.11.0"
+
       - name: Run tests
         run: |
-          nvim --headless --noplugin -u tests/minimal.vim -c "PlenaryBustedDirectory tests/ {minimal_init = 'tests/minimal.vim'}"
+          luarocks test --local

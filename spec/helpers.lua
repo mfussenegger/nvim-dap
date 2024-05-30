@@ -45,7 +45,7 @@ end
 ---@return dap.Session
 function M.run_and_wait_until_initialized(conf, server)
   dap.run(conf)
-  vim.wait(1000, function()
+  vim.wait(5000, function()
     local session = dap.session()
     -- wait for initialize and launch requests
     return (

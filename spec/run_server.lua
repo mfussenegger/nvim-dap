@@ -1,4 +1,4 @@
-local server = require('tests.server')
+local server = require('spec.server')
 local opts = {
   port = _G.DAP_PORT
 }

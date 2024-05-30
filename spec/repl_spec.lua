@@ -1,6 +1,6 @@
 local dap = require("dap")
 local api = vim.api
-local helpers = require("tests.helpers")
+local helpers = require("spec.helpers")
 
 describe('dap.repl', function()
   it("append doesn't add newline with newline = false", function()
@@ -19,7 +19,7 @@ end)
 describe("dap.repl completion", function()
   local server
   before_each(function()
-    server = require("tests.server").spawn()
+    server = require("spec.server").spawn()
     dap.adapters.dummy = server.adapter
   end)
   after_each(function()
