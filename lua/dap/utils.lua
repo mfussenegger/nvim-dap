@@ -40,12 +40,17 @@ function M.non_empty(object)
 end
 
 
+---@generic T
+---@param items T[]
+---@param predicate fun(items: T[]):boolean
+---@result integer?
 function M.index_of(items, predicate)
   for i, item in ipairs(items) do
     if predicate(item) then
       return i
     end
   end
+  return nil
 end
 
 
@@ -182,6 +187,10 @@ function M.notify(msg, log_level)
 end
 
 
+---@generic T
+---@param x T?
+---@param default T
+---@return T
 function M.if_nil(x, default)
   return x == nil and default or x
 end
