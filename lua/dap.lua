@@ -301,6 +301,13 @@ providers.configs["dap.launch.json"] = function()
   return ok and configs or {}
 end
 
+providers.configs["dap.neoconf"] = function(bufnr)
+  local ok, configs = pcall(function()
+    return require("dap.ext.neoconf").getconfigs(bufnr)
+  end)
+  return ok and configs or {}
+end
+
 do
   local function eval_option(option)
     if type(option) == 'function' then
@@ -1209,5 +1216,6 @@ api.nvim_create_autocmd("ExitPre", {
   end
 })
 
+require("dap.ext.neoconf").register()
 
 return M
