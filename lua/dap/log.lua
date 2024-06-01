@@ -23,7 +23,7 @@ function M.create_logger(filename)
   loggers[filename] = logger
 
   local path_sep = vim.loop.os_uname().sysname == "Windows" and "\\" or "/"
-  local joinpath = vim.fs.joinpath or function(...)
+  local joinpath = (vim.fs or {}).joinpath or function(...)
     ---@diagnostic disable-next-line: deprecated
     return table.concat(vim.tbl_flatten{...}, path_sep)
   end
