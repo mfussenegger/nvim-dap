@@ -603,9 +603,9 @@ function M.run(config, opts)
       )
     elseif adapter == nil then
       notify(string.format(
-        'The selected configuration references adapter `%s`, but dap.adapters.%s is undefined',
+        'Config references missing adapter `%s`. Available are: %s',
         config.type,
-        config.type
+        table.concat(vim.tbl_keys(M.adapters), ", ")
       ), vim.log.levels.ERROR)
     else
       notify(string.format(
