@@ -1,9 +1,6 @@
 local utils = require('dap.utils')
 local M = {}
 
----@diagnostic disable-next-line: deprecated
-local islist = vim.islist or vim.tbl_islist
-
 
 local variable = {}
 M.variable = variable
@@ -18,6 +15,7 @@ local syntax_mapping = {
 }
 
 
+---@param var dap.Variable|dap.EvaluateResponse
 function variable.get_key(var)
   return var.name or var.result
 end
@@ -28,6 +26,7 @@ function variable.is_lazy(var)
 end
 
 
+---@param var dap.Variable|dap.EvaluateResponse
 function variable.render_parent(var)
   if var.name then
     return variable.render_child(var, 0)
@@ -59,11 +58,7 @@ end
 ---@param var dap.Variable
 ---@result dap.Variable[]
 function variable.get_children(var)
-  if islist(var.variables) then
-    return var.variables
-  else
-    return var.variables and vim.tbl_values(var.variables) or {}
-  end
+  return var.variables or {}
 end
 
 

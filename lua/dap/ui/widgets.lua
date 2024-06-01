@@ -355,55 +355,66 @@ M.sessions = {
 }
 
 
-M.expression = {
-  new_buf = new_buf,
-  before_open = function(view)
-    view.__expression = vim.fn.expand('<cexpr>')
-  end,
-  render = function(view, expr)
-    local session = require('dap').session()
-    local layer = view.layer()
-    if not session then
-      layer.render({'No active session'})
-      return
-    end
-    local expression = expr or view.__expression
-    local context = session.capabilities.supportsEvaluateForHovers and "hover" or "repl"
-    local args = {
-      expression = expression,
-      context = context
-    }
-    local frame = session.current_frame or {}
-    local variable
-    local scopes = frame.scopes or {}
-    session:evaluate(args, function(err, resp)
-      if err then
-        for _, s in pairs(scopes) do
-          variable = s.variables and s.variables[expression]
-          if variable then
-            break
-          end
-        end
-        if variable then
-          local tree = ui.new_tree(require('dap.entity').variable.tree_spec)
-          tree.render(view.layer(), variable)
-        else
-          local msg = 'Cannot evaluate "'..expression..'"!'
-          layer.render({msg})
-        end
-      elseif resp and resp.result then
-        local attributes = (resp.presentationHint or {}).attributes or {}
-        if resp.variablesReference > 0 or vim.tbl_contains(attributes, "rawString") then
-          local tree = ui.new_tree(require('dap.entity').variable.tree_spec)
-          tree.render(layer, resp)
-        else
-          local lines = vim.split(resp.result, "\n", { plain = true })
-          layer.render(lines)
+do
+
+  ---@param scopes dap.Scope[]
+  ---@param expression string
+  ---@return dap.Variable?
+  local function find_var(scopes, expression)
+    for _, s in ipairs(scopes) do
+      for _, var in ipairs(s.variables or {}) do
+        if var.name == expression then
+          return var
         end
       end
-    end)
-  end,
-}
+    end
+    return nil
+  end
+
+  M.expression = {
+    new_buf = new_buf,
+    before_open = function(view)
+      view.__expression = vim.fn.expand('<cexpr>')
+    end,
+    render = function(view, expr)
+      local session = require('dap').session()
+      local layer = view.layer()
+      if not session then
+        layer.render({'No active session'})
+        return
+      end
+      local expression = expr or view.__expression
+      local context = session.capabilities.supportsEvaluateForHovers and "hover" or "repl"
+      local args = {
+        expression = expression,
+        context = context
+      }
+      local frame = session.current_frame or {}
+      local scopes = frame.scopes or {}
+      session:evaluate(args, function(err, resp)
+        if err then
+          local variable = find_var(scopes, expression)
+          if variable then
+            local tree = ui.new_tree(require('dap.entity').variable.tree_spec)
+            tree.render(view.layer(), variable)
+          else
+            local msg = 'Cannot evaluate "'..expression..'"!'
+            layer.render({msg})
+          end
+        elseif resp and resp.result then
+          local attributes = (resp.presentationHint or {}).attributes or {}
+          if resp.variablesReference > 0 or vim.tbl_contains(attributes, "rawString") then
+            local tree = ui.new_tree(require('dap.entity').variable.tree_spec)
+            tree.render(layer, resp)
+          else
+            local lines = vim.split(resp.result, "\n", { plain = true })
+            layer.render(lines)
+          end
+        end
+      end)
+    end,
+  }
+end
 
 
 function M.builder(widget)
