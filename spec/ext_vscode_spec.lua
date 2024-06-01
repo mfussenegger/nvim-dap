@@ -364,4 +364,36 @@ describe('dap.ext.vscode', function()
     assert.are.same("Your input: ", prompt)
     assert.are.same("", default)
   end)
+
+  it('keeps unsupported input types as is', function()
+    local jsonstr = [[
+      {
+        "configurations": [
+          {
+            "type": "dummy",
+            "request": "launch",
+            "name": "Dummy",
+            "program": "${input:myCommand}"
+          }
+        ],
+        "inputs": [
+          {
+            "id": "myCommand",
+            "type": "command",
+            "command": "shellCommand.execute"
+          }
+        ]
+      }
+    ]]
+    local configs = vscode._load_json(jsonstr)
+    local ok = false
+    local result
+    coroutine.wrap(function()
+      local conf = configs[1]()
+      result = conf.program
+      ok = true
+    end)()
+    vim.wait(1000, function() return ok end)
+    assert.are.same("${input:myCommand}", result)
+  end)
 end)
