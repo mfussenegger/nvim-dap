@@ -161,6 +161,11 @@
 ---@field adapterData nil|any
 
 
+---@class dap.SourceResponse
+---@field content string
+---@field mimeType? string
+
+
 ---@class dap.Capabilities
 ---@field supportsConfigurationDoneRequest boolean|nil
 ---@field supportsFunctionBreakpoints boolean|nil
