@@ -68,6 +68,43 @@ cmd("DapNew", dapnew, {
   end
 })
 
+cmd("DapEval", function(params)
+  local oldbuf = api.nvim_get_current_buf()
+  local name = string.format("dap-eval://%s", vim.bo[oldbuf].filetype)
+  if params.smods.vertical then
+    vim.cmd.vsplit({name})
+  elseif params.smods.tab == 1 then
+    vim.cmd.tabedit(name)
+  else
+    local size = math.max(5, math.floor(vim.o.lines * 1/5))
+    vim.cmd.split({name, mods = params.smods, range = { size }})
+  end
+  local newbuf = api.nvim_get_current_buf()
+  if params.range ~= 0 then
+    local lines = api.nvim_buf_get_lines(oldbuf, params.line1 -1 , params.line2, true)
+    local indent = math.huge
+    for _, line in ipairs(lines) do
+      indent = math.min(line:find("[^ ]") or math.huge, indent)
+    end
+    if indent ~= math.huge and indent > 0 then
+      for i, line in ipairs(lines) do
+        lines[i] = line:sub(indent)
+      end
+    end
+    api.nvim_buf_set_lines(newbuf, 0, -1, true, lines)
+    vim.bo[newbuf].modified = false
+  end
+  if params.bang then
+    vim.cmd.w()
+  end
+end, {
+  nargs = 0,
+  range = "%",
+  bang = true,
+  bar = true,
+  desc = "Create a new window & buffer to evaluate expressions",
+})
+
 
 if api.nvim_create_autocmd then
   local launchjson_group = api.nvim_create_augroup('dap-launch.json', { clear = true })
