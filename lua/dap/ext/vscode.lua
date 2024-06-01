@@ -175,7 +175,7 @@ function M._load_json(jsonstr)
 end
 
 ---@param path string?
----@return Configuration[]
+---@return dap.Configuration[]
 function M.getconfigs(path)
   local resolved_path = path or (vim.fn.getcwd() .. '/.vscode/launch.json')
   if not vim.loop.fs_stat(resolved_path) then

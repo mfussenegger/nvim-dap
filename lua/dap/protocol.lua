@@ -65,6 +65,7 @@
 ---@field stackFrames dap.StackFrame[]
 ---@field totalFrames? number
 
+
 ---@class dap.Scope
 ---@field name string
 ---@field presentationHint? "arguments"|"locals"|"registers"|string
@@ -78,6 +79,11 @@
 ---@field endLine? number
 ---@field endColumn? number
 ---@field variables? table<string, dap.Variable> by variable name. Not part of spec
+
+
+---@class dap.ScopesResponse
+---@field scopes dap.Scope[]
+
 
 ---@class dap.ValueFormat
 ---@field hex? boolean Display the value in hex

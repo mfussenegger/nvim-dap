@@ -760,27 +760,34 @@ end
 
 ---@param current_frame dap.StackFrame
 function Session:_request_scopes(current_frame)
-  self:request('scopes', { frameId = current_frame.id }, function(_, scopes_resp)
-    if not scopes_resp or not scopes_resp.scopes then
+  local params = {
+    frameId = current_frame.id
+  }
+  ---@param scope_resp dap.ScopesResponse?
+  local function on_scopes(_, scope_resp)
+    if not scope_resp then
       return
     end
-    current_frame.scopes = {}
-    for _, scope in pairs(scopes_resp.scopes) do
-      table.insert(current_frame.scopes, scope)
+    local scopes = scope_resp.scopes
+    current_frame.scopes = scopes
+    local function toname(var)
+      return var.name
+    end
+    for _, scope in ipairs(scopes) do
       if not scope.expensive then
-        local params = { variablesReference = scope.variablesReference }
-        self:request('variables', params, function(_, variables_resp)
-          if not variables_resp then
-            return
+
+        ---@param resp dap.VariableResponse?
+        local function on_variables(_, resp)
+          if resp then
+            scope.variables = utils.to_dict(resp.variables, toname)
           end
-          scope.variables = utils.to_dict(
-            variables_resp.variables,
-            function(v) return v.name end
-          )
-        end)
+        end
+        local varparams = { variablesReference = scope.variablesReference }
+        self:request('variables', varparams, on_variables)
       end
     end
-  end)
+  end
+  self:request('scopes', params, on_scopes)
 end
 
 
