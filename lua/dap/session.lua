@@ -770,18 +770,14 @@ function Session:_request_scopes(current_frame)
     end
     local scopes = scope_resp.scopes
     current_frame.scopes = scopes
-    local function toname(var)
-      return var.name
-    end
     for _, scope in ipairs(scopes) do
       if not scope.expensive then
 
         ---@param resp dap.VariableResponse?
         local function on_variables(_, resp)
-          if resp then
-            scope.variables = utils.to_dict(resp.variables, toname)
-          end
+          scope.variables = resp and resp.variables or nil
         end
+
         local varparams = { variablesReference = scope.variablesReference }
         self:request('variables', varparams, on_variables)
       end
