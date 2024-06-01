@@ -93,19 +93,21 @@ local function defaults(session)
   return dap().defaults[session.config.type]
 end
 
-local function co_resume_schedule(co)
-  return function(...)
-    local args = {...}
-    vim.schedule(function()
-      coroutine.resume(co, unpack(args))
-    end)
-  end
-end
 
-
-local function co_resume(co)
+local function coresume(co)
   return function(...)
-    coroutine.resume(co, ...)
+    if coroutine.status(co) == "suspended" then
+      coroutine.resume(co, ...)
+    else
+      local args = {...}
+      vim.schedule(function()
+        assert(
+          coroutine.status(co) == "suspended",
+          "Incorrect use of coresume. Callee must have yielded"
+        )
+        coroutine.resume(co, unpack(args))
+      end)
+    end
   end
 end
 
@@ -520,7 +522,7 @@ local function frame_to_bufnr(session, frame)
   end
   local co = coroutine.running()
   assert(co, 'Must run in coroutine')
-  session:source(source, co_resume(co))
+  session:source(source, coresume(co))
   local _, bufnr = coroutine.yield()
   return bufnr
 end
@@ -650,7 +652,7 @@ function Session:event_stopped(stopped)
     local co = coroutine.running()
 
     if self.dirty.threads or (stopped.threadId and self.threads[stopped.threadId] == nil) then
-      self:update_threads(co_resume(co))
+      self:update_threads(coresume(co))
       local err = coroutine.yield()
       if err then
         utils.notify('Error retrieving threads: ' .. utils.fmt_error(err), vim.log.levels.ERROR)
@@ -1037,7 +1039,7 @@ local function start_debugging(self, request)
     config.request = body.request
 
     if type(adapter) == "function" then
-      adapter(co_resume_schedule(co), config, self)
+      adapter(coresume(co), config, self)
       adapter = coroutine.yield()
     end
 
@@ -1710,7 +1712,7 @@ function Session:request(command, arguments, callback)
   if not callback then
     co = coroutine.running()
     if co then
-      callback = co_resume(co)
+      callback = coresume(co)
     else
       -- Assume missing callback is intentional.
       -- Prevent error logging in Session:handle_body
