@@ -110,19 +110,6 @@ local function co_resume(co)
 end
 
 
-local function signal_err(err, cb)
-  if err then
-    if cb then
-      cb(err)
-    else
-      error(utils.fmt_error(err))
-    end
-    return true
-  end
-  return false
-end
-
-
 local function launch_external_terminal(terminal, args)
   local handle
   local pid_or_err
@@ -573,7 +560,7 @@ end
 
 --- Request a source
 ---@param source dap.Source
----@param cb fun(err, buf) the buffer will have the contents of the source
+---@param cb fun(err: dap.ErrorResponse?, buf: integer?) the buffer will have the contents of the source
 function Session:source(source, cb)
   assert(source, 'source is required')
   assert(source.sourceReference, 'sourceReference is required')
@@ -582,8 +569,12 @@ function Session:source(source, cb)
     source = source,
     sourceReference = source.sourceReference
   }
-  self:request('source', params, function(err, response)
-    if signal_err(err, cb) then
+
+  ---@param err dap.ErrorResponse
+  ---@param response dap.SourceResponse
+  local function on_source(err, response)
+    if err then
+      cb(err, nil)
       return
     end
     local buf = api.nvim_create_buf(false, true)
@@ -605,18 +596,25 @@ function Session:source(source, cb)
         vim.bo[buf].filetype = filetype
       end
     end
-    if cb then
-      cb(nil, buf)
-    end
-  end)
+    cb(nil, buf)
+  end
+
+  self:request('source', params, on_source)
 end
 
 
+---@param cb fun(err: dap.ErrorResponse?)
 function Session:update_threads(cb)
-  self:request('threads', nil, function(err, response)
-    if signal_err(err, cb) then return end
+
+  ---@param err dap.ErrorResponse?
+  ---@param response dap.ThreadResponse?
+  local on_threads = function(err, response)
+    if err then
+      cb(err)
+      return
+    end
     local threads = {}
-    for _, thread in pairs(response.threads) do
+    for _, thread in ipairs((response or {}).threads) do
       threads[thread.id] = thread
       local old_thread = self.threads[thread.id]
       if old_thread then
@@ -626,10 +624,10 @@ function Session:update_threads(cb)
     end
     self.threads = threads
     self.dirty.threads = false
-    if cb then
-      cb(nil, threads)
-    end
-  end)
+    cb(nil)
+  end
+
+  self:request('threads', nil, on_threads)
 end
 
 
