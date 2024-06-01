@@ -118,14 +118,17 @@ M.listeners = {
       rawset(tbl, key, {})
       return rawget(tbl, key)
     end
-  });
+  }),
   ---@type dap.listeners
   after = setmetatable({}, {
     __index = function(tbl, key)
       rawset(tbl, key, {})
       return rawget(tbl, key)
     end
-  });
+  }),
+
+  ---@type table<string, fun(config: dap.Configuration):dap.Configuration>
+  on_config = {}
 }
 
 
@@ -268,9 +271,6 @@ M.configurations = {}
 local providers = {
   ---@type table<string, fun(bufnr: integer): dap.Configuration[]>
   configs = {},
-
-  ---@type table<string, fun(config: dap.Configuration):dap.Configuration>
-  on_config = {},
 }
 do
   local providers_mt = {
@@ -388,7 +388,7 @@ do
     return ret
   end
 
-  providers.on_config["dap.expand_variable"] = function(config)
+  M.listeners.on_config["dap.expand_variable"] = function(config)
     return vim.tbl_map(expand_config_variables, config)
   end
 end
@@ -547,7 +547,7 @@ local function prepare_config(config)
     config = config()
     assert(config and type(config) == "table", "config metatable __call must return a config table")
   end
-  for _, on_config in pairs(providers.on_config) do
+  for _, on_config in pairs(M.listeners.on_config) do
     config = on_config(config)
   end
   return config

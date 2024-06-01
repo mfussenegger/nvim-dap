@@ -1242,6 +1242,54 @@ For events, the listeners are called with two arguments:
 
 
 ==============================================================================
+BUILT-IN CLIENT EVENTS                                     *dap-listeners-ext*
+
+In addition to the debug adapter protocol messages, the `dap.listeners` also
+provides hooks to listen on and react to synthethic events created by the
+client.
+
+Currently there are:
+
+- `dap.listeners.on_config` (See |dap-listeners-on_config|)
+
+==============================================================================
+ON_CONFIG EXTENSIONS API                              *dap-listeners-on_config*
+
+
+Plugins can pre-process the |dap-configuration| whenever a debug session
+starts.
+
+To do so, register a `on_config` hook in the `dap.listeners.on_config` table.
+
+The key for the table is a `plugin-id`. Plugins should use their plugin name.
+Do _not_ use the `dap.` namespace. It is reserved for nvim-dap itself.
+
+The value for the table is a function that takes a |dap-configuration| as
+parameter and must return a |dap-configuration|.
+
+Before making modifications to the config you should copy it, to ensure you
+don't make permanent changes to a configuration stored within
+`dap.configrations.<filetype>` via mutations.
+
+Example:
+>lua
+  local dap = require("dap")
+  dap.listeners.on_config["dummy-noop"] = function(config)
+    return vim.deepcopy(config)
+  end
+<
+To support async operations, the on_config functions are called within a
+coroutine.
+
+This functionality should only be used by plugins that implement generic
+functionality applicable for all or most configurations.
+If you are writing a plugin that already owns an adapter definition, you
+should prefer using the `enrich_config` function available in |dap-adapter|.
+If you are not owning the adapter definition but the plugin's functionality is
+still specific to a limited selection of adapters, please make sure you're not
+messing with configurations used with adapters foreign to your plugin.
+
+==============================================================================
 PROVIDERS EXTENSIONS API                                       *dap-providers*
 
 ==============================================================================
@@ -1290,39 +1338,6 @@ An example:
 
 To support async operations, the config providers functions are called
 within a coroutine.
-
-==============================================================================
-ON_CONFIG EXTENSIONS API                              *dap-providers-on_config*
-
-Plugins can pre-process the |dap-configuration| whenever a debug session
-starts.
-
-To do so, register a `on_config` hook in the `dap.providers.on_config` table.
-
-The key for the table is a `plugin-id`. Plugins should use their plugin name.
-Do _not_ use the `dap.` namespace. It is reserved for nvim-dap itself.
-
-The value for the table is a function that takes a |dap-configuration| as
-parameter and must return a |dap-configuration|.
-
-Before making modifications to the config you should copy it, to ensure you
-don't make permanent changes to a configuration stored within
-`dap.configrations.<filetype>` via mutations.
-
-Example:
->lua
-  local dap = require("dap")
-  dap.providers.on_config["dummy-noop"] = function(config)
-    return vim.deepcopy(config)
-  end
-<
-To support async operations, the on_config functions are called within a
-coroutine.
-
-This functionality should only be used by plugins that implement generic
-functionality applicable for all or most configurations.
-For configuration pre-processing that is specific to a individual adapter you
-should instead use the `enrich_config` function available in |dap-adapter|.
 
 ==============================================================================
 UTILS API                                                          *dap-utils*
