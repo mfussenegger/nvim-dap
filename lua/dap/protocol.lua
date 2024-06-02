@@ -109,6 +109,7 @@
 ---@field indexedVariables? number
 ---@field memoryReference? string
 ---@field variables? dap.Variable[] resolved variablesReference. Not part of the spec; added by nvim-dap
+---@field parent? dap.Variable|dap.Scope injected by nvim-dap
 
 ---@class dap.EvaluateArguments
 ---@field expression string

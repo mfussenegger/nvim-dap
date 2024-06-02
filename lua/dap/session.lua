@@ -776,6 +776,9 @@ function Session:_request_scopes(current_frame)
         ---@param resp dap.VariableResponse?
         local function on_variables(_, resp)
           scope.variables = resp and resp.variables or nil
+          for _, v in ipairs(scope.variables or {}) do
+            v.parent = scope
+          end
         end
 
         local varparams = { variablesReference = scope.variablesReference }

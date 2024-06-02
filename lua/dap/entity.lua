@@ -26,10 +26,14 @@ function variable.is_lazy(var)
 end
 
 
+---@alias dap.entity.hl [string, integer, integer][]
+
+
 ---@param var dap.Variable|dap.EvaluateResponse
+---@result string, dap.entity.hl[]
 function variable.render_parent(var)
   if var.name then
-    return variable.render_child(var, 0)
+    return variable.render_child(var --[[@as dap.Variable]], 0)
   end
   local syntax_group = var.type and syntax_mapping[var.type]
   if syntax_group then
@@ -38,6 +42,9 @@ function variable.render_parent(var)
   return var.result
 end
 
+---@param var dap.Variable
+---@param indent integer
+---@result string, dap.entity.hl[]
 function variable.render_child(var, indent)
   indent = indent or 0
   local hl_regions = {
@@ -55,7 +62,7 @@ function variable.has_children(var)
   return (var.variables and #var.variables > 0) or var.variablesReference ~= 0
 end
 
----@param var dap.Variable
+---@param var dap.Variable|dap.Scope
 ---@result dap.Variable[]
 function variable.get_children(var)
   return var.variables or {}
@@ -75,7 +82,8 @@ local function cmp_vars(a, b)
 end
 
 
----@param var dap.Variable
+---@param var dap.Variable|dap.Scope
+---@param cb fun(variables: dap.Variable[])
 function variable.fetch_children(var, cb)
   local session = require('dap').session()
   if var.variables then
@@ -100,6 +108,7 @@ function variable.fetch_children(var, cb)
 
         table.sort(variables, cmp_vars)
         for i, v in ipairs(variables) do
+          v.parent = var
           if variable.is_lazy(v) then
             variable.load_value(v, function(loaded_v)
               variables[i] = loaded_v
@@ -150,23 +159,7 @@ function variable.load_value(var, cb)
 end
 
 
-local function get_parent(var, variables)
-  for _, v in pairs(variables) do
-    local children = variable.get_children(v)
-    if children then
-      if vim.tbl_contains(children, var) then
-        return v
-      end
-      local parent = get_parent(var, children)
-      if parent then
-        return parent
-      end
-    end
-  end
-  return nil
-end
-
-
+---@param item dap.Variable
 local function set_variable(_, item, _, context)
   local session = require('dap').session()
   if not session then
@@ -177,7 +170,7 @@ local function set_variable(_, item, _, context)
     utils.notify('Session has no active frame, cannot set variable')
     return
   end
-  local parent = get_parent(item, session.current_frame.scopes)
+  local parent = item.parent
   if not parent then
     utils.notify(string.format(
       "Cannot set variable on %s, couldn't find its parent container",
