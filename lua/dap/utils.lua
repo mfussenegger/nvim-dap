@@ -46,7 +46,7 @@ end
 
 ---@generic T
 ---@param items T[]
----@param predicate fun(items: T[]):boolean
+---@param predicate fun(items: T):boolean
 ---@result integer?
 function M.index_of(items, predicate)
   for i, item in ipairs(items) do

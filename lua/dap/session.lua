@@ -1845,18 +1845,20 @@ function Session:_frame_delta(delta)
   end
   local frames = self.threads[self.stopped_thread_id].frames
   assert(frames, 'Stopped thread must have frames')
-  local current_frame_index = index_of(frames, function(i) return i.id == self.current_frame.id end)
-  assert(current_frame_index, 'id of current frame must be present in frames')
+  local frameidx = index_of(frames, function(i)
+    return i.id == self.current_frame.id
+  end)
+  assert(frameidx, 'id of current frame must be present in frames')
 
-  current_frame_index = current_frame_index + delta
-  if current_frame_index < 1 then
-    current_frame_index = 1
+  frameidx = frameidx + delta
+  if frameidx < 1 then
+    frameidx = 1
     utils.notify("Can't move past first frame", vim.log.levels.INFO)
-  elseif current_frame_index > #frames then
-    current_frame_index = #frames
+  elseif frameidx > #frames then
+    frameidx = #frames
     utils.notify("Can't move past last frame", vim.log.levels.INFO)
   end
-  self:_frame_set(frames[current_frame_index])
+  self:_frame_set(frames[frameidx])
 end
 
 
@@ -1868,7 +1870,6 @@ end
 
 function Session.event_process()
 end
-
 
 function Session.event_loadedSource()
 end

@@ -2,12 +2,10 @@ local utils = require('dap.utils')
 local M = {}
 
 -- Copied from neovim rpc.lua
+---@param header string
 local function parse_headers(header)
-  if type(header) ~= 'string' then
-    return nil
-  end
   local headers = {}
-  for line in vim.gsplit(header, '\r\n', true) do
+  for line in vim.gsplit(header, '\r\n', {plain = true}) do
     if line == '' then
       break
     end
@@ -33,6 +31,12 @@ local function parse_chunk_loop()
     local start, finish = buffer:find('\r\n\r\n', 1, true)
     if start then
       local buffer_start = buffer:find(header_start_pattern)
+      if not buffer_start then
+        error(string.format(
+          "Headers were expected but debug adapter sent: %s",
+          buffer
+        ))
+      end
       local headers = parse_headers(buffer:sub(buffer_start, start - 1))
       local content_length = headers.content_length
       local body_chunks = {buffer:sub(finish + 1)}
@@ -66,9 +70,7 @@ function M.create_read_loop(handle_body, on_no_chunk)
   parse_chunk()
   return function (err, chunk)
     if err then
-      vim.schedule(function()
-        utils.notify(err, vim.log.levels.ERROR)
-      end)
+      utils.notify(err, vim.log.levels.ERROR)
       return
     end
     if not chunk then
