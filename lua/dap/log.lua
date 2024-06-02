@@ -27,7 +27,9 @@ function M.create_logger(filename)
     ---@diagnostic disable-next-line: deprecated
     return table.concat(vim.tbl_flatten{...}, path_sep)
   end
-  local logfilename = joinpath(vim.fn.stdpath('cache'), filename)
+  local cache_dir = vim.fn.stdpath('cache')
+  assert(type(cache_dir) == "string")
+  local logfilename = joinpath(cache_dir, filename)
 
   local current_log_level = M.levels.INFO
 
@@ -42,7 +44,7 @@ function M.create_logger(filename)
     return logfilename
   end
 
-  vim.fn.mkdir(vim.fn.stdpath('cache'), "p")
+  vim.fn.mkdir(cache_dir, "p")
   local logfile = assert(io.open(logfilename, "a+"))
   for level, levelnr in pairs(M.levels) do
     logger[level:lower()] = function(...)
