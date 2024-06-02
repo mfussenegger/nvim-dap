@@ -392,10 +392,12 @@ do
       local frame = session.current_frame or {}
       local scopes = frame.scopes or {}
       session:evaluate(args, function(err, resp)
+        local spec = vim.deepcopy(require('dap.entity').variable.tree_spec)
+        spec.extra_context = { view = view }
         if err then
           local variable = find_var(scopes, expression)
           if variable then
-            local tree = ui.new_tree(require('dap.entity').variable.tree_spec)
+            local tree = ui.new_tree(spec)
             tree.render(view.layer(), variable)
           else
             local msg = 'Cannot evaluate "'..expression..'"!'
@@ -404,7 +406,7 @@ do
         elseif resp and resp.result then
           local attributes = (resp.presentationHint or {}).attributes or {}
           if resp.variablesReference > 0 or vim.tbl_contains(attributes, "rawString") then
-            local tree = ui.new_tree(require('dap.entity').variable.tree_spec)
+            local tree = ui.new_tree(spec)
             tree.render(layer, resp)
           else
             local lines = vim.split(resp.result, "\n", { plain = true })
