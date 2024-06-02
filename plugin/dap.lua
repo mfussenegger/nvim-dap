@@ -154,7 +154,7 @@ if api.nvim_create_autocmd then
           vim.bo[args.buf].modified = false
           local repl = require("dap.repl")
           local lines = api.nvim_buf_get_lines(args.buf, 0, -1, true)
-          repl.execute(table.concat(lines, "\n"))
+          repl.execute(table.concat(lines, "\n"), { filetype = ft })
           repl.open()
         end,
       })

@@ -152,6 +152,8 @@ local function print_commands()
 end
 
 
+---@param err dap.ErrorResponse?
+---@param resp dap.EvaluateResponse|dap.InterpreterResult|nil
 local function evaluate_handler(err, resp)
   if err then
     local message = utils.fmt_error(err)
@@ -160,9 +162,15 @@ local function evaluate_handler(err, resp)
     end
     return
   end
+  if not resp then
+    M.append("No response", nil, { newline = false })
+    return
+  end
   local layer = ui.layer(repl.buf)
   local attributes = (resp.presentationHint or {}).attributes or {}
-  if resp.variablesReference > 0 or vim.tbl_contains(attributes, 'rawString') then
+  local var_ref = resp.variablesReference or 0
+  local vars = resp.variables
+  if (vars and next(vars)) or var_ref > 0 or vim.tbl_contains(attributes, 'rawString') then
     local spec = require('dap.entity').variable.tree_spec
     local tree = ui.new_tree(spec)
     -- tree.render would "append" twice, once for the top element and once for the children
@@ -217,7 +225,9 @@ local function print_threads(threads)
 end
 
 
-function execute(text)
+---@param opts dap.repl.execute.opts?
+function execute(text, opts)
+  opts = opts or {}
   if text == '' then
     if history.last then
       text = history.last
@@ -252,15 +262,16 @@ function execute(text)
     end
     return
   end
-  if not session then
-    M.append('No active debug session')
-    return
-  end
+
   if vim.tbl_contains(M.commands.continue, text) then
     require('dap').continue()
   elseif vim.tbl_contains(M.commands.next_, text) then
     require('dap').step_over()
   elseif vim.tbl_contains(M.commands.capabilities, text) then
+    if not session then
+      M.append('No active debug session')
+      return
+    end
     M.append(vim.inspect(session.capabilities))
   elseif vim.tbl_contains(M.commands.into, text) then
     require('dap').step_into()
@@ -269,24 +280,48 @@ function execute(text)
   elseif vim.tbl_contains(M.commands.out, text) then
     require('dap').step_out()
   elseif vim.tbl_contains(M.commands.up, text) then
+    if not session then
+      M.append('No active debug session')
+      return
+    end
     session:_frame_delta(1)
     M.print_stackframes()
   elseif vim.tbl_contains(M.commands.step_back, text) then
     require('dap').step_back()
   elseif vim.tbl_contains(M.commands.pause, text) then
+    if not session then
+      M.append('No active debug session')
+      return
+    end
     session:_pause()
   elseif vim.tbl_contains(M.commands.reverse_continue, text) then
     require('dap').reverse_continue()
   elseif vim.tbl_contains(M.commands.down, text) then
+    if not session then
+      M.append('No active debug session')
+      return
+    end
     session:_frame_delta(-1)
     M.print_stackframes()
   elseif vim.tbl_contains(M.commands.goto_, splitted_text[1]) then
+    if not session then
+      M.append('No active debug session')
+      return
+    end
     if splitted_text[2] then
       session:_goto(tonumber(splitted_text[2]))
     end
   elseif vim.tbl_contains(M.commands.scopes, text) then
+    if not session then
+      M.append('No active debug session')
+      return
+    end
     print_scopes(session.current_frame)
   elseif vim.tbl_contains(M.commands.threads, text) then
+    if not session then
+      M.append('No active debug session')
+      return
+    end
     print_threads(vim.tbl_values(session.threads))
   elseif vim.tbl_contains(M.commands.frames, text) then
     M.print_stackframes()
@@ -294,14 +329,26 @@ function execute(text)
     local command = splitted_text[1]
     local args = string.sub(text, string.len(command)+2)
     M.commands.custom_commands[command](args)
-  else
+  elseif session then
     session:evaluate(text, evaluate_handler)
+  else
+    local dap = require("dap")
+    local interpreter = dap.providers.interpreters[opts.filetype or "lua"]
+    if interpreter then
+      local result = interpreter.evaluate(text)
+      evaluate_handler(nil, result)
+    end
   end
 end
 
 
+---@class dap.repl.execute.opts
+---@field filetype string?
+
+
 --- Add and execute text as if entered directly
-function M.execute(text)
+---@param opts dap.repl.execute.opts?
+function M.execute(text, opts)
   M.append("dap> " .. text .. "\n", "$", { newline = true })
   local numlines = api.nvim_buf_line_count(repl.buf)
   if repl.win and api.nvim_win_is_valid(repl.win) then
@@ -310,7 +357,7 @@ function M.execute(text)
       vim.cmd.normal({"zt", bang = true })
     end)
   end
-  execute(text)
+  execute(text, opts)
 end
 
 

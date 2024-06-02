@@ -535,7 +535,7 @@ end
 local function jump_to_frame(session, frame, preserve_focus_hint, stopped)
   local source = frame.source
   if not source then
-    utils.notify('Source not available, cannot jump to frame', vim.log.levels.INFO)
+    utils.notify('Source missing, cannot jump to frame: ' .. frame.name, vim.log.levels.INFO)
     return
   end
   vim.fn.sign_unplace(session.sign_group)
@@ -544,7 +544,7 @@ local function jump_to_frame(session, frame, preserve_focus_hint, stopped)
   end
   local bufnr = frame_to_bufnr(session, frame)
   if not bufnr then
-    utils.notify('Source not available, cannot jump to frame', vim.log.levels.INFO)
+    utils.notify('Source missing, cannot jump to frame: ' .. frame.name, vim.log.levels.INFO)
     return
   end
   vim.fn.bufload(bufnr)

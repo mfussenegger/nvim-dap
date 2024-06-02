@@ -98,18 +98,23 @@
 ---@class dap.VariableResponse
 ---@field variables dap.Variable[]
 
----@class dap.Variable
+
+---@class dap.VariableContainer
+---@field variablesReference integer if > 0 the variable is structured
+---@field variables? dap.Variable[] resolved variablesReference. Not part of the spec; added by nvim-dap
+---@field parent? dap.VariableContainer injected by nvim-dap
+
+
+---@class dap.Variable : dap.VariableContainer
 ---@field name string
 ---@field value string
 ---@field type? string
 ---@field presentationHint? dap.VariablePresentationHint
 ---@field evaluateName? string
----@field variablesReference number if > 0 the variable is structured
 ---@field namedVariables? number
 ---@field indexedVariables? number
 ---@field memoryReference? string
----@field variables? dap.Variable[] resolved variablesReference. Not part of the spec; added by nvim-dap
----@field parent? dap.Variable|dap.Scope injected by nvim-dap
+
 
 ---@class dap.EvaluateArguments
 ---@field expression string
@@ -117,11 +122,11 @@
 ---@field context? "watch"|"repl"|"hover"|"clipboard"|"variables"|string
 ---@field format? dap.ValueFormat
 
----@class dap.EvaluateResponse
+
+---@class dap.EvaluateResponse : dap.VariableContainer
 ---@field result string
 ---@field type? string
 ---@field presentationHint? dap.VariablePresentationHint
----@field variablesReference number
 ---@field namedVariables? number
 ---@field indexedVariables? number
 ---@field memoryReference? string
