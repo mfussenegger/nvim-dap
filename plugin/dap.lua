@@ -115,6 +115,7 @@ if api.nvim_create_autocmd then
     callback = function(args)
       local lines = {
         '{',
+        '   "$schema": "https://raw.githubusercontent.com/mfussenegger/dapconfig-schema/master/dapconfig-schema.json",',
         '   "version": "0.2.0",',
         '   "configurations": [',
         '       {',
