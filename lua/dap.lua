@@ -395,11 +395,11 @@ end
 
 
 local signs = {
-  DapBreakpoint = { text = "B", texthl = "", linehl = "", numhl = "" },
-  DapBreakpointCondition = { text = "C", texthl = "", linehl = "", numhl = "" },
-  DapBreakpointRejected = { text = 'R', texthl = '', linehl = '', numhl = '' },
-  DapLogPoint = { text = 'L', texthl = '', linehl = '', numhl = '' },
-  DapStopped = { text = '→', texthl = '', linehl = 'debugPC', numhl = '' },
+  DapBreakpoint = { text = "B", texthl = "SignColumn", linehl = "", numhl = "" },
+  DapBreakpointCondition = { text = "C", texthl = "SignColumn", linehl = "", numhl = "" },
+  DapBreakpointRejected = { text = 'R', texthl = "SignColumn", linehl = '', numhl = '' },
+  DapLogPoint = { text = 'L', texthl = "SignColumn", linehl = '', numhl = '' },
+  DapStopped = { text = '→', texthl = "SignColumn", linehl = 'debugPC', numhl = '' },
 }
 
 local function sign_try_define(name)
