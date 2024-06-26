@@ -1122,6 +1122,15 @@ function M.attach(adapter, config, opts)
     return
   end
   assert(adapter.port, 'Adapter used with attach must have a port property')
+
+  -- Clear executable from adapter when the request is to attach.
+  -- Spawning a new executable is likely the wrong thing to do.
+  if config.request == 'attach' and adapter.executable then
+    adapter = vim.deepcopy(adapter)
+    ---@diagnostic disable-next-line: inject-field
+    adapter.executable = nil
+  end
+
   local s
   s = require('dap.session'):connect(adapter, opts, function(err)
     if err then
