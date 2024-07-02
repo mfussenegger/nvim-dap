@@ -89,3 +89,21 @@ describe('utils.fmt_error', function ()
     assert.are.same('Bad things happen', result)
   end)
 end)
+
+describe('utils.split_args', function ()
+  it('works with standard string', function ()
+    assert.are.equal({'this', 'is', 'a', 'standard', 'string'}, require('dap.utils').split_args('this is a standard string'))
+  end)
+
+  it('with "double quoted" string', function ()
+    assert.are.equal({'with', 'double quoted', 'string'}, require('dap.utils').split_args('with "double quoted" string'))
+  end)
+
+  it("with 'single quoted' string", function ()
+    assert.are.equal({'with', 'single quoted', 'string'}, require('dap.utils').split_args("with 'single quoted' string"))
+  end)
+
+  it('"double \"escaped\" quoted" string', function ()
+    assert.are.equal({'double "escaped" quoted', 'string'}, require('dap.utils').split_args('"double \"escaped\" quoted" string'))
+  end)
+end)
