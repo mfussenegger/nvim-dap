@@ -302,4 +302,65 @@ function M.pick_file(opts)
 end
 
 
+--- Split args string into a table of arguments.
+--- Works with single and double quoted strings. Escaped quotes are supported.
+---
+--- <pre>
+--- require("dap.utils").split_args("runserver --debug true --reason 'I\'m dumb'")
+--- {runserver, --debug, true, I'm dumb}
+--- </pre>
+---
+--- <pre>
+--- require("dap.utils").split_args('--comment "I\'m \"this\" close"')
+--- {--comment, I'm "this" close}
+--- </pre>
+---
+--- Inspired by http://lua-users.org/wiki/LpegRecipes
+--- @param args string
+--- @return table
+function M.split_args(args)
+  local lpeg = vim.lpeg
+
+  local P, S, C, Cc, Ct = lpeg.P, lpeg.S, lpeg.C, lpeg.Cc, lpeg.Ct
+
+  --- @param id string
+  --- @param patt vim.lpeg.Capture
+  --- @return vim.lpeg.Pattern
+  local function token(id, patt)
+    return Ct(Cc(id) * C(patt))
+  end
+
+  local single_quoted = P("'") * ((1 - S("'\r\n\f\\")) + (P("\\") * 1)) ^ 0 * "'"
+  local double_quoted = P('"') * ((1 - S('"\r\n\f\\')) + (P("\\") * 1)) ^ 0 * '"'
+
+  local whitespace = token("whitespace", S("\r\n\f\t ") ^ 1)
+  local word = token("word", (1 - S("' \r\n\f\t\"")) ^ 1)
+  local string = token("string", single_quoted + double_quoted)
+
+  local pattern = Ct((string + whitespace + word) ^ 0)
+
+  local t = {}
+  local tokens = lpeg.match(pattern, args)
+
+  -- somehow, this did not work out
+  if tokens == nil or type(tokens) == "integer" then
+    return t
+  end
+
+  for _, tok in ipairs(tokens) do
+    if tok[1] ~= "whitespace" then
+      if tok[1] == "string" then
+        -- cut off quotes and replace escaped quotes
+        local v, _ = tok[2]:sub(2, -2):gsub("\\(['\"])", "%1")
+        table.insert(t, v)
+      else
+        table.insert(t, tok[2])
+      end
+    end
+  end
+
+  return t
+end
+
+
 return M
