@@ -92,18 +92,18 @@ end)
 
 describe('utils.split_args', function ()
   it('works with standard string', function ()
-    assert.are.equal({'this', 'is', 'a', 'standard', 'string'}, require('dap.utils').split_args('this is a standard string'))
+    assert.are.same({'this', 'is', 'a', 'standard', 'string'}, require('dap.utils').split_args('this is a standard string'))
   end)
 
   it('with "double quoted" string', function ()
-    assert.are.equal({'with', 'double quoted', 'string'}, require('dap.utils').split_args('with "double quoted" string'))
+    assert.are.same({'with', 'double quoted', 'string'}, require('dap.utils').split_args('with "double quoted" string'))
   end)
 
   it("with 'single quoted' string", function ()
-    assert.are.equal({'with', 'single quoted', 'string'}, require('dap.utils').split_args("with 'single quoted' string"))
+    assert.are.same({'with', 'single quoted', 'string'}, require('dap.utils').split_args("with 'single quoted' string"))
   end)
 
   it('"double \"escaped\" quoted" string', function ()
-    assert.are.equal({'double "escaped" quoted', 'string'}, require('dap.utils').split_args('"double \"escaped\" quoted" string'))
+    assert.are.same({'double "escaped" quoted', 'string'}, require('dap.utils').split_args('"double \"escaped\" quoted" string'))
   end)
 end)
