@@ -5,13 +5,15 @@ local M = {}
 local variable = {}
 M.variable = variable
 
-local syntax_mapping = {
-  boolean = 'Boolean',
-  String = 'String',
-  int = 'Number',
-  long = 'Number',
-  double = 'Float',
-  float = 'Float',
+local types_to_hl_group = {
+  boolean = "Boolean",
+  string = "String",
+  int = "Number",
+  long = "Number",
+  number = "Number",
+  double = "Float",
+  float = "Float",
+  ["function"] = "Function",
 }
 
 
@@ -35,7 +37,7 @@ function variable.render_parent(var)
   if var.name then
     return variable.render_child(var --[[@as dap.Variable]], 0)
   end
-  local syntax_group = var.type and syntax_mapping[var.type]
+  local syntax_group = var.type and types_to_hl_group[var.type:lower()]
   if syntax_group then
     return var.result, {{syntax_group, 0, -1},}
   end
@@ -51,7 +53,7 @@ function variable.render_child(var, indent)
     {'Identifier', indent, #var.name + indent + 1}
   }
   local prefix = string.rep(' ', indent) .. var.name .. ': '
-  local syntax_group = var.type and syntax_mapping[var.type]
+  local syntax_group = var.type and types_to_hl_group[var.type]
   if syntax_group then
     table.insert(hl_regions, {syntax_group, #prefix, -1})
   end
