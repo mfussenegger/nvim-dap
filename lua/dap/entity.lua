@@ -6,12 +6,14 @@ local variable = {}
 M.variable = variable
 
 local syntax_mapping = {
-  boolean = 'Boolean',
-  String = 'String',
-  int = 'Number',
-  long = 'Number',
-  double = 'Float',
-  float = 'Float',
+  boolean = "Boolean",
+  String = "String",
+  int = "Number",
+  long = "Number",
+  number = "Number",
+  double = "Float",
+  float = "Float",
+  ["function"] = "Function",
 }
 
 
@@ -35,7 +37,7 @@ function variable.render_parent(var)
   if var.name then
     return variable.render_child(var --[[@as dap.Variable]], 0)
   end
-  local syntax_group = var.type and syntax_mapping[var.type]
+  local syntax_group = var.type and syntax_mapping[var.type:lower()]
   if syntax_group then
     return var.result, {{syntax_group, 0, -1},}
   end
@@ -62,7 +64,7 @@ function variable.has_children(var)
   return (var.variables and #var.variables > 0) or var.variablesReference ~= 0
 end
 
----@param var dap.Variable|dap.Scope
+---@param var dap.VariableContainer
 ---@result dap.Variable[]
 function variable.get_children(var)
   return var.variables or {}
@@ -82,7 +84,7 @@ local function cmp_vars(a, b)
 end
 
 
----@param var dap.Variable|dap.Scope
+---@param var dap.VariableContainer
 ---@param cb fun(variables: dap.Variable[])
 function variable.fetch_children(var, cb)
   local session = require('dap').session()

@@ -652,7 +652,7 @@ function M.sidebar(widget, winopts, wincmd)
 end
 
 
----@param session Session
+---@param session dap.Session
 ---@param expr string
 ---@param max_level integer
 local function get_var_lines(session, expr, max_level)

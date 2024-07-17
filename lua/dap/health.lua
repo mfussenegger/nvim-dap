@@ -33,10 +33,10 @@ function M.check()
       health.info("Adapter is a function. Can't validate it")
     else
       if adapter.type == "executable" then
-        adapter = adapter --[[@as ExecutableAdapter]]
+        adapter = adapter --[[@as dap.ExecutableAdapter]]
         check_executable(adapter.command)
       elseif adapter.type == "server" then
-        adapter = adapter --[[@as ServerAdapter]]
+        adapter = adapter --[[@as dap.ServerAdapter]]
         if not adapter.port then
           health.error("Missing required `port` property")
         end
@@ -44,7 +44,7 @@ function M.check()
           check_executable(adapter.executable.command)
         end
       elseif adapter.type == "pipe" then
-        adapter = adapter --[[@as PipeAdapter]]
+        adapter = adapter --[[@as dap.PipeAdapter]]
         if not adapter.pipe then
           health.error("Missing required `pipe` property")
         end

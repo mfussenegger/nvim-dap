@@ -268,9 +268,20 @@ M.adapters = {}
 ---@type table<string, dap.Configuration[]>
 M.configurations = {}
 
+
+---@class dap.Interpreter
+---@field evaluate fun(expression: string): dap.InterpreterResult
+
+---@class dap.InterpreterResult : dap.VariableContainer
+---@field result string
+---@field type? string
+
 local providers = {
   ---@type table<string, fun(bufnr: integer): dap.Configuration[]>
   configs = {},
+
+  ---@type table<string, dap.Interpreter>
+  interpreters = {},
 }
 do
   local providers_mt = {
@@ -279,6 +290,70 @@ do
     end,
   }
   M.providers = setmetatable(providers, providers_mt)
+
+  local lua_interpreter = {}
+  providers.interpreters.lua = lua_interpreter
+
+  ---@param key any
+  ---@param value any
+  ---@return dap.Variable
+  local function to_variable(key, value)
+    local result = {
+      name = tostring(key),
+      value = tostring(value),
+      type = type(value)
+    }
+    if type(value) == "table" then
+      result.value = result.value .. " size=" .. vim.tbl_count(value)
+      result.variables = {}
+      for k, v in pairs(value) do
+        table.insert(result.variables, to_variable(k, v))
+      end
+    end
+    return result
+  end
+
+  ---@param expression string
+  ---@result dap.InterpreterResult
+  function lua_interpreter.evaluate(expression)
+    local parser = vim.treesitter.get_string_parser(expression, "lua")
+    local trees = parser:parse()
+    local root = trees[1]:root() -- root is likely chunk
+    local child = root:child(root:child_count() - 1)
+    if child and child:type() ~= "return_statement" then
+      local slnum, scol, _, _ = child:range()
+      local lines = vim.split(expression, "\n", { plain = true })
+      local line = lines[slnum + 1]
+      lines[slnum + 1] = line:sub(1, scol) .. "return " .. line:sub(scol)
+      expression = table.concat(lines, "\n")
+    end
+    local fn, err = loadstring(expression)
+    local result
+    if fn then
+      local env = getfenv(fn)
+      local newenv = {}
+      function newenv.print(...)
+        local line = table.concat({...})
+        M.repl.append(line .. "\n", nil, { newline = false })
+      end
+      setmetatable(newenv, {__index = env})
+      setfenv(fn, newenv)
+      result = fn() or "nil"
+      if type(result) == "table" then
+        local tbl = result
+        result = tostring(result) .. " size=" .. tostring(vim.tbl_count(tbl))
+        local variables = {}
+        for k, v in pairs(tbl) do
+          table.insert(variables, to_variable(k, v))
+        end
+        return {result = result, variables = variables}
+      end
+    end
+    return {
+      result = result and tostring(result) or ("Error: " .. err),
+      variables = {}
+    }
+  end
 end
 
 
