@@ -145,7 +145,12 @@ end
 
 
 function M._load_json(jsonstr)
-  local data = assert(M.json_decode(jsonstr), "launch.json must contain a JSON object")
+  local ok, data = pcall(M.json_decode, jsonstr)
+  if not ok then
+    notify("Error parsing launch.json: " .. jsonstr, vim.log.levels.ERROR)
+    return {}
+  end
+
   local inputs = create_inputs(data.inputs or {})
   local has_inputs = next(inputs) ~= nil
 
