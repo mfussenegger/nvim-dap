@@ -302,4 +302,45 @@ function M.pick_file(opts)
 end
 
 
+--- Show a prompt to input a process name and select one of the the matching PIDs.
+--- Returns Process ID to attach the adapter.
+--- Requires a pgrep executable and a unix system.
+---
+--- <pre>
+-- {
+--     name = '[codelldb] Attach to PID',
+--     type = 'codelldb',
+--     request = 'attach',
+--     cwd = '${workspaceFolder}',
+--     stopAtEntry = true,
+--     setupCommands = common.setupCommands,
+--     pid = require("dap.utils").pick_process_by_name
+-- },
+--- </pre>
+---@return thread|string|dap.Abort
+function M.pick_process_by_name()
+    local process = vim.fn.input('Process to attach: ')
+    if vim.fn.has('win32') == 1 then
+      return require("dap").ABORT
+    end
+
+    local obj = vim.system({ 'pgrep', process }, { text = true }):wait()
+    if obj.code == 1 then
+      local pid = vim.fn.input('Process ID not found.\nIntroduce a PID: ')
+      return pid or require("dap").ABORT
+    end
+
+    local pids = {}
+    for pid in obj.stdout:gmatch("(%d+)") do
+      table.insert(pids, tonumber(pid))
+    end
+
+    local pid = nil
+    vim.ui.select(pids, {
+      prompt = 'Select one process ID: ',
+      format_item = function(item) return "PID " .. item end,
+    }, function(idx) pid = idx end)
+    return pid or require("dap").ABORT
+end
+
 return M
