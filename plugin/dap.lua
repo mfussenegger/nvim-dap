@@ -23,6 +23,7 @@ cmd('DapStepOver', function() require('dap').step_over() end, { nargs = 0 })
 cmd('DapStepInto', function() require('dap').step_into() end, { nargs = 0 })
 cmd('DapStepOut', function() require('dap').step_out() end, { nargs = 0 })
 cmd('DapTerminate', function() require('dap').terminate() end, { nargs = 0 })
+cmd('DapDisconnect', function() require('dap').disconnect({ terminateDebuggee = false }) end, { nargs = 0 })
 cmd('DapLoadLaunchJSON', function() require('dap.ext.vscode').load_launchjs() end, { nargs = 0 })
 cmd('DapRestartFrame', function() require('dap').restart_frame() end, { nargs = 0 })
 
