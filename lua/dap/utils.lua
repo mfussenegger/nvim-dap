@@ -317,7 +317,7 @@ end
 --     pid = require("dap.utils").pick_process_by_name
 -- },
 --- </pre>
----@return thread|string|dap.Abort
+---@return string|dap.Abort
 function M.pick_process_by_name()
     local process = vim.fn.input('Process to attach: ')
     if vim.fn.has('win32') == 1 then
