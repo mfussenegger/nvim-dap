@@ -394,7 +394,7 @@ They are declared in an "inputs" array and each input must have the following pr
 - "description": Descriptive text shown to the user
 - "default": Default value (Defaults to '' if not provided)
 
-pickString` has an additional "options" property, which is an array of strings
+`pickString` has an additional "options" property, which is an array of strings
 or an array of option objects with label and value:
 
 - [ "my value 1", "my value 2", "my value 3" ]
