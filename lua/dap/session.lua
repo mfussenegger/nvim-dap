@@ -894,12 +894,14 @@ do
         ),
         lines = vim.tbl_map(function(x) return x.line end, buf_bps);
       }
-      self:request('setBreakpoints', payload, function(err1, resp)
+      ---@param err1 dap.ErrorResponse
+      ---@param resp dap.SetBreakpointsResponse
+      local function on_response(err1, resp)
         if err1 then
           utils.notify('Error setting breakpoints: ' .. utils.fmt_error(err1), vim.log.levels.ERROR)
         elseif resp then
           for _, bp in pairs(resp.breakpoints) do
-            breakpoints.set_state(bufnr, bp.line, bp)
+            breakpoints.set_state(bufnr, bp)
             if not bp.verified then
               log.info('Breakpoint unverified', bp)
             end
@@ -909,7 +911,8 @@ do
         if num_requests == 0 and on_done then
           on_done()
         end
-      end)
+      end
+      self:request('setBreakpoints', payload, on_response)
     end
   end
 end

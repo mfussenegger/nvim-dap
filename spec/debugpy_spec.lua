@@ -37,6 +37,7 @@ describe('dap with debugpy', function()
     }
     local bp_lnum = 8
     local bufnr = vim.fn.bufadd(program)
+    vim.fn.bufload(bufnr)
     breakpoints.set({}, bufnr, bp_lnum)
     local events = {}
     local dummy_payload = nil

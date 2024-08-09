@@ -229,6 +229,8 @@
 ---@field algorithm "MD5"|"SHA1"|"SHA256"|"timestamp"
 ---@field checksum string
 
+---@class dap.SetBreakpointsResponse
+---@field breakpoints dap.Breakpoint[]
 
 ---@class dap.Breakpoint
 ---@field id? number
