@@ -147,8 +147,7 @@ end
 function M._load_json(jsonstr)
   local ok, data = pcall(M.json_decode, jsonstr)
   if not ok then
-    notify("Error parsing launch.json: " .. jsonstr, vim.log.levels.ERROR)
-    return {}
+    error("Error parsing launch.json: " .. data)
   end
 
   local inputs = create_inputs(data.inputs or {})
