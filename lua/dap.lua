@@ -1027,6 +1027,11 @@ function M.continue(opts)
   elseif session.stopped_thread_id then
     session:_step('continue')
   else
+    local other_stopped_session = first_stopped_session()
+    if other_stopped_session and other_stopped_session.stopped_thread_id then
+      other_stopped_session:_step('continue')
+      return
+    end
     local stopped_threads = vim.tbl_filter(function(t) return t.stopped end, session.threads)
     local prompt
     if not session.initialized then
