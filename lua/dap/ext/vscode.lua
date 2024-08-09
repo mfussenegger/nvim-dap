@@ -149,7 +149,7 @@ function M._load_json(jsonstr)
   if not ok then
     error("Error parsing launch.json: " .. data)
   end
-
+  assert(type(data) == "table", "launch.json must contain a JSON object")
   local inputs = create_inputs(data.inputs or {})
   local has_inputs = next(inputs) ~= nil
 
