@@ -89,3 +89,40 @@ describe('utils.fmt_error', function ()
     assert.are.same('Bad things happen', result)
   end)
 end)
+
+describe('utils.splitstr', function ()
+  if vim.fn.has("nvim-0.10") == 0 then
+    return
+  end
+  it('works with plain string', function ()
+    assert.are.same({"hello", "world"}, utils.splitstr("hello world"))
+  end)
+
+  it('works extra whitespace', function ()
+    assert.are.same({"hello", "world"}, utils.splitstr('hello  	world'))
+  end)
+
+  it('empty quoted', function ()
+    assert.are.same({"hello", "", "world"}, utils.splitstr('hello "" world'))
+  end)
+
+  it('with double quoted string', function ()
+    assert.are.same({'with', 'double quoted', 'string'}, utils.splitstr('with "double quoted" string'))
+  end)
+
+  it("with single quoted string", function ()
+    assert.are.same({'with', 'single quoted', 'string'}, utils.splitstr("with 'single quoted' string"))
+  end)
+
+  it("with unbalanced quote", function ()
+    assert.are.same({"with", "\"single", "quoted", "string"}, utils.splitstr("with \"single quoted string"))
+  end)
+
+  it("with unbalanced single quoted string", function ()
+    assert.are.same({"with", "'single", "quoted", "string"}, utils.splitstr("with 'single quoted string"))
+  end)
+
+  it('escaped quote', function ()
+    assert.are.same({'foo', '"bar'}, utils.splitstr('foo \"bar'))
+  end)
+end)

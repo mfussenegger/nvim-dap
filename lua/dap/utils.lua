@@ -302,4 +302,43 @@ function M.pick_file(opts)
 end
 
 
+--- Split an argument string on whitespace characters into a list,
+--- except if the whitespace is contained within single or double quotes.
+---
+--- Examples:
+---
+--- ```lua
+--- require("dap.utils").splitstr("hello world")
+--- {"hello", "world"}
+--- ```
+---
+--- ```lua
+--- require("dap.utils").splitstr('a "quoted string" is preserved')
+--- {"a", "quoted string", "is, "preserved"}
+--- ```
+---
+--- Requires nvim 0.10+
+---
+--- @param str string
+--- @return string[]
+function M.splitstr(str)
+  local lpeg = vim.lpeg
+  local P, S, C = lpeg.P, lpeg.S, lpeg.C
+
+  ---@param quotestr string
+  ---@return vim.lpeg.Pattern
+  local function qtext(quotestr)
+    local quote = P(quotestr)
+    local escaped_quote = P('\\') * quote
+    return quote * C(((1 - P(quote)) + escaped_quote) ^ 0) * quote
+  end
+
+  local space = S(" \t\n\r") ^ 1
+  local unquoted = C((1 - space) ^ 0)
+  local element = qtext('"') + qtext("'") + unquoted
+  local p = lpeg.Ct(element * (space * element) ^ 0)
+  return lpeg.match(p, str)
+end
+
+
 return M
