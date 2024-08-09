@@ -145,7 +145,11 @@ end
 
 
 function M._load_json(jsonstr)
-  local data = assert(M.json_decode(jsonstr), "launch.json must contain a JSON object")
+  local ok, data = pcall(M.json_decode, jsonstr)
+  if not ok then
+    error("Error parsing launch.json: " .. data)
+  end
+  assert(type(data) == "table", "launch.json must contain a JSON object")
   local inputs = create_inputs(data.inputs or {})
   local has_inputs = next(inputs) ~= nil
 
