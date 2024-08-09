@@ -61,6 +61,37 @@
 ---@field presentationHint nil|"normal"|"label"|"subtle";
 ---@field scopes? dap.Scope[] Not part of spec; added by nvim-dap
 
+
+---@class dap.StackFrameFormat : dap.ValueFormat
+--- Displays parameters for the stack frame.
+--- @field parameters? boolean
+---
+--- Displays the types of parameters for the stack frame.
+--- @field parameterTypes? boolean
+---
+--- Displays the names of parameters for the stack frame.
+--- @field parameterNames? boolean
+---
+--- Displays the values of parameters for the stack frame.
+--- @field parameterValues? boolean
+---
+--- Displays the line number of the stack frame.
+--- @field line? boolean
+---
+--- Displays the module of the stack frame.
+--- @field module? boolean
+---
+--- Includes all stack frames, including those the debug adapter might
+--- otherwise hide.
+--- @field includeAll? boolean
+
+
+---@class dap.StackTraceArguments
+---@field threadId number thread for which to retrieve the stackTrace
+---@field startFrame? number index of the first frame to return. If omitted frames start at 0
+---@field levels? number maximum number of frames to return. If absent or 0 all frames are returned
+---@field format? dap.StackFrameFormat only honored with supportsValueFormattingOptions capability
+
 ---@class dap.StackTraceResponse
 ---@field stackFrames dap.StackFrame[]
 ---@field totalFrames? number
