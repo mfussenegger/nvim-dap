@@ -90,20 +90,39 @@ describe('utils.fmt_error', function ()
   end)
 end)
 
-describe('utils.split_args', function ()
-  it('works with standard string', function ()
-    assert.are.same({'this', 'is', 'a', 'standard', 'string'}, require('dap.utils').split_args('this is a standard string'))
+describe('utils.splitstr', function ()
+  if vim.fn.has("nvim-0.10") == 0 then
+    return
+  end
+  it('works with plain string', function ()
+    assert.are.same({"hello", "world"}, utils.splitstr("hello world"))
   end)
 
-  it('with "double quoted" string', function ()
-    assert.are.same({'with', 'double quoted', 'string'}, require('dap.utils').split_args('with "double quoted" string'))
+  it('works extra whitespace', function ()
+    assert.are.same({"hello", "world"}, utils.splitstr('hello  	world'))
   end)
 
-  it("with 'single quoted' string", function ()
-    assert.are.same({'with', 'single quoted', 'string'}, require('dap.utils').split_args("with 'single quoted' string"))
+  it('empty quoted', function ()
+    assert.are.same({"hello", "", "world"}, utils.splitstr('hello "" world'))
   end)
 
-  it('"double \"escaped\" quoted" string', function ()
-    assert.are.same({'double "escaped" quoted', 'string'}, require('dap.utils').split_args('"double \"escaped\" quoted" string'))
+  it('with double quoted string', function ()
+    assert.are.same({'with', 'double quoted', 'string'}, utils.splitstr('with "double quoted" string'))
+  end)
+
+  it("with single quoted string", function ()
+    assert.are.same({'with', 'single quoted', 'string'}, utils.splitstr("with 'single quoted' string"))
+  end)
+
+  it("with unbalanced quote", function ()
+    assert.are.same({"with", "\"single", "quoted", "string"}, utils.splitstr("with \"single quoted string"))
+  end)
+
+  it("with unbalanced single quoted string", function ()
+    assert.are.same({"with", "'single", "quoted", "string"}, utils.splitstr("with 'single quoted string"))
+  end)
+
+  it('escaped quote', function ()
+    assert.are.same({'foo', '"bar'}, utils.splitstr('foo \"bar'))
   end)
 end)

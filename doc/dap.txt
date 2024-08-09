@@ -1399,6 +1399,22 @@ pick_file({opts})                                         *dap.utils.pick_file*
     })
 <
 
+splitstr({str})                                           *dap.utils.splitstr*
+
+    Split an argument string on whitespace into a list, except if the
+    whitespace is contained within single or double quotes.
+
+    Parameters:
+      {str} The string to split
+
+    >lua
+    require("dap.utils").splitstr("Hello world")
+    -- result: {"Hello", "world"}
+
+    require("dap.utils").splitstr("Keeps 'a quoted string' intact")
+    -- result: {"Keeps", "a quoted string", "intact"}
+<
+
 ==============================================================================
 DAP Session                                                        *dap-session*
 

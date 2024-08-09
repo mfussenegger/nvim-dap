@@ -302,64 +302,42 @@ function M.pick_file(opts)
 end
 
 
---- Split args string into a table of arguments.
---- Works with single and double quoted strings. Escaped quotes are supported.
+--- Split an argument string on whitespace characters into a list,
+--- except if the whitespace is contained within single or double quotes.
 ---
---- <pre>
---- require("dap.utils").split_args("runserver --debug true --reason 'I\'m dumb'")
---- {runserver, --debug, true, I'm dumb}
---- </pre>
+--- Examples:
 ---
---- <pre>
---- require("dap.utils").split_args('--comment "I\'m \"this\" close"')
---- {--comment, I'm "this" close}
---- </pre>
+--- ```lua
+--- require("dap.utils").splitstr("hello world")
+--- {"hello", "world"}
+--- ```
 ---
---- Inspired by http://lua-users.org/wiki/LpegRecipes
---- @param args string
---- @return table
-function M.split_args(args)
+--- ```lua
+--- require("dap.utils").splitstr('a "quoted string" is preserved')
+--- {"a", "quoted string", "is, "preserved"}
+--- ```
+---
+--- Requires nvim 0.10+
+---
+--- @param str string
+--- @return string[]
+function M.splitstr(str)
   local lpeg = vim.lpeg
+  local P, S, C = lpeg.P, lpeg.S, lpeg.C
 
-  local P, S, C, Cc, Ct = lpeg.P, lpeg.S, lpeg.C, lpeg.Cc, lpeg.Ct
-
-  --- @param id string
-  --- @param patt vim.lpeg.Capture
-  --- @return vim.lpeg.Pattern
-  local function token(id, patt)
-    return Ct(Cc(id) * C(patt))
+  ---@param quotestr string
+  ---@return vim.lpeg.Pattern
+  local function qtext(quotestr)
+    local quote = P(quotestr)
+    local escaped_quote = P('\\') * quote
+    return quote * C(((1 - P(quote)) + escaped_quote) ^ 0) * quote
   end
 
-  local single_quoted = P("'") * ((1 - S("'\r\n\f\\")) + (P("\\") * 1)) ^ 0 * "'"
-  local double_quoted = P('"') * ((1 - S('"\r\n\f\\')) + (P("\\") * 1)) ^ 0 * '"'
-
-  local whitespace = token("whitespace", S("\r\n\f\t ") ^ 1)
-  local word = token("word", (1 - S("' \r\n\f\t\"")) ^ 1)
-  local string = token("string", single_quoted + double_quoted)
-
-  local pattern = Ct((string + whitespace + word) ^ 0)
-
-  local t = {}
-  local tokens = lpeg.match(pattern, args)
-
-  -- somehow, this did not work out
-  if tokens == nil or type(tokens) == "integer" then
-    return t
-  end
-
-  for _, tok in ipairs(tokens) do
-    if tok[1] ~= "whitespace" then
-      if tok[1] == "string" then
-        -- cut off quotes and replace escaped quotes
-        local v, _ = tok[2]:sub(2, -2):gsub("\\(['\"])", "%1")
-        table.insert(t, v)
-      else
-        table.insert(t, tok[2])
-      end
-    end
-  end
-
-  return t
+  local space = S(" \t\n\r") ^ 1
+  local unquoted = C((1 - space) ^ 0)
+  local element = qtext('"') + qtext("'") + unquoted
+  local p = lpeg.Ct(element * (space * element) ^ 0)
+  return lpeg.match(p, str)
 end
 
 
