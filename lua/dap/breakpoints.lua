@@ -60,12 +60,14 @@ function M.update(breakpoint)
 end
 
 
-function M.set_state(bufnr, lnum, state)
-  local ok, placements = pcall(vim.fn.sign_getplaced, bufnr, { group = ns; lnum = lnum; })
+---@param bufnr integer
+---@param state dap.Breakpoint
+function M.set_state(bufnr, state)
+  local ok, placements = pcall(vim.fn.sign_getplaced, bufnr, { group = ns; lnum = state.line; })
   if not ok then
     return
   end
-  local signs = placements[1].signs
+  local signs = (placements[1] or {}).signs
   if not signs or next(signs) == nil then
     return
   end
@@ -80,7 +82,7 @@ function M.set_state(bufnr, lnum, state)
         ns,
         'DapBreakpointRejected',
         bufnr,
-        { lnum = lnum; priority = 21; }
+        { lnum = state.line; priority = 21; }
       )
     end
   end
