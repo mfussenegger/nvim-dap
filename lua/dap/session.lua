@@ -112,15 +112,23 @@ local function coresume(co)
 end
 
 
-local function launch_external_terminal(terminal, args)
+local function launch_external_terminal(env, terminal, args)
   local handle
   local pid_or_err
   local full_args = {}
   vim.list_extend(full_args, terminal.args or {})
   vim.list_extend(full_args, args)
+  local env_formatted = {}
+  -- Copy environment, prefer vars set by client
+  for k, v in pairs(env and vim.tbl_extend('keep', env, vim.fn.environ()) or {}) do
+    if k:find "^[^=]*$" then -- correct variable?
+      env_formatted[#env_formatted+1] = k.."="..tostring(v)
+    end
+  end
   local opts = {
     args = full_args,
-    detached = true
+    detached = true,
+    env = env_formatted,
   }
   handle, pid_or_err = uv.spawn(terminal.command, opts, function(code)
     if handle then
@@ -202,7 +210,7 @@ local function run_in_terminal(lsession, request)
     if not terminal then
       utils.notify('Requested external terminal, but none configured. Fallback to integratedTerminal', vim.log.levels.WARN)
     else
-      local handle, pid = launch_external_terminal(terminal, body.args)
+      local handle, pid = launch_external_terminal(body.env, terminal, body.args)
       if not handle then
         utils.notify('Could not launch terminal ' .. terminal.command, vim.log.levels.ERROR)
       end
