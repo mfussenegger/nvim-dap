@@ -410,7 +410,9 @@ local function jump_to_location(bufnr, line, column, switchbuf, filetype)
   local switchbuf_fn = {}
 
   function switchbuf_fn.uselast()
-    if vim.bo[cur_buf].buftype == '' or vim.bo[cur_buf].filetype == filetype or vim.bo[cur_buf].buftype == 'nofile' then
+    local ok, is_source_buf = pcall(vim.api.nvim_buf_get_var, cur_buf, 'dap_source_buf')
+    is_source_buf = ok and is_source_buf
+    if vim.bo[cur_buf].buftype == '' or vim.bo[cur_buf].filetype == filetype or is_source_buf then
       api.nvim_win_set_buf(cur_win, bufnr)
       set_cursor(cur_win, line, column)
     else
