@@ -372,6 +372,8 @@ end
 ---@param line integer
 ---@param column integer
 local function set_cursor(win, line, column)
+  -- Some providers don't set the column so assign a safe default
+  column = column or 0
   local ok, err = pcall(api.nvim_win_set_cursor, win, { line, column - 1 })
   if ok then
     local curbuf = api.nvim_get_current_buf()
