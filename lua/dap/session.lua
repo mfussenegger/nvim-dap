@@ -433,6 +433,17 @@ local function jump_to_location(bufnr, line, column, switchbuf, filetype)
     return true
   end
 
+  function switchbuf_fn.usevisible()
+    if api.nvim_win_get_buf(cur_win) == bufnr then
+      local first = vim.fn.line("w0", cur_win)
+      local last = vim.fn.line("w$", cur_win)
+      if first <= line and line <= last then
+        return true
+      end
+    end
+    return false
+  end
+
   function switchbuf_fn.useopen()
     if api.nvim_win_get_buf(cur_win) == bufnr then
       set_cursor(cur_win, line, column)
