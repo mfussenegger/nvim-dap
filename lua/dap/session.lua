@@ -816,6 +816,18 @@ function Session:_request_scopes(current_frame)
 end
 
 
+---@param session dap.Session
+local function clear_running(session, thread_id)
+  vim.fn.sign_unplace(session.sign_group)
+  thread_id = thread_id or session.stopped_thread_id
+  session.stopped_thread_id = nil
+  local thread = session.threads[thread_id]
+  if thread then
+    thread.stopped = false
+  end
+end
+
+
 --- Goto specified line (source and col are optional)
 function Session:_goto(line, source, col)
   local frame = self.current_frame
@@ -845,14 +857,16 @@ function Session:_goto(line, source, col)
     if not target then
       return
     end
-    local params = {threadId = self.stopped_thread_id, targetId = target.id }
-    local thread = self.threads[self.stopped_thread_id]
-    if thread then
-      thread.stopped = false
-    end
-    self.stopped_thread_id = nil
+    local stopped_thread_id = self.stopped_thread_id
+    local params = {threadId = stopped_thread_id, targetId = target.id }
+    local thread = self.threads[stopped_thread_id]
+    clear_running(self, stopped_thread_id)
     local goto_err = self:request('goto', params)
     if goto_err then
+      self.stopped_thread_id = stopped_thread_id
+      if thread then
+        thread.stopped = true
+      end
       utils.notify('Error executing goto: ' .. utils.fmt_error(goto_err), vim.log.levels.ERROR)
     end
   end)()
@@ -1547,18 +1561,6 @@ function Session:_pause(thread_id, cb)
       end
     end
   )
-end
-
-
----@param session dap.Session
-local function clear_running(session, thread_id)
-  vim.fn.sign_unplace(session.sign_group)
-  thread_id = thread_id or session.stopped_thread_id
-  session.stopped_thread_id = nil
-  local thread = session.threads[thread_id]
-  if thread then
-    thread.stopped = false
-  end
 end
 
 
