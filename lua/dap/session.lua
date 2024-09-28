@@ -118,11 +118,15 @@ local function launch_external_terminal(env, terminal, args)
   local full_args = {}
   vim.list_extend(full_args, terminal.args or {})
   vim.list_extend(full_args, args)
-  local env_formatted = {}
-  -- Copy environment, prefer vars set by client
-  for k, v in pairs(env and vim.tbl_extend('keep', env, vim.fn.environ()) or {}) do
-    if k:find "^[^=]*$" then -- correct variable?
-      env_formatted[#env_formatted+1] = k.."="..tostring(v)
+  -- Initializing to nil is important so environment is inherited by the terminal
+  local env_formatted = nil
+  if env then
+    env_formatted = {}
+    -- Copy environment, prefer vars set by client
+    for k, v in pairs(vim.tbl_extend('keep', env, vim.fn.environ())) do
+      if k:find "^[^=]*$" then -- correct variable?
+        env_formatted[#env_formatted+1] = k.."="..tostring(v)
+      end
     end
   end
   local opts = {
