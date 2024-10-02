@@ -17,7 +17,25 @@ cmd('DapSetLogLevel',
 )
 cmd('DapShowLog', 'split | e ' .. vim.fn.stdpath('cache') .. '/dap.log | normal! G', {})
 cmd('DapContinue', function() require('dap').continue() end, { nargs = 0 })
-cmd('DapToggleBreakpoint', function() require('dap').toggle_breakpoint() end, { nargs = 0 })
+cmd('DapToggleBreakpoint',
+  function(opts)
+    local condition = (opts.args ~= "") and opts.args or nil
+    local bufnr = api.nvim_get_current_buf()
+    local breakpoints = require('dap.breakpoints').get(bufnr)[bufnr]
+    local win = api.nvim_get_current_win()
+    local line = api.nvim_win_get_cursor(win)[1]
+    local old;
+    for _, bp in ipairs(breakpoints) do
+      if bp.line == line then
+        old = bp
+        break
+      end
+    end
+    local replace_old = old and (old.condition ~= condition)
+    require('dap').toggle_breakpoint(condition, nil, nil, replace_old)
+  end,
+  { nargs = "*", }
+)
 cmd('DapToggleRepl', function() require('dap.repl').toggle() end, { nargs = 0 })
 cmd('DapStepOver', function() require('dap').step_over() end, { nargs = 0 })
 cmd('DapStepInto', function() require('dap').step_into() end, { nargs = 0 })
