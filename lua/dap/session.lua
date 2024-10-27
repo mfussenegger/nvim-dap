@@ -316,7 +316,7 @@ function Session:event_initialized()
   local bps = breakpoints.get()
   self:set_breakpoints(bps, function()
     if self.capabilities.exceptionBreakpointFilters then
-      self:set_exception_breakpoints(dap().defaults[self.config.type].exception_breakpoints, nil, on_done)
+      self:set_exception_breakpoints(dap().defaults[self.config.type].exception_breakpoints, nil, nil, on_done)
     else
       on_done()
     end
