@@ -961,7 +961,7 @@ do
   end
 end
 
-function Session:set_exception_breakpoints(filters, exceptionOptions, on_done)
+function Session:set_exception_breakpoints(filters, exceptionOptions, filterOptions, on_done)
   if not self.capabilities.exceptionBreakpointFilters then
     utils.notify("Debug adapter doesn't support exception breakpoints", vim.log.levels.INFO)
     return
@@ -991,12 +991,16 @@ function Session:set_exception_breakpoints(filters, exceptionOptions, on_done)
     return
   end
 
+  if not filterOptions then
+    filterOptions = {}
+  end
+
   -- setExceptionBreakpoints (https://microsoft.github.io/debug-adapter-protocol/specification#Requests_SetExceptionBreakpoints)
   --- filters: string[]
   --- exceptionOptions: exceptionOptions?: ExceptionOptions[] (https://microsoft.github.io/debug-adapter-protocol/specification#Types_ExceptionOptions)
   self:request(
     'setExceptionBreakpoints',
-    { filters = filters, exceptionOptions = exceptionOptions },
+    { filters = filters, exceptionOptions = exceptionOptions, filterOptions },
     function(err, _)
       if err then
         utils.notify('Error setting exception breakpoints: ' .. utils.fmt_error(err), vim.log.levels.ERROR)
