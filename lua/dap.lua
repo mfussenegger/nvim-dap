@@ -14,12 +14,12 @@ local last_run = nil
 
 -- lazy import other modules to have a lower startup footprint
 local lazy = setmetatable({
-  async = nil, --- @module "dap.async"
-  utils = nil, --- @module "dap.utils"
-  progress = nil, --- @module "dap.progress"
-  ui = nil, --- @module "dap.ui"
+  async = nil,       --- @module "dap.async"
+  utils = nil,       --- @module "dap.utils"
+  progress = nil,    --- @module "dap.progress"
+  ui = nil,          --- @module "dap.ui"
   breakpoints = nil, --- @module "dap.breakpoints"
-  }, {
+}, {
   __index = function(_, key)
     return require('dap.' .. key)
   end
@@ -146,14 +146,19 @@ end
 M.defaults = setmetatable(
   {
     fallback = {
-      exception_breakpoints = 'default';
+      exception_breakpoints = 'default',
+      ---@type string|nil
+      exception_options = nil,
+      ---@type string|nil
+      exception_filter_options = nil,
+
       ---@type "statement"|"line"|"instruction"
-      stepping_granularity = 'statement';
+      stepping_granularity = 'statement',
 
       ---@type string|fun(): number bufnr, number|nil win
-      terminal_win_cmd = 'belowright new';
-      focus_terminal = false;
-      auto_continue_if_many_stopped = true;
+      terminal_win_cmd = 'belowright new',
+      focus_terminal = false,
+      auto_continue_if_many_stopped = true,
 
       ---@type string|nil
       switchbuf = nil
@@ -450,7 +455,8 @@ local function run_adapter(adapter, configuration, opts)
     add_reset_session_hook(lsession)
     M.set_session(lsession)
   else
-    notify(string.format('Invalid adapter type %s, expected `executable` or `server`', adapter.type), vim.log.levels.ERROR)
+    notify(string.format('Invalid adapter type %s, expected `executable` or `server`', adapter.type),
+      vim.log.levels.ERROR)
   end
 end
 
@@ -494,7 +500,8 @@ local function select_config_and_run(opts)
     end
 
     if #all_configs == 0 then
-      local msg = 'No configuration found for `%s`. You need to add configs to `dap.configurations.%s` (See `:h dap-configuration`)'
+      local msg =
+      'No configuration found for `%s`. You need to add configs to `dap.configurations.%s` (See `:h dap-configuration`)'
       notify(string.format(msg, filetype, filetype), vim.log.levels.INFO)
       return
     end
@@ -610,7 +617,7 @@ function M.run(config, opts)
     else
       notify(string.format(
           'Invalid adapter `%s` for config `%s`. Expected a table or function. '
-            .. 'Read :help dap-adapter and define a valid adapter.',
+          .. 'Read :help dap-adapter and define a valid adapter.',
           vim.inspect(adapter),
           config.type
         ),
@@ -620,7 +627,6 @@ function M.run(config, opts)
   end
   lazy.async.run(trigger_run)
 end
-
 
 --- Run the last debug session again
 function M.run_last()
@@ -641,7 +647,6 @@ function M.step_over(opts)
   session:_step('next', opts)
 end
 
-
 function M.focus_frame()
   if session then
     if session.current_frame then
@@ -655,7 +660,6 @@ function M.focus_frame()
   end
 end
 
-
 function M.restart_frame()
   if session then
     session:restart_frame()
@@ -663,7 +667,6 @@ function M.restart_frame()
     notify('No active session', vim.log.levels.INFO)
   end
 end
-
 
 ---@param opts? {askForTargets?: boolean, steppingGranularity?: dap.SteppingGranularity}
 function M.step_into(opts)
@@ -733,19 +736,16 @@ function M.reverse_continue(opts)
   end
 end
 
-
 function M.pause(thread_id)
   if session then
     session:_pause(thread_id)
   end
 end
 
-
 function M.stop()
   notify('dap.stop() is deprecated. Call dap.close() instead', vim.log.levels.WARN)
   M.close()
 end
-
 
 local function terminate(lsession, terminate_opts, disconnect_opts, cb)
   cb = cb or function() end
@@ -797,7 +797,6 @@ function M.terminate(terminate_opts, disconnect_opts, cb)
   terminate(lsession, terminate_opts, disconnect_opts, cb)
 end
 
-
 function M.close()
   if session then
     session:close()
@@ -805,20 +804,17 @@ function M.close()
   end
 end
 
-
 function M.up()
   if session then
     session:_frame_delta(1)
   end
 end
 
-
 function M.down()
   if session then
     session:_frame_delta(-1)
   end
 end
-
 
 function M.goto_(line)
   if session then
@@ -831,7 +827,6 @@ function M.goto_(line)
     session:_goto(line, source, col)
   end
 end
-
 
 ---@param config dap.Configuration?
 ---@param opts? dap.run.opts
@@ -862,7 +857,6 @@ function M.restart(config, opts)
   end
 end
 
-
 ---@param openqf boolean?
 function M.list_breakpoints(openqf)
   local qf_list = lazy.breakpoints.to_qf_list(lazy.breakpoints.get())
@@ -891,7 +885,6 @@ end
 function M.set_breakpoint(condition, hit_condition, log_message)
   M.toggle_breakpoint(condition, hit_condition, log_message, true)
 end
-
 
 ---@param lsessions table<integer, dap.Session>
 ---@param fn fun(lsession: dap.Session)
@@ -931,11 +924,10 @@ function M.toggle_breakpoint(condition, hit_condition, log_message, replace_old)
   broadcast(sessions, function(s)
     s:set_breakpoints(bps)
   end)
-  if vim.fn.getqflist({context = DAP_QUICKFIX_CONTEXT}).context == DAP_QUICKFIX_CONTEXT then
+  if vim.fn.getqflist({ context = DAP_QUICKFIX_CONTEXT }).context == DAP_QUICKFIX_CONTEXT then
     M.list_breakpoints(false)
   end
 end
-
 
 function M.clear_breakpoints()
   local bps = lazy.breakpoints.get()
@@ -948,18 +940,17 @@ function M.clear_breakpoints()
   end)
 end
 
-
 -- setExceptionBreakpoints (https://microsoft.github.io/debug-adapter-protocol/specification#Requests_SetExceptionBreakpoints)
 --- filters: string[]
 --- exceptionOptions: exceptionOptions?: ExceptionOptions[] (https://microsoft.github.io/debug-adapter-protocol/specification#Types_ExceptionOptions)
-function M.set_exception_breakpoints(filters, exceptionOptions)
+--- filterOptions: filterOptions?: FILL THIS OUT
+function M.set_exception_breakpoints(filters, exceptionOptions, filterOptions)
   if session then
-    session:set_exception_breakpoints(filters, exceptionOptions)
+    session:set_exception_breakpoints(filters, exceptionOptions, filterOptions)
   else
     notify('Cannot set exception breakpoints: No active session!', vim.log.levels.INFO)
   end
 end
-
 
 function M.run_to_cursor()
   local lsession = session
@@ -1013,7 +1004,6 @@ function M.run_to_cursor()
     lsession:_step('continue')
   end)
 end
-
 
 ---@param opts? {new?: boolean}
 function M.continue(opts)
@@ -1103,7 +1093,6 @@ function M.continue(opts)
   end
 end
 
-
 --- Disconnects an active session
 function M.disconnect(opts, cb)
   if session then
@@ -1115,7 +1104,6 @@ function M.disconnect(opts, cb)
     end
   end
 end
-
 
 --- Connect to a debug adapter via TCP
 ---@param adapter dap.ServerAdapter
@@ -1145,7 +1133,6 @@ function M.attach(adapter, config, opts)
   return s
 end
 
-
 --- Launch an executable debug adapter and initialize a session
 ---
 ---@param adapter dap.ExecutableAdapter
@@ -1159,11 +1146,9 @@ function M.launch(adapter, config, opts)
   return s
 end
 
-
 function M.set_log_level(level)
   log().set_level(level)
 end
-
 
 --- Currently focused session
 ---@return dap.Session|nil
@@ -1171,12 +1156,10 @@ function M.session()
   return session
 end
 
-
 ---@return table<number, dap.Session>
 function M.sessions()
   return sessions
 end
-
 
 ---@param new_session dap.Session|nil
 function M.set_session(new_session)
@@ -1192,8 +1175,6 @@ function M.set_session(new_session)
     session = lsession
   end
 end
-
-
 
 api.nvim_create_autocmd("ExitPre", {
   pattern = "*",
