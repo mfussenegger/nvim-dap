@@ -316,7 +316,11 @@ function Session:event_initialized()
   local bps = breakpoints.get()
   self:set_breakpoints(bps, function()
     if self.capabilities.exceptionBreakpointFilters then
-      self:set_exception_breakpoints(dap().defaults[self.config.type].exception_breakpoints, nil, nil, on_done)
+      self:set_exception_breakpoints(
+        dap().defaults[self.config.type].exception_breakpoints,
+        dap().defaults[self.config.type].exception_options,
+        dap().defaults[self.config.type].exception_filter_options,
+        on_done)
     else
       on_done()
     end
@@ -991,13 +995,15 @@ function Session:set_exception_breakpoints(filters, exceptionOptions, filterOpti
     return
   end
 
-  if not filterOptions then
-    filterOptions = {}
+  if filterOptions and not self.capabilities.supportsExceptionFilterOptions then
+    utils.notify('Debug adapter does not support FilterOptions', vim.log.levels.INFO)
+    return
   end
 
   -- setExceptionBreakpoints (https://microsoft.github.io/debug-adapter-protocol/specification#Requests_SetExceptionBreakpoints)
   --- filters: string[]
   --- exceptionOptions: exceptionOptions?: ExceptionOptions[] (https://microsoft.github.io/debug-adapter-protocol/specification#Types_ExceptionOptions)
+  --- filterOptions: filterOptions?: ExceptionFilterOptions[] (https://microsoft.github.io/debug-adapter-protocol/specification#Types_ExceptionFilterOptions)
   self:request(
     'setExceptionBreakpoints',
     { filters = filters, exceptionOptions = exceptionOptions, filterOptions = filterOptions },
