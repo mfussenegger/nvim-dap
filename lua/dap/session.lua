@@ -147,12 +147,18 @@ end
 
 
 ---@param terminal_win_cmd string|fun():integer, integer?
+---@param filetype string
 ---@return integer bufnr, integer? winnr
-local function create_terminal_buf(terminal_win_cmd)
+local function create_terminal_buf(terminal_win_cmd, filetype)
   local cur_win = api.nvim_get_current_win()
   if type(terminal_win_cmd) == "string" then
     api.nvim_command(terminal_win_cmd)
     local bufnr = api.nvim_get_current_buf()
+    if vim.filetype then
+      local path = vim.filetype.get_option(filetype, "path")
+      assert(type(path) == "string", "path option must be a string")
+      vim.bo[bufnr].path = path
+    end
     local win = api.nvim_get_current_win()
     api.nvim_set_current_win(cur_win)
     return bufnr, win
@@ -168,8 +174,9 @@ do
   ---@type table<integer, boolean>
   local pool = {}
 
+  ---@param filetype string
   ---@return integer, integer|nil
-  function terminals.acquire(win_cmd, config)
+  function terminals.acquire(win_cmd, config, filetype)
     local buf = next(pool)
     if buf then
       pool[buf] = nil
@@ -179,7 +186,7 @@ do
       end
     end
     local terminal_win
-    buf, terminal_win = create_terminal_buf(win_cmd)
+    buf, terminal_win = create_terminal_buf(win_cmd, filetype)
     if terminal_win then
       if vim.fn.has('nvim-0.8') == 1 then
         -- older versions don't support the `win` key
@@ -226,7 +233,11 @@ local function run_in_terminal(lsession, request)
     end
   end
   local cur_buf = api.nvim_get_current_buf()
-  local terminal_buf, terminal_win = terminals.acquire(settings.terminal_win_cmd, lsession.config)
+  local terminal_buf, terminal_win = terminals.acquire(
+    settings.terminal_win_cmd,
+    lsession.config,
+    lsession.filetype
+  )
   local terminal_buf_name = '[dap-terminal] ' .. (lsession.config.name or body.args[1])
   local terminal_name_ok = pcall(api.nvim_buf_set_name, terminal_buf, terminal_buf_name)
   if not terminal_name_ok then
