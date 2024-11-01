@@ -147,9 +147,9 @@ M.defaults = setmetatable(
   {
     fallback = {
       exception_breakpoints = 'default',
-      ---@type string|nil
+      ---@type table[]|nil
       exception_options = nil,
-      ---@type string|nil
+      ---@type table[]|nil
       exception_filter_options = nil,
 
       ---@type "statement"|"line"|"instruction"
