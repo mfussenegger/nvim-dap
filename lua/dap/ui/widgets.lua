@@ -37,6 +37,7 @@ function M.new_cursor_anchored_float_win(buf)
     vim.wo[win].wrap = false
   end
   vim.bo[buf].filetype = "dap-float"
+  api.nvim_buf_set_keymap(buf, "n", "q", "<C-w>q", {})
   return win
 end
 
@@ -65,6 +66,7 @@ function M.new_centered_float_win(buf)
     vim.wo[win].wrap = false
   end
   vim.bo[buf].filetype = "dap-float"
+  api.nvim_buf_set_keymap(buf, "n", "q", "<C-w>q", {})
   return win
 end
 
