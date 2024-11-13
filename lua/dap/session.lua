@@ -1966,7 +1966,7 @@ end
 
 ---@param event dap.ContinuedEvent
 function Session:event_continued(event)
-  if event.allThreadsContinued then
+  if event.allThreadsContinued == nil or event.allThreadsContinued == true then
     for _, t in pairs(self.threads) do
       t.stopped = false
     end
