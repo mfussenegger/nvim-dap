@@ -398,8 +398,9 @@ local function set_cursor(win, line, column)
     end)
   else
     local msg = string.format(
-      "Debug adapter reported a frame at line %s column %s, but: %s. "
+      "Adapter reported a frame in buf %d line %s column %s, but: %s. "
       .. "Ensure executable is up2date and if using a source mapping ensure it is correct",
+      api.nvim_win_get_buf(win),
       line,
       column,
       err
@@ -745,6 +746,10 @@ function Session:event_stopped(stopped)
       threadId = stopped.threadId
     }
     local err, response = self:request('stackTrace', params)
+    if thread.stopped == false then
+      log.debug("Debug adapter resumed during stopped event handling", thread, err)
+      return
+    end
     if err then
       utils.notify('Error retrieving stack traces: ' .. utils.fmt_error(err), vim.log.levels.ERROR)
       return
