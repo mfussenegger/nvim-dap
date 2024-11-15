@@ -1957,7 +1957,13 @@ function Session:event_continued(event)
     for _, t in pairs(self.threads) do
       t.stopped = false
     end
+    self.stopped_thread_id = nil
+    vim.fn.sign_unplace(self.sign_group)
   else
+    if self.stopped_thread_id == event.threadId then
+      self.stopped_thread_id = nil
+      vim.fn.sign_unplace(self.sign_group)
+    end
     local thread = self.threads[event.threadId]
     if thread and thread.stopped then
       thread.stopped = false
