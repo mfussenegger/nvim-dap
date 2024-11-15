@@ -322,6 +322,59 @@ describe('dap with fake server', function()
     })
   end)
 
+  it("Clears stopped state on continued event", function()
+    local buf = api.nvim_create_buf(true, false)
+    local win = api.nvim_get_current_win()
+    api.nvim_buf_set_name(buf, "/tmp/dummy1")
+    api.nvim_buf_set_lines(buf, 0, -1, false, {"line 1", "line 2", "line 3"})
+    api.nvim_win_set_buf(win, buf)
+    api.nvim_win_set_cursor(win, { 1, 0})
+
+    local session = run_and_wait_until_initialized(config, server)
+    server.spy.clear()
+    server.client.threads = function(self, request)
+      self:send_response(request, {
+        threads = { { id = 1, name = 'thread1' }, }
+      })
+    end
+    local path = vim.uri_from_bufnr(buf)
+    server.client.stackTrace = function(self, request)
+      self:send_response(request, {
+        stackFrames = {
+          {
+            id = 1,
+            name = 'stackFrame1',
+            line = 2,
+            column = 4,
+            source = {
+              sourceReference = 0,
+              path = path,
+            },
+          },
+        },
+      })
+    end
+    server.client.scopes = function(self, request)
+      self:send_response(request, {
+        scopes = {}
+      })
+    end
+    server.client:send_event('stopped', {
+      threadId = 1,
+      reason = 'unknown',
+    })
+
+    wait_for_response(server, "scopes")
+    assert.are.same({2, 3}, api.nvim_win_get_cursor(win))
+    server.client:send_event('continued', {
+      threadId = 1,
+    })
+    wait(function() return session.threads[1].stopped == false end)
+    assert.are.is_nil(session.stopped_thread_id)
+    local signs = vim.fn.sign_getplaced(vim.uri_to_bufnr(path), {group = session.sign_group})
+    assert.are.same({}, signs[1].signs)
+  end)
+
   it('Deleting a buffer clears breakpoints for that buffer', function()
     local win = api.nvim_get_current_win()
     local buf1 = api.nvim_create_buf(false, true)
