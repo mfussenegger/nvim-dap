@@ -322,6 +322,32 @@ describe('dap with fake server', function()
     })
   end)
 
+  it("Doesn't jump on stopped if continue is received before threads response", function()
+    run_and_wait_until_initialized(config, server)
+    server.client.threads = function(self, request)
+      self:send_event("continued", {
+        threadId = 1,
+      })
+      self:send_response(request, {
+        threads = { { id = 1, name = 'thread1' }, }
+      })
+    end
+    local log = require('dap.log').create_logger('dap.log')
+    local debug = log.debug
+    local messages = {}
+    log.debug = function(...)
+      table.insert(messages, {...})
+      debug(...)
+    end
+    server.client:send_event('stopped', {
+      threadId = 1,
+      reason = 'unknown',
+    })
+    wait_for_response(server, "threads")
+    wait(function() return #messages >= 5 end)
+    assert.are.same("Thread resumed during stopped event handling", messages[6][1])
+  end)
+
   it("Clears stopped state on continued event", function()
     local buf = api.nvim_create_buf(true, false)
     local win = api.nvim_get_current_win()
