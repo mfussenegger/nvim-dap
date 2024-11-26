@@ -316,11 +316,9 @@ function M.new_view(new_buf, new_win, opts)
       local win = self.win
       local buf = self.buf
       if win and api.nvim_win_is_valid(win) and api.nvim_win_get_buf(win) == buf then
-        local win_tabpage = api.nvim_win_get_tabpage(win)
-        local current_tabpage = api.nvim_get_current_tabpage()
         api.nvim_win_close(win, true)
         self.win = nil
-        closed = win_tabpage == current_tabpage
+        closed = true
       end
       local hide = close_opts.mode == 'toggle'
       if buf and not hide then
