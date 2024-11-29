@@ -56,20 +56,7 @@ if api.nvim_create_autocmd then
     group = launchjson_group,
     pattern = pattern,
     callback = function(args)
-      local lines = {
-        '{',
-        '   "$schema": "https://raw.githubusercontent.com/mfussenegger/dapconfig-schema/master/dapconfig-schema.json",',
-        '   "version": "0.2.0",',
-        '   "configurations": [',
-        '       {',
-        '           "type": "<adapter-name>",',
-        '           "request": "launch",',
-        '           "name": "Launch"',
-        '       }',
-        '   ]',
-        '}'
-      }
-      api.nvim_buf_set_lines(args.buf, 0, -1, true, lines)
+      require("dap._cmds").newlaunchjson(args)
     end
   })
 

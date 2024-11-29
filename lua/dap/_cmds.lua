@@ -105,4 +105,40 @@ function M.bufread_eval()
 end
 
 
+---@param args vim.api.keyset.create_autocmd.callback_args
+function M.newlaunchjson(args)
+  if vim.snippet then
+    local text = [[{
+    "\$schema": "https://raw.githubusercontent.com/mfussenegger/dapconfig-schema/master/dapconfig-schema.json",
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "${1:adaptername}",
+            "request": "${2|launch,request|}",
+            "name": "${3:run}"${0}
+        }
+    ]
+}]]
+    api.nvim_buf_call(args.buf, function()
+      vim.snippet.expand(text)
+    end)
+  else
+    local lines = {
+      '{',
+      '   "$schema": "https://raw.githubusercontent.com/mfussenegger/dapconfig-schema/master/dapconfig-schema.json",',
+      '   "version": "0.2.0",',
+      '   "configurations": [',
+      '       {',
+      '           "type": "<adapter-name>",',
+      '           "request": "launch",',
+      '           "name": "Launch"',
+      '       }',
+      '   ]',
+      '}'
+    }
+    api.nvim_buf_set_lines(args.buf, 0, -1, true, lines)
+  end
+end
+
+
 return M
