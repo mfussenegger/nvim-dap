@@ -226,6 +226,12 @@ local function set_expression(_, item, _, context)
 end
 
 
+---@param item dap.Variable
+local function copy_evalname(_, item, _, _)
+  vim.fn.setreg("", item.evaluateName)
+end
+
+
 variable.tree_spec = {
   get_key = variable.get_key,
   render_parent = variable.render_parent,
@@ -242,7 +248,11 @@ variable.tree_spec = {
     end
     local result = {}
     local capabilities = session.capabilities
+    ---@type dap.Variable
     local item = info.item
+    if item.evaluateName then
+      table.insert(result, { label = "Copy as expression", fn = copy_evalname, })
+    end
     if item.evaluateName and capabilities.supportsSetExpression then
       table.insert(result, { label = 'Set expression', fn = set_expression, })
     elseif capabilities.supportsSetVariable then

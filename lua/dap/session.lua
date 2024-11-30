@@ -402,8 +402,9 @@ local function set_cursor(win, line, column)
     end)
   else
     local msg = string.format(
-      "Debug adapter reported a frame at line %s column %s, but: %s. "
+      "Adapter reported a frame in buf %d line %s column %s, but: %s. "
       .. "Ensure executable is up2date and if using a source mapping ensure it is correct",
+      api.nvim_win_get_buf(win),
       line,
       column,
       err
@@ -660,7 +661,8 @@ function Session:update_threads(cb)
       threads[thread.id] = thread
       local old_thread = self.threads[thread.id]
       if old_thread then
-        thread.stopped = old_thread.stopped
+        local stopped = old_thread.stopped == nil and false or old_thread.stopped
+        thread.stopped = stopped
         thread.frames = old_thread.frames
       end
     end
@@ -692,10 +694,22 @@ function Session:event_stopped(stopped)
     local co = coroutine.running()
 
     if self.dirty.threads or (stopped.threadId and self.threads[stopped.threadId] == nil) then
+      local thread = {
+        id = stopped.threadId,
+        name = "Unknown",
+        stopped = true
+      }
+      if thread.id then
+        self.threads[thread.id] = thread
+      end
       self:update_threads(coresume(co))
       local err = coroutine.yield()
       if err then
         utils.notify('Error retrieving threads: ' .. utils.fmt_error(err), vim.log.levels.ERROR)
+        return
+      end
+      if thread.stopped == false then
+        log.debug("Thread resumed during stopped event handling", stopped, thread)
         return
       end
     end
@@ -749,6 +763,10 @@ function Session:event_stopped(stopped)
       threadId = stopped.threadId
     }
     local err, response = self:request('stackTrace', params)
+    if thread.stopped == false then
+      log.debug("Debug adapter resumed during stopped event handling", thread, err)
+      return
+    end
     if err then
       utils.notify('Error retrieving stack traces: ' .. utils.fmt_error(err), vim.log.levels.ERROR)
       return
@@ -932,6 +950,7 @@ do
         api.nvim_buf_attach(bufnr, false, { on_detach = remove_breakpoints })
       end
       local path = api.nvim_buf_get_name(bufnr)
+      ---@type dap.SetBreakpointsArguments
       local payload = {
         source = {
           path = path;
@@ -1803,21 +1822,11 @@ end
 ---@param config dap.Configuration
 function Session:initialize(config)
   vim.schedule(repl.clear)
-  local adapter_responded = false
   self.config = config
-  self:request('initialize', {
-    clientID = 'neovim';
-    clientName = 'neovim';
-    adapterID = self.adapter.id or 'nvim-dap';
-    pathFormat = 'path';
-    columnsStartAt1 = true;
-    linesStartAt1 = true;
-    supportsRunInTerminalRequest = true;
-    supportsVariableType = true;
-    supportsProgressReporting = true,
-    supportsStartDebuggingRequest = true,
-    locale = os.getenv('LANG') or 'en_US';
-  }, function(err0, result)
+  local adapter_responded = false
+
+  ---@param result dap.Capabilities?
+  local function on_initialize(err0, result)
     if err0 then
       utils.notify('Could not initialize debug adapter: ' .. utils.fmt_error(err0), vim.log.levels.ERROR)
       adapter_responded = true
@@ -1831,7 +1840,21 @@ function Session:initialize(config)
         self:close()
       end
     end)
-  end)
+  end
+  local params = {
+    clientID = 'neovim';
+    clientName = 'neovim';
+    adapterID = self.adapter.id or 'nvim-dap';
+    pathFormat = 'path';
+    columnsStartAt1 = true;
+    linesStartAt1 = true;
+    supportsRunInTerminalRequest = true;
+    supportsVariableType = true;
+    supportsProgressReporting = true,
+    supportsStartDebuggingRequest = true,
+    locale = os.getenv('LANG') or 'en_US';
+  }
+  self:request('initialize', params, on_initialize)
   local adapter = self.adapter
   local sec_to_wait = (adapter.options or {}).initialize_timeout_sec or 4
   local timer = assert(uv.new_timer(), "Must be able to create timer")
@@ -1958,11 +1981,17 @@ end
 
 ---@param event dap.ContinuedEvent
 function Session:event_continued(event)
-  if event.allThreadsContinued then
+  if event.allThreadsContinued == nil or event.allThreadsContinued == true then
     for _, t in pairs(self.threads) do
       t.stopped = false
     end
+    self.stopped_thread_id = nil
+    vim.fn.sign_unplace(self.sign_group)
   else
+    if self.stopped_thread_id == event.threadId then
+      self.stopped_thread_id = nil
+      vim.fn.sign_unplace(self.sign_group)
+    end
     local thread = self.threads[event.threadId]
     if thread and thread.stopped then
       thread.stopped = false

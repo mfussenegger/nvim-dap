@@ -216,6 +216,7 @@ describe('dap with fake server', function()
         threads = { { id = 1, name = 'thread1' }, }
       })
     end
+    local path = vim.uri_from_bufnr(buf)
     server.client.stackTrace = vim.schedule_wrap(function(self, request)
       self:send_response(request, {
         stackFrames = {
@@ -226,7 +227,7 @@ describe('dap with fake server', function()
             column = 3,
             source = {
               sourceReference = 0,
-              path = vim.uri_from_bufnr(buf),
+              path = path,
             },
           },
         },
@@ -242,7 +243,8 @@ describe('dap with fake server', function()
       reason = 'breakpoint',
     })
     vim.wait(1000, function() return captured_msg ~= nil end)
-    assert.are.same('Debug adapter reported a frame at line 40 column 3, but: Cursor position outside buffer. Ensure executable is up2date and if using a source mapping ensure it is correct', captured_msg)
+    local msg = 'Adapter reported a frame in buf %d line 40 column 3, but: Cursor position outside buffer. Ensure executable is up2date and if using a source mapping ensure it is correct'
+    assert.are.same(string.format(msg, vim.uri_to_bufnr(path)), captured_msg)
   end)
 
   it('Can handle frames without source/path on stopped event', function()
@@ -269,6 +271,134 @@ describe('dap with fake server', function()
       reason = 'unknown',
     })
     vim.wait(1000, function() return #server.spy.requests == 3 end, 100)
+  end)
+
+  it("Doesn't jump on stopped if continue is received before stacktrace response", function()
+    local buf = api.nvim_create_buf(true, false)
+    local win = api.nvim_get_current_win()
+    api.nvim_buf_set_name(buf, "/tmp/dummy")
+    api.nvim_buf_set_lines(buf, 0, -1, false, {"line 1", "line 2", "line 3"})
+    api.nvim_win_set_buf(win, buf)
+    api.nvim_win_set_cursor(win, { 1, 0})
+
+    run_and_wait_until_initialized(config, server)
+    server.client.threads = function(self, request)
+      self:send_response(request, {
+        threads = { { id = 1, name = 'thread1' }, }
+      })
+    end
+    server.client:send_event('stopped', {
+      threadId = 1,
+      reason = 'unknown',
+    })
+    local path = vim.uri_from_bufnr(buf)
+    server.client.stackTrace = function(self, request)
+      self:send_event("continued", {
+        threadId = 1,
+      })
+      self:send_response(request, {
+        stackFrames = {
+          {
+            id = 1,
+            name = 'stackFrame1',
+            line = 2,
+            column = 4,
+            source = {
+              sourceReference = 0,
+              path = path,
+            },
+          },
+        },
+      })
+    end
+    wait(function() return #server.spy.responses == 4 end)
+    local expected = {
+      bufnr = buf,
+      cursor = {1 , 0}
+    }
+    assert.are.same(expected, {
+      bufnr = api.nvim_win_get_buf(win),
+      cursor = api.nvim_win_get_cursor(win)
+    })
+  end)
+
+  it("Doesn't jump on stopped if continue is received before threads response", function()
+    run_and_wait_until_initialized(config, server)
+    server.client.threads = function(self, request)
+      self:send_event("continued", {
+        threadId = 1,
+      })
+      self:send_response(request, {
+        threads = { { id = 1, name = 'thread1' }, }
+      })
+    end
+    local log = require('dap.log').create_logger('dap.log')
+    local debug = log.debug
+    local messages = {}
+    log.debug = function(...)
+      table.insert(messages, {...})
+      debug(...)
+    end
+    server.client:send_event('stopped', {
+      threadId = 1,
+      reason = 'unknown',
+    })
+    wait_for_response(server, "threads")
+    wait(function() return #messages >= 5 end)
+    assert.are.same("Thread resumed during stopped event handling", messages[6][1])
+  end)
+
+  it("Clears stopped state on continued event", function()
+    local buf = api.nvim_create_buf(true, false)
+    local win = api.nvim_get_current_win()
+    api.nvim_buf_set_name(buf, "/tmp/dummy1")
+    api.nvim_buf_set_lines(buf, 0, -1, false, {"line 1", "line 2", "line 3"})
+    api.nvim_win_set_buf(win, buf)
+    api.nvim_win_set_cursor(win, { 1, 0})
+
+    local session = run_and_wait_until_initialized(config, server)
+    server.spy.clear()
+    server.client.threads = function(self, request)
+      self:send_response(request, {
+        threads = { { id = 1, name = 'thread1' }, }
+      })
+    end
+    local path = vim.uri_from_bufnr(buf)
+    server.client.stackTrace = function(self, request)
+      self:send_response(request, {
+        stackFrames = {
+          {
+            id = 1,
+            name = 'stackFrame1',
+            line = 2,
+            column = 4,
+            source = {
+              sourceReference = 0,
+              path = path,
+            },
+          },
+        },
+      })
+    end
+    server.client.scopes = function(self, request)
+      self:send_response(request, {
+        scopes = {}
+      })
+    end
+    server.client:send_event('stopped', {
+      threadId = 1,
+      reason = 'unknown',
+    })
+
+    wait_for_response(server, "scopes")
+    assert.are.same({2, 3}, api.nvim_win_get_cursor(win))
+    server.client:send_event('continued', {
+      threadId = 1,
+    })
+    wait(function() return session.threads[1].stopped == false end)
+    assert.are.is_nil(session.stopped_thread_id)
+    local signs = vim.fn.sign_getplaced(vim.uri_to_bufnr(path), {group = session.sign_group})
+    assert.are.same({}, signs[1].signs)
   end)
 
   it('Deleting a buffer clears breakpoints for that buffer', function()

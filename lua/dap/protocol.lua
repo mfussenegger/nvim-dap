@@ -263,6 +263,25 @@
 ---@class dap.SetBreakpointsResponse
 ---@field breakpoints dap.Breakpoint[]
 
+
+---@class dap.SetBreakpointsArguments
+---
+--- location of the breakpoint.
+--- Either source.path or source.sourceReference must be specified.
+---@field source dap.Source
+---@field breakpoints? dap.SourceBreakpoint[]
+---@field sourceModified? boolean
+
+
+---@class dap.SourceBreakpoint
+---@field line integer
+---@field column? integer
+---@field condition? string
+---@field hitCondition? string
+---@field logMessage? string
+---@field mode? string
+
+
 ---@class dap.Breakpoint
 ---@field id? number
 ---@field verified boolean
