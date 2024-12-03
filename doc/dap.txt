@@ -547,6 +547,40 @@ Some example mappings you could configure:
 <
 
 ==============================================================================
+USER COMMANDS                                             *dap-user-commands*
+
+nvim-dap provides the following user commands.
+
+Session management:
+
+- `DapContinue`: Continue executing a paused session or start a new one
+- `DapDisconnect`: Disconnect from an active debugging session
+- `DapNew`: Start one or more new debug sessions
+- `DapTerminate`: Terminate the current session
+
+Stepping:
+
+- `DapRestartFrame`: Restart the active sessions' current frame
+- `DapStepInto`: Step into the current expression
+- `DapStepOut`: Step out of the current scope
+- `DapStepOver`: Step over the current line
+
+REPL:
+
+- `DapEval`: Create a new window & buffer to evaluate expressions
+- `DapToggleRepl`: Open or close the REPL
+
+Breakpoints:
+
+- `DapClearBreakpoints` : Clear all breakpoints
+- `DapToggleBreakpoint` : Set or remove a breakpoint at the current line
+
+Diagnostics:
+
+- `DapSetLogLevel` : Set the log level
+- `DapShowLog` : Show the session log in a split window
+
+==============================================================================
 CLIENT CONFIGURATION                                             *dap.defaults*
 
 nvim-dap has a few client configuration options which you can either set
