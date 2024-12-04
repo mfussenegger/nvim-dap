@@ -26,6 +26,7 @@ local function new_buf()
   vim.bo[buf].buftype = "prompt"
   vim.bo[buf].omnifunc = "v:lua.require'dap.repl'.omnifunc"
   vim.bo[buf].buflisted = false
+  vim.bo[buf].tagfunc = "v:lua.require'dap'._tagfunc"
   local path = vim.bo[prev_buf].path
   if path and path ~= "" then
     vim.bo[buf].path = path
@@ -493,19 +494,22 @@ do
       text = line_to_cursor,
       column = col + 1 - offset
     }
-    session:request('completions', args, function(err, response)
+    ---@param err dap.ErrorResponse?
+    ---@param response dap.CompletionsResponse?
+    local function on_response(err, response)
       if err then
         require('dap.utils').notify('completions request failed: ' .. err.message, vim.log.levels.WARN)
-        return
+      elseif response then
+        local items = response.targets
+        local mixed, start = get_start(items)
+        if start and not mixed then
+          vim.fn.complete(offset + start + 1, completions_to_items(items))
+        else
+          vim.fn.complete(offset + text_match + 1, completions_to_items(items))
+        end
       end
-      local items = response.targets --[[@as dap.CompletionItem[]|]]
-      local mixed, start = get_start(items)
-      if start and not mixed then
-        vim.fn.complete(offset + start + 1, completions_to_items(items))
-      else
-        vim.fn.complete(offset + text_match + 1, completions_to_items(items))
-      end
-    end)
+    end
+    session:request('completions', args, on_response)
 
     -- cancel but stay in completion mode for completion via `completions` callback
     return -2

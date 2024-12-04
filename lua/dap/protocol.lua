@@ -139,6 +139,8 @@
 ---@field namedVariables? number
 ---@field indexedVariables? number
 ---@field memoryReference? string
+---@field declarationLocationReference? number
+---@field valueLocationReference? number
 ---@field variables? dap.Variable[] resolved variablesReference. Not part of the spec; added by nvim-dap
 ---@field parent? dap.Variable|dap.Scope injected by nvim-dap
 
@@ -156,6 +158,7 @@
 ---@field namedVariables? number
 ---@field indexedVariables? number
 ---@field memoryReference? string
+---@field valueLocationReference? number
 
 
 ---@class dap.VariablePresentationHint
@@ -359,6 +362,22 @@
 ---@class dap.StartDebuggingRequestArguments
 ---@field configuration table<string, any>
 ---@field request 'launch'|'attach'
+
+
+---@class dap.CompletionsResponse
+---@field targets dap.CompletionItem[]
+
+
+---@class dap.LocationsArguments
+---@field locationReference number
+
+
+---@class dap.LocationsResponse
+---@field source dap.Source
+---@field line integer
+---@field column? integer
+---@field endLine? integer
+---@field endColumn? integer
 
 
 ---@alias dap.CompletionItemType

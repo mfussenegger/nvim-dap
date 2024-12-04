@@ -147,6 +147,7 @@ M.scopes = {
     dap.listeners.after['event_terminated'][view] = reset_tree
     dap.listeners.after['event_exited'][view] = reset_tree
     local buf = new_buf()
+    vim.bo[buf].tagfunc = "v:lua.require'dap'._tagfunc"
     api.nvim_buf_attach(buf, false, {
       on_detach = function()
         dap.listeners.after['event_terminated'][view] = nil
@@ -372,7 +373,11 @@ do
   end
 
   M.expression = {
-    new_buf = new_buf,
+    new_buf = function()
+      local buf = new_buf()
+      vim.bo[buf].tagfunc = "v:lua.require'dap'._tagfunc"
+      return buf
+    end,
     before_open = function(view)
       view.__expression = vim.fn.expand('<cexpr>')
     end,
