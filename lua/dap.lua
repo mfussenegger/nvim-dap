@@ -591,10 +591,10 @@ function M.run(config, opts)
     end
     local adapter = M.adapters[config.type]
     if type(adapter) == 'table' then
-      lazy.progress.report('Launching debug adapter')
+      lazy.progress.report('Starting adapter ' .. config.type)
       maybe_enrich_config_and_run(adapter, config, opts)
     elseif type(adapter) == 'function' then
-      lazy.progress.report('Launching debug adapter')
+      lazy.progress.report('Starting adapter ' .. config.type)
       adapter(
         function(resolved_adapter)
           maybe_enrich_config_and_run(resolved_adapter, config, opts)
@@ -1193,6 +1193,58 @@ function M.set_session(new_session)
   end
 end
 
+
+function M._tagfunc(_, flags, _)
+  local lsession = session
+  if not lsession then
+    return vim.NIL
+  end
+  if not flags:match("c") then
+    return vim.NIL
+  end
+  local ui = require("dap.ui")
+  local buf = api.nvim_get_current_buf()
+  local layer = ui.get_layer(buf)
+  if not layer then
+    return vim.NIL
+  end
+  local cursor = api.nvim_win_get_cursor(0)
+  local lnum = cursor[1] - 1
+  local lineinfo = layer.get(lnum)
+  if not lineinfo or not lineinfo.item then
+    return vim.NIL
+  end
+  ---@type dap.Variable|dap.EvaluateResponse
+  local item = lineinfo.item
+  local loc = item.valueLocationReference or item.declarationLocationReference
+  if not loc then
+    return vim.NIL
+  end
+
+  ---@type dap.ErrorResponse?
+  local err
+  ---@type dap.LocationsResponse?
+  local result
+
+  ---@type dap.LocationsArguments
+  local args = {
+    locationReference = loc
+  }
+  lsession:request("locations", args, function(e, r)
+    err = e
+    result = r
+  end)
+  vim.wait(2000, function() return err ~= nil or result ~= nil end)
+  if result and result.source.path then
+    local match = {
+      name = item.name or item.result,
+      filename = result.source.path,
+      cmd = string.format([[/\%%%dl\%%%dc/]], result.line, result.column or 0)
+    }
+    return { match }
+  end
+  return {}
+end
 
 
 api.nvim_create_autocmd("ExitPre", {

@@ -414,6 +414,9 @@ end
 ---@type table<number, dap.ui.Layer>
 local layers = {}
 
+--- Return an existing layer
+---
+---@param buf integer
 ---@return nil|dap.ui.Layer
 function M.get_layer(buf)
   return layers[buf]
@@ -424,6 +427,8 @@ end
 ---@field item any
 ---@field context table|nil
 
+--- Returns a layer, creating it if it's missing.
+---@param buf integer
 ---@return dap.ui.Layer
 function M.layer(buf)
   assert(buf, 'Need a buffer to operate on')
