@@ -3,10 +3,25 @@ local spy = require('luassert.spy')
 local venv_dir = os.tmpname()
 local dap = require('dap')
 
+local function get_num_handles()
+  local pid = vim.fn.getpid()
+  local output = vim.fn.system({"lsof", "-p"}, tostring(pid))
+  local lines = vim.split(output, "\n", { plain = true })
+  return #lines
+end
+
+
 describe('dap with debugpy', function()
   os.remove(venv_dir)
-  os.execute('python -m venv "' .. venv_dir .. '"')
-  os.execute(venv_dir .. '/bin/python -m pip install debugpy')
+  if vim.fn.executable("uv") == 1 then
+    os.execute(string.format("uv venv '%s'", venv_dir))
+    -- tmpfile could be on tmpfs in which case uv pip spits out hard-copy not-working warnings
+    -- -> use link-mode=copy
+    os.execute(string.format("uv --directory '%s' pip install --link-mode=copy debugpy", venv_dir))
+  else
+    os.execute('python -m venv "' .. venv_dir .. '"')
+    os.execute(venv_dir .. '/bin/python -m pip install debugpy')
+  end
   after_each(function()
     dap.terminate()
     require('dap.breakpoints').clear()
@@ -43,19 +58,21 @@ describe('dap with debugpy', function()
     local dummy_payload = nil
     dap.listeners.after.event_initialized['dap.tests'] = function(session)
       events.initialized = true
+      ---@diagnostic disable-next-line: undefined-field
       dummy_payload = session.config.dummy_payload
     end
     dap.listeners.after.setBreakpoints['dap.tests'] = function(_, _, resp)
       events.setBreakpoints = resp
     end
-    dap.listeners.after.event_stopped['dap.tests'] = function()
+    dap.listeners.after.event_stopped['dap.tests'] = function(session)
       vim.wait(1000, function()
-        local session = dap.session()
         return session.stopped_thread_id ~= nil
       end)
       dap.continue()
       events.stopped = true
     end
+
+    local num_handles = get_num_handles()
 
     local launch = spy.on(dap, 'launch')
     dap.run(config, { filetype = 'python' })
@@ -79,15 +96,21 @@ describe('dap with debugpy', function()
     }, events)
 
     -- variable must expand to concrete value
-    assert.are_not.equals(dummy_payload.cwd, '${workspaceFolder}')
+    assert(dummy_payload)
+    assert.are_not.same(dummy_payload.cwd, '${workspaceFolder}')
     assert.are.same(dummy_payload.numbers, {1, 2, 3, 4})
     assert.are.same(dummy_payload.strings, {'a', 'b', 'c'})
-    assert.are.equals(dummy_payload['key_with_' .. vim.fn.getcwd()], 'value')
+    assert.are.same(dummy_payload['key_with_' .. vim.fn.getcwd()], 'value')
 
     -- ensure `called_with` below passes
     config.dummy_payload = dummy_payload
 
     luassert.spy(launch).was.called_with(dap.adapters.python, config, { cwd = venv_dir, filetype = 'python' })
+
+    dap.terminate()
+    vim.wait(1000, function() return dap.session() == nil end)
+
+    assert.are.same(num_handles, get_num_handles())
   end)
 end)
 vim.fn.delete(venv_dir, 'rf')
