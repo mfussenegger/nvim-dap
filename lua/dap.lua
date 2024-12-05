@@ -226,7 +226,7 @@ local DAP_QUICKFIX_CONTEXT = DAP_QUICKFIX_TITLE
 ---@field detached nil|boolean
 
 
----@alias Dap.AdapterFactory fun(callback: fun(adapter: dap.Adapter), config: dap.Configuration, parent?: dap.Session)
+---@alias dap.AdapterFactory fun(callback: fun(adapter: dap.Adapter), config: dap.Configuration, parent?: dap.Session)
 
 --- Adapter definitions. See `:help dap-adapter` for more help
 ---
@@ -241,7 +241,7 @@ local DAP_QUICKFIX_CONTEXT = DAP_QUICKFIX_TITLE
 ---   },
 --- }
 --- ```
----@type table<string, dap.Adapter|Dap.AdapterFactory>
+---@type table<string, dap.Adapter|dap.AdapterFactory>
 M.adapters = {}
 
 
@@ -747,6 +747,10 @@ function M.stop()
 end
 
 
+---@param lsession dap.Session?
+---@param terminate_opts dap.TerminateArguments?
+---@param disconnect_opts dap.DisconnectArguments?
+---@param cb fun()?
 local function terminate(lsession, terminate_opts, disconnect_opts, cb)
   cb = cb or function() end
   if not lsession then
@@ -785,6 +789,9 @@ local function terminate(lsession, terminate_opts, disconnect_opts, cb)
 end
 
 
+---@param terminate_opts dap.TerminateArguments?
+---@param disconnect_opts dap.DisconnectArguments?
+---@param cb fun()?
 function M.terminate(terminate_opts, disconnect_opts, cb)
   local lsession = session
   if not lsession then
@@ -1251,14 +1258,21 @@ api.nvim_create_autocmd("ExitPre", {
   pattern = "*",
   group = api.nvim_create_augroup("dap.exit", { clear = true }),
   callback = function()
-    for _, s in pairs(sessions) do
+    ---@param s dap.Session
+    local function close_session(s)
+      s.adapter.options = {
+        disconnect_timeout_sec = 0.1
+      }
       if s.config.request == "attach" then
         s:disconnect({ terminateDebuggee = false })
       else
         terminate(s)
       end
     end
-    vim.wait(500, function()
+    for _, s in pairs(sessions) do
+      close_session(s)
+    end
+    vim.wait(5000, function()
       ---@diagnostic disable-next-line: redundant-return-value
       return session == nil and next(sessions) == nil
     end)

@@ -1204,7 +1204,7 @@ local function new_session(adapter, opts, handle)
     stopped_thread_id = nil,
     current_frame = nil,
     threads = {},
-    adapter = adapter,
+    adapter = vim.deepcopy(adapter),
     dirty = {},
     capabilities = {},
     filetype = opts.filetype or vim.bo.filetype,
@@ -1316,12 +1316,12 @@ function Session.pipe(adapter, opts, on_connect)
   local pipe = assert(uv.new_pipe(), "Must be able to create pipe")
   local session = new_session(adapter, opts or {}, pipe)
 
+  local session_adapter = session.adapter
+  ---@cast session_adapter dap.PipeAdapter
+  adapter = session_adapter
+
   if adapter.executable then
     if adapter.pipe == "${pipe}" then
-      -- don't mutate original adapter definition
-      adapter = vim.deepcopy(adapter)
-      session.adapter = adapter
-
       local filepath = os.tmpname()
       os.remove(filepath)
       session.on_close["dap.server_executable_pipe"] = function()
@@ -1370,15 +1370,18 @@ function Session.pipe(adapter, opts, on_connect)
 end
 
 
+---@param adapter dap.ServerAdapter
 function Session.connect(_, adapter, opts, on_connect)
   local client = assert(uv.new_tcp(), "Must be able to create TCP client")
   local session = new_session(adapter, opts or {}, client)
 
+  local session_adapter = session.adapter
+  ---@cast session_adapter dap.ServerAdapter
+  adapter = session_adapter
+
   if adapter.executable then
     if adapter.port == "${port}" then
       local port = get_free_port()
-      -- don't mutate original adapter definition
-      adapter = vim.deepcopy(adapter)
       session.adapter = adapter
       adapter.port = port
       if adapter.executable.args then
