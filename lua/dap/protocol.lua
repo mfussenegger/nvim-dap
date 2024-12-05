@@ -310,6 +310,14 @@
 ---@class dap.TerminatedEvent
 ---@field restart? any
 
+---@class dap.TerminateArguments
+---@field restart? boolean
+
+---@class dap.DisconnectArguments
+---@field restart? boolean
+---@field terminateDebuggee? boolean requires `supportTerminateDebuggee` capability
+---@field suspendDebuggee? boolean requires `supportSuspendDebuggee` capability
+
 
 ---@class dap.ThreadEvent
 ---@field reason "started"|"exited"|string
