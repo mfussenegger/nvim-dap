@@ -23,6 +23,7 @@ local function new_buf()
   local prev_buf = api.nvim_get_current_buf()
   local buf = api.nvim_create_buf(true, true)
   api.nvim_buf_set_name(buf, string.format('[dap-repl-%d]', buf))
+  vim.b[buf]["dap-srcft"] = vim.bo[prev_buf].filetype
   vim.bo[buf].buftype = "prompt"
   vim.bo[buf].omnifunc = "v:lua.require'dap.repl'.omnifunc"
   vim.bo[buf].buflisted = false
@@ -218,45 +219,40 @@ local function print_threads(threads)
 end
 
 
-function execute(text)
-  if text == '' then
-    if history.last then
-      text = history.last
-    else
+---@param confname string
+---@return dap.Session?
+local function trystart(confname)
+  assert(coroutine.running() ~= nil, "Must run in coroutine")
+  local dap = require("dap")
+  local bufnr = api.nvim_get_current_buf()
+  for _, get_configs in pairs(dap.providers.configs) do
+    local configs = get_configs(bufnr)
+    for _, config in ipairs(configs) do
+      if confname == config.name then
+        dap.run(config)
+      end
+    end
+  end
+  return dap.session()
+end
+
+
+local function coexecute(text)
+  assert(coroutine.running() ~= nil, "Must run in coroutine")
+
+  local session = get_session()
+  if not session then
+    local ft = vim.b["dap-srcft"] or vim.bo.filetype
+    local autostart = require("dap").defaults[ft].autostart
+    if autostart then
+      session = trystart(autostart)
+    end
+    if not session then
+      M.append('No active debug session')
       return
     end
-  else
-    history.last = text
-    if #history.entries == history.max_size then
-      table.remove(history.entries, 1)
-    end
-    table.insert(history.entries, text)
-    history.idx = #history.entries + 1
   end
-
-  local splitted_text = vim.split(text, ' ')
-  local session = get_session()
-  if vim.tbl_contains(M.commands.exit, text) then
-    if session then
-      -- Should result in a `terminated` event which closes the session and sets it to nil
-      session:disconnect()
-    end
-    api.nvim_command('close')
-    return
-  end
-  if vim.tbl_contains(M.commands.help, text) then
-    print_commands()
-    return
-  elseif vim.tbl_contains(M.commands.clear, text) then
-    if repl.buf and api.nvim_buf_is_loaded(repl.buf) then
-      M.clear()
-    end
-    return
-  end
-  if not session then
-    M.append('No active debug session')
-    return
-  end
+  local words = vim.split(text, ' ', { plain = true })
   if vim.tbl_contains(M.commands.continue, text) then
     require('dap').continue()
   elseif vim.tbl_contains(M.commands.next_, text) then
@@ -281,9 +277,9 @@ function execute(text)
   elseif vim.tbl_contains(M.commands.down, text) then
     session:_frame_delta(-1)
     M.print_stackframes()
-  elseif vim.tbl_contains(M.commands.goto_, splitted_text[1]) then
-    if splitted_text[2] then
-      session:_goto(tonumber(splitted_text[2]))
+  elseif vim.tbl_contains(M.commands.goto_, words[1]) then
+    if words[2] then
+      session:_goto(tonumber(words[2]))
     end
   elseif vim.tbl_contains(M.commands.scopes, text) then
     print_scopes(session.current_frame)
@@ -291,12 +287,50 @@ function execute(text)
     print_threads(vim.tbl_values(session.threads))
   elseif vim.tbl_contains(M.commands.frames, text) then
     M.print_stackframes()
-  elseif M.commands.custom_commands[splitted_text[1]] then
-    local command = splitted_text[1]
+  elseif M.commands.custom_commands[words[1]] then
+    local command = words[1]
     local args = string.sub(text, string.len(command)+2)
     M.commands.custom_commands[command](args)
   else
     session:evaluate(text, evaluate_handler)
+  end
+end
+
+
+function execute(text)
+  if text == '' then
+    if history.last then
+      text = history.last
+    else
+      return
+    end
+  else
+    history.last = text
+    if #history.entries == history.max_size then
+      table.remove(history.entries, 1)
+    end
+    table.insert(history.entries, text)
+    history.idx = #history.entries + 1
+  end
+  if vim.tbl_contains(M.commands.exit, text) then
+    local session = get_session()
+    if session then
+      -- Should result in a `terminated` event which closes the session and sets it to nil
+      session:disconnect()
+    end
+    api.nvim_command('close')
+    return
+  end
+  if vim.tbl_contains(M.commands.help, text) then
+    print_commands()
+  elseif vim.tbl_contains(M.commands.clear, text) then
+    if repl.buf and api.nvim_buf_is_loaded(repl.buf) then
+      M.clear()
+    end
+  else
+    require("dap.async").run(function()
+      coexecute(text)
+    end)
   end
 end
 
