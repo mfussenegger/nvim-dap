@@ -737,24 +737,41 @@ restart({config})                                                *dap.restart()*
           configuration used to start the current session.
 
 
-terminate(terminate_opts, disconnect_opts, cb),                                           *dap.terminate()*
+terminate(opts),                                              *dap.terminate()*
         Terminates the debug session.
 
         If the debug adapter doesn't support the `terminateRequest`
         capability, this will instead call |dap.disconnect()| with
         `terminateDebugee = true`.
 
+        If disconnect is used, the `terminateDebugee` and `suspendDebugee`
+        options will only take effect if the debug adapter has the
+        corresponding capabilities.
+
         Parameters: ~
-            {terminate_opts}      Options for the `terminate` request.
-                                  Defaults to empty.
-                                  Not used if |dap.disconnect| is used.
+            {opts}  Table containing:
 
-            {disconnect_opts}     Opts for |dap.disconnect|
-                                  Defaults to `{ terminateDebuggee = true }`
+                     - `terminate_args`: table; used if terminate is supported:
+                       - `restart: boolean?
 
-            {cb}                  Callback that is invoked once the session
-                                  terminated or immediately if no session is
-                                  active.
+                     - `disconnect_args`: table; used if terminate is not
+                       supported:
+                       - `restart`: `boolean?`
+                       - `terminateDebugee`: `boolean?`
+                       - `suspendDebugee`: `boolean?`
+
+                     - `on_done`: function triggered once terminate or
+                       disconnect completes
+
+                     - `all`: `boolean`: flag indicating that all root sessions
+                       should be terminated instead of only the currently
+                       focused session. Defaults to false
+
+                     - `hierarchy`: `boolean`: flag indicating that child and
+                       parent sessions should be terminated. This will affect
+                       the current focused session unless combined with `all`,
+                       in that case it terminates all root sessions including
+                       all their children.
 
 
 set_breakpoint({condition}, {hit_condition}, {log_message})
