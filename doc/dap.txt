@@ -602,6 +602,10 @@ The configuration values are set via `dap.defaults.fallback` (for global) or
   dap.defaults.fallback.on_output = function(session, output_event)
     -- ignore all outputs
   end
+
+
+- `autostart`. Name of a configuration to start implicitly if evaluating an
+  expression in the REPL without active session.
 <
 
 Some more examples:
@@ -613,6 +617,8 @@ Some more examples:
   dap.defaults.python.terminal_win_cmd = 'belowright new'
 
   dap.defaults.java.auto_continue_if_many_stopped = false
+
+  dap.defaults.fallback.autostart = "nluarepl"
 <
 
 ==============================================================================
