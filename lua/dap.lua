@@ -748,14 +748,13 @@ end
 
 
 ---@param lsession dap.Session?
----@param terminate_opts dap.TerminateArguments?
----@param disconnect_opts dap.DisconnectArguments?
----@param cb fun()?
-local function terminate(lsession, terminate_opts, disconnect_opts, cb)
-  cb = cb or function() end
+---@param opts dap.terminate.Opts?
+local function terminate(lsession, opts)
+  opts = opts or {}
+  local on_done = opts.on_done or function() end
   if not lsession then
     notify('No active session')
-    cb()
+    on_done()
     return
   end
 
@@ -763,16 +762,16 @@ local function terminate(lsession, terminate_opts, disconnect_opts, cb)
     log().warn('User called terminate on already closed session that is still in use')
     sessions[lsession.id] = nil
     M.set_session(nil)
-    cb()
+    on_done()
     return
   end
   local capabilities = lsession.capabilities or {}
   if capabilities.supportsTerminateRequest then
     capabilities.supportsTerminateRequest = false
-    local opts = terminate_opts or vim.empty_dict()
+    local args = opts.terminate_args or vim.empty_dict()
     local timeout_sec = (lsession.adapter.options or {}).disconnect_timeout_sec or 3
     local timeout_ms = timeout_sec * 1000
-    lsession:request_with_timeout('terminate', opts, timeout_ms, function(err)
+    lsession:request_with_timeout('terminate', args, timeout_ms, function(err)
       if err then
         log().warn(lazy.utils.fmt_error(err))
       end
@@ -780,28 +779,78 @@ local function terminate(lsession, terminate_opts, disconnect_opts, cb)
         lsession:close()
       end
       notify('Session terminated')
-      cb()
+      on_done()
     end)
   else
-    local opts = disconnect_opts or { terminateDebuggee = true }
-    lsession:disconnect(opts, cb)
+    local args = opts.disconnect_args or { terminateDebuggee = true }
+    lsession:disconnect(args, on_done)
   end
 end
 
+---@class dap.terminate.Opts
+---@field terminate_args dap.TerminateArguments?
+---@field disconnect_args dap.DisconnectArguments?
+---@field on_done function?
+---@field hierarchy boolean? terminate full hierarchy. Defaults to false
+---@field all boolean? terminate all root sessions. Can be combined with hierarchy. Defaults to false
 
----@param terminate_opts dap.TerminateArguments?
----@param disconnect_opts dap.DisconnectArguments?
----@param cb fun()?
-function M.terminate(terminate_opts, disconnect_opts, cb)
-  local lsession = session
-  if not lsession then
-    local _, s = next(sessions)
-    if s then
-      log().info("Terminate called without active session, switched to", s.id)
-    end
-    lsession = s
+
+---@param opts dap.terminate.Opts?
+function M.terminate(opts, disconnect_opts, cb)
+  opts = opts or {}
+  -- old signature was:
+  --- - terminate_opts dap.TerminateArguments?
+  --- - disconnect_opts dap.DisconnectArguments?
+  --- - cb fun()?
+  ---@diagnostic disable-next-line: undefined-field
+  if opts.restart ~= nil or disconnect_opts ~= nil or cb ~= nil then
+    opts = {
+      ---@diagnostic disable-next-line: assign-type-mismatch
+      terminate_args = opts,
+      disconnect_args = disconnect_opts,
+      on_done = cb,
+      hierarchy = false,
+      all = false,
+    }
   end
-  terminate(lsession, terminate_opts, disconnect_opts, cb)
+
+  local hierarchy = lazy.utils.if_nil(opts.hierarchy, false)
+  local all = lazy.utils.if_nil(opts.all, false)
+
+  ---@param s dap.Session
+  local function rec_terminate(s)
+    terminate(s, opts)
+    if hierarchy then
+      for _, child in pairs(s.children) do
+        rec_terminate(child)
+      end
+    end
+  end
+
+  if all then
+    for _, s in pairs(sessions) do
+      rec_terminate(s)
+    end
+  else
+    local lsession = session
+    if not lsession then
+      local _, s = next(sessions)
+      if s then
+        log().info("Terminate called without active session, switched to", s.id)
+      end
+      lsession = s
+    end
+    if not lsession then
+      return
+    end
+    if hierarchy then
+      while lsession.parent ~= nil do
+        lsession = lsession.parent
+        assert(lsession)
+      end
+    end
+    rec_terminate(lsession)
+  end
 end
 
 
@@ -861,11 +910,14 @@ function M.restart(config, opts)
       end)
     end)
   else
-    terminate(lsession, nil, nil, vim.schedule_wrap(function()
-      local nopts = opts and vim.deepcopy(opts) or {}
-      nopts.new = true
-      M.run(config, nopts)
-    end))
+    local terminate_opts = {
+      on_done = vim.schedule_wrap(function()
+        local nopts = opts and vim.deepcopy(opts) or {}
+        nopts.new = true
+        M.run(config, nopts)
+      end)
+    }
+    terminate(lsession, terminate_opts)
   end
 end
 
