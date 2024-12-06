@@ -4,8 +4,12 @@ local if_nil = utils.if_nil
 local M = {}
 
 
+---@param win integer
+---@param opts table<string, any>?
 function M.apply_winopts(win, opts)
-  if not opts then return end
+  if not opts then
+    return
+  end
   assert(
     type(opts) == 'table',
     'winopts must be a table, not ' .. type(opts) .. ': ' .. vim.inspect(opts)
