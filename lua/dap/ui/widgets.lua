@@ -515,6 +515,8 @@ function M.builder(widget)
 end
 
 
+---@param expr nil|string|fun():string
+---@return string
 local function eval_expression(expr)
   local mode = api.nvim_get_mode()
   if mode.mode == 'v' then
@@ -544,12 +546,14 @@ local function eval_expression(expr)
   expr = expr or '<cexpr>'
   if type(expr) == "function" then
     return expr()
-  elseif type(expr) == "string" then
+  else
     return vim.fn.expand(expr)
   end
 end
 
 
+---@param expr nil|string|fun():string
+---@param winopts table<string, any>?
 function M.hover(expr, winopts)
   local value = eval_expression(expr)
   local view = M.builder(M.expression)
@@ -582,6 +586,7 @@ end
 
 --- View the value of the expression under the cursor in a preview window
 ---
+---@param expr nil|string|fun():string
 ---@param opts? {listener?: string[]}
 function M.preview(expr, opts)
   opts = opts or {}
@@ -623,6 +628,7 @@ function M.preview(expr, opts)
     .new_win(new_preview_win)
     .build()
   view.open(value)
+  view.__expression = value
   return view
 end
 
