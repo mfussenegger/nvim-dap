@@ -66,6 +66,10 @@ local function new_win(buf, winopts, wincmd)
   local win = api.nvim_get_current_win()
   api.nvim_win_set_buf(win, buf)
   if vim.fn.has("nvim-0.11") == 1 then
+    vim.wo[win][0].relativenumber = false
+    vim.wo[win][0].number = false
+    vim.wo[win][0].foldcolumn = "0"
+    vim.wo[win][0].signcolumn = "auto"
     vim.wo[win][0].wrap = false
   else
     vim.wo[win].wrap = false
