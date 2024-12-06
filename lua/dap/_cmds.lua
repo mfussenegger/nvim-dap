@@ -141,4 +141,21 @@ function M.newlaunchjson(args)
 end
 
 
+function M.yank_evalname()
+  if vim.v.event.operator ~= "y" or vim.v.event.visual == true then
+    return
+  end
+  local buf = api.nvim_get_current_buf()
+  local layer = require("dap.ui").get_layer(buf)
+  if not layer then
+    return
+  end
+  local lnum = api.nvim_win_get_cursor(0)[1] - 1
+  local item = (layer.get(lnum) or {}).item
+  if item and item.evaluateName then
+    vim.fn.setreg("e", item.evaluateName)
+  end
+end
+
+
 return M

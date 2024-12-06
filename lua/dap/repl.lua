@@ -36,6 +36,12 @@ local function new_buf()
   api.nvim_buf_set_keymap(buf, 'n', 'o', "<Cmd>lua require('dap.ui').trigger_actions()<CR>", {})
   api.nvim_buf_set_keymap(buf, 'i', '<up>', "<Cmd>lua require('dap.repl').on_up()<CR>", {})
   api.nvim_buf_set_keymap(buf, 'i', '<down>', "<Cmd>lua require('dap.repl').on_down()<CR>", {})
+  api.nvim_create_autocmd("TextYankPost", {
+    buffer = buf,
+    callback = function()
+      require("dap._cmds").yank_evalname()
+    end,
+  })
   vim.fn.prompt_setprompt(buf, 'dap> ')
   vim.fn.prompt_setcallback(buf, execute)
   if vim.fn.has('nvim-0.7') == 1 then

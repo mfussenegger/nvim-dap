@@ -147,6 +147,12 @@ M.scopes = {
     dap.listeners.after['event_terminated'][view] = reset_tree
     dap.listeners.after['event_exited'][view] = reset_tree
     local buf = new_buf()
+    api.nvim_create_autocmd("TextYankPost", {
+      buffer = buf,
+      callback = function()
+        require("dap._cmds").yank_evalname()
+      end,
+    })
     vim.bo[buf].tagfunc = "v:lua.require'dap'._tagfunc"
     api.nvim_buf_attach(buf, false, {
       on_detach = function()
@@ -376,6 +382,12 @@ do
     new_buf = function()
       local buf = new_buf()
       vim.bo[buf].tagfunc = "v:lua.require'dap'._tagfunc"
+      api.nvim_create_autocmd("TextYankPost", {
+        buffer = buf,
+        callback = function()
+          require("dap._cmds").yank_evalname()
+        end,
+      })
       return buf
     end,
     before_open = function(view)
