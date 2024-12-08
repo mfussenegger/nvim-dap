@@ -563,6 +563,9 @@ The configuration values are set via `dap.defaults.fallback` (for global) or
   the integrated terminal. (See |dap-terminal|). Either a string or a function
   that must return a buffer number and a window number of the buffer/window
   for the terminal.
+  When using a function, it receives the current debug configuration as an 
+  argument, allowing for dynamic terminal naming and setup based on the 
+  session's configuration.
 
   Note that extensions like `nvim-dap-ui` use this to control the UI.
   If you customize it, you may break their behavior.
