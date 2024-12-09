@@ -147,6 +147,11 @@ M.defaults = setmetatable(
   {
     fallback = {
       exception_breakpoints = 'default';
+      ---@type table[]|nil
+      exception_options = nil;
+      ---@type table[]|nil
+      exception_filter_options = nil;
+
       ---@type "statement"|"line"|"instruction"
       stepping_granularity = 'statement';
 
@@ -1011,14 +1016,14 @@ end
 -- setExceptionBreakpoints (https://microsoft.github.io/debug-adapter-protocol/specification#Requests_SetExceptionBreakpoints)
 --- filters: string[]
 --- exceptionOptions: exceptionOptions?: ExceptionOptions[] (https://microsoft.github.io/debug-adapter-protocol/specification#Types_ExceptionOptions)
-function M.set_exception_breakpoints(filters, exceptionOptions)
+--- filterOptions: filterOptions?: ExceptionFilterOptions[] (https://microsoft.github.io/debug-adapter-protocol/specification#Types_ExceptionFilterOptions)
+function M.set_exception_breakpoints(filters, exceptionOptions, filterOptions)
   if session then
-    session:set_exception_breakpoints(filters, exceptionOptions)
+    session:set_exception_breakpoints(filters, exceptionOptions, filterOptions)
   else
     notify('Cannot set exception breakpoints: No active session!', vim.log.levels.INFO)
   end
 end
-
 
 function M.run_to_cursor()
   local lsession = session

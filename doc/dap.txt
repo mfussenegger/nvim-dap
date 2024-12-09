@@ -806,7 +806,8 @@ clear_breakpoints()                                   *dap.clear_breakpoints()*
 
     Removes all breakpoints
 
-set_exception_breakpoints({filters}, {exceptionOptions})
+set_exception_breakpoints({filters}, {exceptionOptions},
+{filterOptions})
                                               *dap.set_exception_breakpoints()*
 
     Sets breakpoints on exceptions filtered by `filters`. If `filters` is not
@@ -822,6 +823,9 @@ set_exception_breakpoints({filters}, {exceptionOptions})
                            used.
         {exceptionOptions} ExceptionOptions[]?
                            (https://microsoft.github.io/debug-adapter-protocol/specification#Types_ExceptionOptions)
+
+        {filterOptions} ExceptionFilterOptions[]?
+                           (https://microsoft.github.io/debug-adapter-protocol/specification#Types_ExceptionFilterOptions)
 
     >lua
         -- Ask user to stop on which kinds of exceptions
