@@ -150,7 +150,7 @@ M.defaults = setmetatable(
       ---@type "statement"|"line"|"instruction"
       stepping_granularity = 'statement';
 
-      ---@type string|fun(): number bufnr, number|nil win
+      ---@type string|fun(config: dap.Configuration):(integer, integer?)
       terminal_win_cmd = 'belowright new';
       focus_terminal = false;
       auto_continue_if_many_stopped = true;

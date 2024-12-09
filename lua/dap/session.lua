@@ -146,8 +146,9 @@ local function launch_external_terminal(env, terminal, args)
 end
 
 
----@param terminal_win_cmd string|fun():integer, integer?
+---@param terminal_win_cmd string|fun(config: dap.Configuration):(integer, integer?)
 ---@param filetype string
+---@param config dap.Configuration
 ---@return integer bufnr, integer? winnr
 local function create_terminal_buf(terminal_win_cmd, filetype, config)
   local cur_win = api.nvim_get_current_win()
