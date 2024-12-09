@@ -146,10 +146,11 @@ local function launch_external_terminal(env, terminal, args)
 end
 
 
----@param terminal_win_cmd string|fun():integer, integer?
+---@param terminal_win_cmd string|fun(config: dap.Configuration):(integer, integer?)
 ---@param filetype string
+---@param config dap.Configuration
 ---@return integer bufnr, integer? winnr
-local function create_terminal_buf(terminal_win_cmd, filetype)
+local function create_terminal_buf(terminal_win_cmd, filetype, config)
   local cur_win = api.nvim_get_current_win()
   if type(terminal_win_cmd) == "string" then
     api.nvim_command(terminal_win_cmd)
@@ -164,7 +165,7 @@ local function create_terminal_buf(terminal_win_cmd, filetype)
     return bufnr, win
   else
     assert(type(terminal_win_cmd) == "function", "terminal_win_cmd must be a string or a function")
-    return terminal_win_cmd()
+    return terminal_win_cmd(config)
   end
 end
 
@@ -186,7 +187,7 @@ do
       end
     end
     local terminal_win
-    buf, terminal_win = create_terminal_buf(win_cmd, filetype)
+    buf, terminal_win = create_terminal_buf(win_cmd, filetype, config)
     if terminal_win then
       if vim.fn.has('nvim-0.8') == 1 then
         -- older versions don't support the `win` key
