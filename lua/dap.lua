@@ -146,17 +146,20 @@ end
 M.defaults = setmetatable(
   {
     fallback = {
-      exception_breakpoints = 'default';
+      exception_breakpoints = 'default',
       ---@type "statement"|"line"|"instruction"
-      stepping_granularity = 'statement';
+      stepping_granularity = 'statement',
 
       ---@type string|fun(config: dap.Configuration):(integer, integer?)
-      terminal_win_cmd = 'belowright new';
-      focus_terminal = false;
-      auto_continue_if_many_stopped = true;
+      terminal_win_cmd = 'belowright new',
+      focus_terminal = false,
+      auto_continue_if_many_stopped = true,
 
       ---@type string|nil
-      switchbuf = nil
+      switchbuf = nil,
+
+      ---@type nil|fun(session: dap.Session, output: dap.OutputEvent)
+      on_output = nil,
     },
   },
   {
