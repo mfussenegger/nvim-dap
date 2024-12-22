@@ -323,12 +323,12 @@ do
     return option
   end
 
-  local var_placeholders_once = {
+  M.var_placeholders_once = {
     ['${command:pickProcess}'] = lazy.utils.pick_process,
     ['${command:pickFile}'] = lazy.utils.pick_file,
   }
 
-  local var_placeholders = {
+  M.var_placeholders = {
     ['${file}'] = function(_)
       return vim.fn.expand("%:p")
     end,
@@ -354,7 +354,7 @@ do
       return vim.fn.getcwd()
     end,
     ['${workspaceFolderBasename}'] = function(_)
-      return vim.fn.fnamemodify(vim.fn.getcwd(), ":t")
+      return vim.fn.fnamemodify(M.var_placeholders["${workspaceFolder}"], ":t")
     end,
     ['${env:([%w_]+)}'] = function(match)
       return os.getenv(match) or ''
@@ -379,10 +379,10 @@ do
       return option
     end
     local ret = option
-    for key, fn in pairs(var_placeholders) do
+    for key, fn in pairs(M.var_placeholders) do
       ret = ret:gsub(key, fn)
     end
-    for key, fn in pairs(var_placeholders_once) do
+    for key, fn in pairs(M.var_placeholders_once) do
       if ret:find(key) then
         local val = eval_option(fn)
         ret = ret:gsub(key, val)
