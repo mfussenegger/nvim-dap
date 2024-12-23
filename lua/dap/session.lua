@@ -46,7 +46,7 @@ end
 ---@field private handlers table<string, fun(self: dap.Session, payload: table)|fun()>
 ---@field private message_callbacks table<number, fun(err: nil|dap.ErrorResponse, body: nil|table, seq: number)>
 ---@field private message_requests table<number, any>
----@field private client Client
+---@field private client dap.TransportClient
 ---@field private handle uv.uv_stream_t
 ---@field current_frame dap.StackFrame|nil
 ---@field initialized boolean
@@ -60,9 +60,10 @@ end
 ---@field on_close table<string, fun(session: dap.Session)> Handler per plugin-id. Invoked when a session closes (due to terminated event, disconnect or error cases like initialize errors, debug adapter process exit, ...). Session is assumed non-functional at this point and handler can be invoked within luv event loop (not API safe, may require vim.schedule)
 ---@field children table<number, dap.Session>
 ---@field parent dap.Session|nil
+---@field config dap.Configuration
 
 
----@class Client
+---@class dap.TransportClient
 ---@field close fun(cb: function)
 ---@field write fun(line: string)
 
@@ -215,7 +216,7 @@ end
 ---@param lsession dap.Session
 local function run_in_terminal(lsession, request)
   local body = request.arguments
-  log.debug('run_in_terminal', body)
+  log:debug('run_in_terminal', body)
   local settings = dap().defaults[lsession.config.type]
   if body.kind == 'external' or (settings.force_external_terminal and settings.external_terminal) then
     local terminal = settings.external_terminal
@@ -242,7 +243,7 @@ local function run_in_terminal(lsession, request)
   local terminal_buf_name = '[dap-terminal] ' .. (lsession.config.name or body.args[1])
   local terminal_name_ok = pcall(api.nvim_buf_set_name, terminal_buf, terminal_buf_name)
   if not terminal_name_ok then
-    log.warn(terminal_buf_name ..  ' is not a valid buffer name')
+    log:warn(terminal_buf_name ..  ' is not a valid buffer name')
     api.nvim_buf_set_name(terminal_buf, '[dap-terminal] dap-' .. tostring(lsession.id))
   end
   pcall(api.nvim_buf_del_keymap, terminal_buf, "t", "<CR>")
@@ -295,7 +296,7 @@ local function run_in_terminal(lsession, request)
     end
   end
   if jobid == 0 or jobid == -1 then
-    log.error('Could not spawn terminal', jobid, request)
+    log:error('Could not spawn terminal', jobid, request)
     lsession:response(request, {
       success = false;
       message = 'Could not spawn terminal';
@@ -706,7 +707,7 @@ function Session:event_stopped(stopped)
         return
       end
       if thread.stopped == false then
-        log.debug("Thread resumed during stopped event handling", stopped, thread)
+        log:debug("Thread resumed during stopped event handling", stopped, thread)
         return
       end
     end
@@ -720,7 +721,7 @@ function Session:event_stopped(stopped)
       if defaults(self).auto_continue_if_many_stopped then
         local thread = self.threads[self.stopped_thread_id]
         local thread_name = thread and thread.name or self.stopped_thread_id
-        log.debug(
+        log:debug(
           'Received stopped event, but ' .. thread_name .. ' is already stopped. ' ..
           'Resuming newly stopped thread. ' ..
           'To disable this set the `auto_continue_if_many_stopped` option to false.')
@@ -761,7 +762,7 @@ function Session:event_stopped(stopped)
     }
     local err, response = self:request('stackTrace', params)
     if thread.stopped == false then
-      log.debug("Debug adapter resumed during stopped event handling", thread, err)
+      log:debug("Debug adapter resumed during stopped event handling", thread, err)
       return
     end
     if err then
@@ -811,7 +812,7 @@ function Session:event_output(body)
     return
   end
   if body.category == 'telemetry' then
-    log.info('Telemetry', body.output)
+    log:info('Telemetry', body.output)
   else
     repl.append(body.output, '$', { newline = false })
   end
@@ -978,7 +979,7 @@ do
           for _, bp in pairs(resp.breakpoints) do
             breakpoints.set_state(bufnr, bp)
             if not bp.verified then
-              log.info('Breakpoint unverified', bp)
+              log:info('Breakpoint unverified', bp)
             end
           end
         end
@@ -1041,7 +1042,7 @@ end
 
 function Session:handle_body(body)
   local decoded = assert(json_decode(body), "Debug adapter must send JSON objects")
-  log.debug(self.id, decoded)
+  log:debug(self.id, decoded)
   local listeners = dap().listeners
   if decoded.request_seq then
     local callback = self.message_callbacks[decoded.request_seq]
@@ -1049,7 +1050,7 @@ function Session:handle_body(body)
     self.message_requests[decoded.request_seq] = nil
     self.message_callbacks[decoded.request_seq] = nil
     if not callback then
-      log.error('No callback found. Did the debug adapter send duplicate responses?', decoded)
+      log:error('No callback found. Did the debug adapter send duplicate responses?', decoded)
       return
     end
     if decoded.success then
@@ -1091,7 +1092,7 @@ function Session:handle_body(body)
         c(self, decoded.body)
       end
       if not event_handled then
-        log.warn('No event handler for ', decoded)
+        log:warn('No event handler for ', decoded)
       end
     end)
   elseif decoded.type == 'request' then
@@ -1099,10 +1100,10 @@ function Session:handle_body(body)
     if handler then
       handler(self, decoded)
     else
-      log.warn('No handler for reverse request', decoded)
+      log:warn('No handler for reverse request', decoded)
     end
   else
-    log.warn('Received unexpected message', decoded)
+    log:warn('Received unexpected message', decoded)
   end
 end
 
@@ -1155,11 +1156,13 @@ local function start_debugging(self, request)
     end
 
     if adapter.type == "executable" then
-      local session = Session:spawn(adapter, opts)
-      on_child_session(session)
+      local session = Session.spawn(adapter, config, opts)
+      if session then
+        on_child_session(session)
+      end
     elseif adapter.type == "server" then
       local session
-      session = Session:connect(adapter, opts, function(err)
+      session = Session.connect(adapter, config, opts, function(err)
         if err then
           utils.notify(string.format(
             "Could not connect startDebugging child session %s:%s: %s",
@@ -1184,9 +1187,10 @@ local default_reverse_request_handlers = {
 local next_session_id = 1
 
 ---@param adapter dap.Adapter
+---@param config dap.Configuration
 ---@param handle uv.uv_stream_t
 ---@return dap.Session
-local function new_session(adapter, opts, handle)
+local function new_session(adapter, config, opts, handle)
   local handlers = {}
   handlers.after = opts.after
   handlers.reverse_requests = vim.tbl_extend(
@@ -1215,7 +1219,8 @@ local function new_session(adapter, opts, handle)
     on_close = {},
     children = {},
     handle = handle,
-    client = {}
+    client = {},
+    config = config,
   }
   function state.client.write(line)
     state.handle:write(line)
@@ -1248,6 +1253,40 @@ local function get_free_port()
 end
 
 
+---@param code integer
+---@param command string
+---@param adapter_name string
+---@return string
+local function get_badexit_msg(code, command, adapter_name)
+  return string.format(
+    "command `%s` of adapter `%s` exited with %d. Run :DapShowLog to open logs",
+    command,
+    adapter_name,
+    code
+  )
+end
+
+
+---@param err string
+---@param command string
+---@param adapter_name string
+---@return string
+local function get_spawn_errmsg(err, command, adapter_name)
+  if vim.startswith(err, "ENOENT") then
+    return string.format(
+      "Executable `%s` not found, fix the adapter definition for `%s` (%s)",
+      command,
+      adapter_name,
+      err
+    )
+  elseif command == "" then
+    return string.format("`command` of adapter `%s` must not be empty", adapter_name)
+  else
+    return string.format("Error running `%s` of `%s`: ", command, adapter_name, err)
+  end
+end
+
+
 --- Spawn the executable or raise an error if the command doesn't start.
 ---
 --- Adds a on_close hook on the session to terminate the executable once the
@@ -1257,7 +1296,7 @@ end
 ---@param session dap.Session
 local function spawn_server_executable(executable, session)
   local cmd = assert(executable.command, "executable of server adapter must have a `command` property")
-  log.debug("Starting debug adapter server executable", executable)
+  log:debug("Starting debug adapter server executable", executable)
   local stdout = assert(uv.new_pipe(false), "Must be able to create pipe")
   local stderr = assert(uv.new_pipe(false), "Must be able to create pipe")
   local opts = {
@@ -1267,34 +1306,43 @@ local function spawn_server_executable(executable, session)
     cwd = executable.cwd,
   }
   local handle, pid_or_err
+  local daplog = require("dap.log")
+  local stdoutlog = daplog.create_logger("dap-" .. session.config.type .. "-stdout.log")
+  local stderrlog = daplog.create_logger("dap-" .. session.config.type .. "-stderr.log")
   handle, pid_or_err = uv.spawn(cmd, opts, function(code)
+    log:info('Process exit', cmd, code, pid_or_err)
     if handle then
       handle:close()
     end
-    if code ~= 0 then
-      utils.notify(cmd .. " exited with code " .. code, vim.log.levels.WARN)
+    if code == 0 then
+      stdoutlog:remove()
+      stderrlog:remove()
+    else
+      stdoutlog:close()
+      stderrlog:close()
+      utils.notify(get_badexit_msg(code, cmd, session.config.type), vim.log.levels.WARN)
     end
   end)
   if not handle then
     stdout:close()
     stderr:close()
-    error(pid_or_err)
+    utils.notify(get_spawn_errmsg(tostring(pid_or_err), cmd, session.config.type), vim.log.levels.ERROR)
+    stdoutlog:remove()
+    stderrlog:remove()
+    return
   end
-
-  local read_output = function(stream, pipe)
+  local read_output = function(logger, pipe)
     return function(err, chunk)
       assert(not err, err)
       if chunk then
-        vim.schedule(function()
-          repl.append('[debug-adapter ' .. stream .. '] ' .. chunk)
-        end)
+        logger:write(chunk)
       else
         pipe:close()
       end
     end
   end
-  stderr:read_start(read_output('stderr', stderr))
-  stdout:read_start(read_output('stdout', stdout))
+  stderr:read_start(read_output(stderrlog, stderr))
+  stdout:read_start(read_output(stdoutlog, stdout))
 
   local is_windows = vim.fn.has("win32")
   session.on_close["dap.server_executable"] = function()
@@ -1311,11 +1359,12 @@ end
 
 ---@param adapter dap.PipeAdapter
 ---@param opts? table
+---@param config dap.Configuration
 ---@param on_connect fun(err?: string)
 ---@return dap.Session
-function Session.pipe(adapter, opts, on_connect)
+function Session.pipe(adapter, opts, config, on_connect)
   local pipe = assert(uv.new_pipe(), "Must be able to create pipe")
-  local session = new_session(adapter, opts or {}, pipe)
+  local session = new_session(adapter, config, opts or {}, pipe)
 
   local session_adapter = session.adapter
   ---@cast session_adapter dap.PipeAdapter
@@ -1326,7 +1375,7 @@ function Session.pipe(adapter, opts, on_connect)
       local filepath = os.tmpname()
       os.remove(filepath)
       session.on_close["dap.server_executable_pipe"] = function()
-        pcall(os.remove, filepath)
+        os.remove(filepath)
       end
       adapter.pipe = filepath
       if adapter.executable.args then
@@ -1337,7 +1386,7 @@ function Session.pipe(adapter, opts, on_connect)
       end
     end
     spawn_server_executable(adapter.executable, session)
-    log.debug(
+    log:debug(
       "Debug adapter server executable started with pipe " .. adapter.pipe)
     -- The adapter should create the pipe
 
@@ -1372,9 +1421,10 @@ end
 
 
 ---@param adapter dap.ServerAdapter
-function Session.connect(_, adapter, opts, on_connect)
+---@param config dap.Configuration
+function Session.connect(adapter, config, opts, on_connect)
   local client = assert(uv.new_tcp(), "Must be able to create TCP client")
-  local session = new_session(adapter, opts or {}, client)
+  local session = new_session(adapter, config, opts or {}, client)
 
   local session_adapter = session.adapter
   ---@cast session_adapter dap.ServerAdapter
@@ -1393,11 +1443,11 @@ function Session.connect(_, adapter, opts, on_connect)
       end
     end
     spawn_server_executable(adapter.executable, session)
-    log.debug(
+    log:debug(
       "Debug adapter server executable started, listening on " .. adapter.port)
   end
 
-  log.debug('Connecting to debug adapter', adapter)
+  log:debug('Connecting to debug adapter', adapter)
   local max_retries = (adapter.options or {}).max_retries or 14
 
   local host = adapter.host or '127.0.0.1'
@@ -1451,7 +1501,7 @@ function Session.connect(_, adapter, opts, on_connect)
     ---@diagnostic disable-next-line: missing-fields
     local ok, err = pcall(uv.getaddrinfo, host, nil, { protocol = 'tcp' }, on_addresses)
     if not ok then
-      log.warn(err)
+      log:warn(err)
       on_addresses(nil, { { addr = host }, })
     end
   else
@@ -1462,14 +1512,12 @@ end
 
 
 ---@param adapter dap.ExecutableAdapter
+---@param config dap.Configuration
 ---@param opts table|nil
----@return dap.Session
-function Session.spawn(_, adapter, opts)
-  log.debug('Spawning debug adapter', adapter)
+---@return dap.Session?
+function Session.spawn(adapter, config, opts)
+  log:debug('Spawning debug adapter', adapter)
 
-  local stdin = assert(uv.new_pipe(false), "Must be able to create pipe")
-  local stdout = assert(uv.new_pipe(false), "Must be able to create pipe")
-  local stderr = assert(uv.new_pipe(false), "Must be able to create pipe")
   local handle
   local pid_or_err
   local closed = false
@@ -1498,6 +1546,10 @@ function Session.spawn(_, adapter, opts)
     end)
   end
 
+  local stdin = assert(uv.new_pipe(false), "Must be able to create pipe")
+  local stdout = assert(uv.new_pipe(false), "Must be able to create pipe")
+  local stderr = assert(uv.new_pipe(false), "Must be able to create pipe")
+
   local function onexit(cb)
     if closed then
       return
@@ -1522,11 +1574,15 @@ function Session.spawn(_, adapter, opts)
     detached = utils.if_nil(options.detached, true);
   }
   local session
+  local stderrlog = require("dap.log").create_logger("dap-" .. config.type .. "-stderr.log")
   handle, pid_or_err = uv.spawn(adapter.command, spawn_opts, function(code)
+    log:info('Process exit', adapter.command, code, pid_or_err)
     onexit()
-    log.info('Process closed', pid_or_err)
-    if code ~= 0 then
-      utils.notify(adapter.command .. " exited with code: " .. tostring(code), vim.log.levels.WARN)
+    if code == 0 then
+      stderrlog:remove()
+    else
+      stderrlog:close()
+      utils.notify(get_badexit_msg(code, adapter.command, config.type), vim.log.levels.WARN)
     end
     if session and not session.closed then
       session:close()
@@ -1537,13 +1593,12 @@ function Session.spawn(_, adapter, opts)
     stdout:close()
     stderr:close()
     onexit()
-    if adapter.command == "" then
-      error("adapter.command must not be empty. Got: " .. vim.inspect(adapter))
-    else
-      error('Error running ' .. adapter.command .. ': ' .. pid_or_err)
-    end
+    stderrlog:remove()
+    local msg = get_spawn_errmsg(tostring(pid_or_err), adapter.command, config.type)
+    vim.notify(msg, vim.log.levels.ERROR)
+    return
   end
-  session = new_session(adapter, opts or {}, stdin)
+  session = new_session(adapter, config, opts or {}, stdin)
   session.client.close = onexit
 
   local function on_body(body)
@@ -1556,7 +1611,7 @@ function Session.spawn(_, adapter, opts)
   stderr:read_start(function(err, chunk)
     assert(not err, err)
     if chunk then
-      log.error("stderr", adapter, chunk)
+      stderrlog:write(chunk)
     else
       stderr:close()
     end
@@ -1723,14 +1778,14 @@ function Session:close()
   for _, on_close in pairs(self.on_close) do
     local ok, err = pcall(on_close, self)
     if not ok then
-      log.warn(err)
+      log:warn(err)
     end
   end
   self.on_close = {}
   if self.handlers.after then
     local ok, err = pcall(self.handlers.after)
     if not ok then
-      log.warn(err)
+      log:warn(err)
     end
     self.handlers.after = nil
   end
@@ -1739,6 +1794,10 @@ function Session:close()
     vim.diagnostic.reset(self.ns)
     ns_pool.release(self.ns)
   end)
+  if log._file then
+    log._file:write("\n")
+    log._file:flush()
+  end
   self.client.close(function()
     self.threads = {}
     self.message_callbacks = {}
@@ -1791,7 +1850,7 @@ function Session:request(command, arguments, callback)
     command = command;
     arguments = arguments
   }
-  log.debug('request', payload)
+  log:debug('request', payload)
   local current_seq = self.seq
   self.seq = self.seq + 1
   local co
@@ -1821,7 +1880,7 @@ function Session:response(request, payload)
   payload.type = 'response'
   payload.request_seq = request.seq;
   payload.command = request.command;
-  log.debug('response', payload)
+  log:debug('response', payload)
   send_payload(self.client, payload)
 end
 
@@ -1830,7 +1889,6 @@ end
 ---@param config dap.Configuration
 function Session:initialize(config)
   vim.schedule(repl.clear)
-  self.config = config
   local adapter_responded = false
 
   ---@param result dap.Capabilities?
@@ -1907,7 +1965,7 @@ function Session:disconnect(opts, cb)
   local disconnect_timeout_sec = (self.adapter.options or {}).disconnect_timeout_sec or 3
   self:request_with_timeout('disconnect', opts, disconnect_timeout_sec * sec_to_ms, function(err, resp)
     self:close()
-    log.info('Session closed due to disconnect')
+    log:info('Session closed due to disconnect')
     if cb then
       cb(err, resp)
     end

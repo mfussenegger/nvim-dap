@@ -335,9 +335,9 @@ describe('dap with fake server', function()
     local log = require('dap.log').create_logger('dap.log')
     local debug = log.debug
     local messages = {}
-    log.debug = function(...)
+    log.debug = function(self, ...)
       table.insert(messages, {...})
-      debug(...)
+      debug(self, ...)
     end
     server.client:send_event('stopped', {
       threadId = 1,
@@ -1200,7 +1200,7 @@ describe("bad debug adapter", function()
     }
     dap.run(bad_config)
     wait(function() return captured_msg ~= nil end)
-    assert.are.same("python exited with code: 10", captured_msg)
+    assert.are.same("command `python` of adapter `bad` exited with 10. Run :DapShowLog to open logs", captured_msg)
     assert.are.same(vim.log.levels.WARN, captured_log_level)
   end)
 end)
