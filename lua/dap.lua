@@ -11,6 +11,9 @@ local sessions = {}
 local session = nil
 local last_run = nil
 
+---@type dap.log.Log?
+local _log = nil
+
 
 -- lazy import other modules to have a lower startup footprint
 local lazy = setmetatable({
@@ -26,8 +29,12 @@ local lazy = setmetatable({
 })
 
 
+---@return dap.log.Log
 local function log()
-  return require('dap.log').create_logger('dap.log')
+  if not _log then
+    _log = require('dap.log').create_logger('dap.log')
+  end
+  return _log
 end
 
 local function notify(...)
@@ -428,32 +435,47 @@ local function add_reset_session_hook(lsession)
   end
 end
 
+local adapter_types = {
+  executable = true,
+  server = true,
+  pipe = true
+}
 
-local function run_adapter(adapter, configuration, opts)
-  local name = configuration.name or '[no name]'
-  local options = adapter.options or {}
-  opts = vim.tbl_extend('keep', opts, {
-    cwd = options.cwd,
-    env = options.env
-  })
+---@param adapter dap.Adapter
+---@param config dap.Configuration
+---@param opts table
+local function run_adapter(adapter, config, opts)
+  local name = config.name or '[no name]'
+  local valid_type = adapter_types[adapter.type]
+  if not valid_type then
+    local msg = string.format('Invalid adapter type %s, expected `executable`, `server` or `pipe`', adapter.type)
+    notify(msg, vim.log.levels.ERROR)
+    return
+  end
+  lazy.progress.report('Running: ' .. name)
+  local lsession
   if adapter.type == 'executable' then
-    lazy.progress.report('Running: ' .. name)
-    M.launch(adapter, configuration, opts)
+    ---@cast adapter dap.ExecutableAdapter
+    local options = adapter.options or {}
+    opts = vim.tbl_extend('keep', opts, {
+      cwd = options.cwd,
+      env = options.env
+    })
+    lsession = M.launch(adapter, config, opts)
   elseif adapter.type == 'server' then
-    lazy.progress.report('Running: ' .. name)
-    M.attach(adapter, configuration, opts)
+    ---@cast adapter dap.ServerAdapter
+    lsession = M.attach(adapter, config, opts)
   elseif adapter.type == "pipe" then
-    lazy.progress.report("Running: " .. name)
-    local lsession
-    lsession = require("dap.session").pipe(adapter, opts, function(err)
+    ---@cast adapter dap.PipeAdapter
+    lsession = require("dap.session").pipe(adapter, config, opts, function(err)
       if not err then
-        lsession:initialize(configuration)
+        lsession:initialize(config)
       end
     end)
+  end
+  if lsession then
     add_reset_session_hook(lsession)
     M.set_session(lsession)
-  else
-    notify(string.format('Invalid adapter type %s, expected `executable` or `server`', adapter.type), vim.log.levels.ERROR)
   end
 end
 
@@ -762,7 +784,7 @@ local function terminate(lsession, opts)
   end
 
   if lsession.closed then
-    log().warn('User called terminate on already closed session that is still in use')
+    log():warn('User called terminate on already closed session that is still in use')
     sessions[lsession.id] = nil
     M.set_session(nil)
     on_done()
@@ -776,7 +798,7 @@ local function terminate(lsession, opts)
     local timeout_ms = timeout_sec * 1000
     lsession:request_with_timeout('terminate', args, timeout_ms, function(err)
       if err then
-        log().warn(lazy.utils.fmt_error(err))
+        log():warn(lazy.utils.fmt_error(err))
       end
       if not lsession.closed then
         lsession:close()
@@ -839,7 +861,7 @@ function M.terminate(opts, disconnect_opts, cb)
     if not lsession then
       local _, s = next(sessions)
       if s then
-        log().info("Terminate called without active session, switched to", s.id)
+        log():info("Terminate called without active session, switched to", s.id)
       end
       lsession = s
     end
@@ -935,7 +957,7 @@ function M.list_breakpoints(openqf)
   end
   vim.fn.setqflist({}, action, {
     items = qf_list,
-    context = DAP_QUICKFIX_CONTEXT,
+    context = { DAP_QUICKFIX_CONTEXT },
     title = DAP_QUICKFIX_TITLE
   })
   if openqf then
@@ -1179,6 +1201,7 @@ function M.disconnect(opts, cb)
 end
 
 
+---@private
 --- Connect to a debug adapter via TCP
 ---@param adapter dap.ServerAdapter
 ---@param config dap.Configuration
@@ -1190,7 +1213,7 @@ function M.attach(adapter, config, opts)
   end
   assert(adapter.port, 'Adapter used with attach must have a port property')
   local s
-  s = require('dap.session'):connect(adapter, opts, function(err)
+  s = require('dap.session').connect(adapter, config, opts, function(err)
     if err then
       notify(
         string.format("Couldn't connect to %s:%s: %s", adapter.host or '127.0.0.1', adapter.port, err),
@@ -1202,28 +1225,28 @@ function M.attach(adapter, config, opts)
       end
     end
   end)
-  add_reset_session_hook(s)
-  M.set_session(s)
   return s
 end
 
 
+---@private
 --- Launch an executable debug adapter and initialize a session
 ---
 ---@param adapter dap.ExecutableAdapter
 ---@param config dap.Configuration
 ---@param opts table
 function M.launch(adapter, config, opts)
-  local s = require('dap.session'):spawn(adapter, opts)
-  add_reset_session_hook(s)
-  M.set_session(s)
+  local s = require('dap.session').spawn(adapter, config, opts)
+  if not s then
+    return
+  end
   s:initialize(config)
   return s
 end
 
 
 function M.set_log_level(level)
-  log().set_level(level)
+  log():set_level(level)
 end
 
 
@@ -1332,6 +1355,9 @@ api.nvim_create_autocmd("ExitPre", {
       return session == nil and next(sessions) == nil
     end)
     M.repl.close()
+    if _log then
+      _log:close()
+    end
   end
 })
 

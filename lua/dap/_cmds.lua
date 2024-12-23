@@ -158,4 +158,13 @@ function M.yank_evalname()
 end
 
 
+function M.show_logs()
+  local log = require("dap.log")
+  log.create_logger("dap.log")
+  for _, logger in pairs(log._loggers) do
+    vim.cmd.tabnew(logger._path)
+  end
+end
+
+
 return M
