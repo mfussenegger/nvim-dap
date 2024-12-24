@@ -1307,6 +1307,9 @@ For events, the listeners are called with two arguments:
 2. The event payload
 
 
+Both command and event listeners can return a boolean `true` to remove the
+registered listener.
+
 ==============================================================================
 BUILT-IN CLIENT EVENTS                                     *dap-listeners-ext*
 

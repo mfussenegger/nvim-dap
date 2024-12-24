@@ -56,66 +56,69 @@ M.repl = setmetatable({}, {
   end
 })
 
+---@alias dap.RequestListener<T, U> fun(session: dap.Session, err: dap.ErrorResponse?, response: T, args: U, seq: number):boolean?
+
+---@alias dap.EventListener<T> fun(session: dap.Session, body: T):boolean?
 
 ---@class dap.listeners
----@field event_breakpoint table<string, fun(session: dap.Session, body: any)>
----@field event_capabilities table<string, fun(session: dap.Session, body: any)>
----@field event_continued table<string, fun(session: dap.Session, body: any)>
----@field event_exited table<string, fun(session: dap.Session, body: any)>
----@field event_initialized table<string, fun(session: dap.Session, body: any)>
----@field event_invalidated table<string, fun(session: dap.Session, body: any)>
----@field event_loadedSource table<string, fun(session: dap.Session, body: any)>
----@field event_memory table<string, fun(session: dap.Session, body: any)>
----@field event_module table<string, fun(session: dap.Session, body: any)>
----@field event_output table<string, fun(session: dap.Session, body: any)>
----@field event_process table<string, fun(session: dap.Session, body: any)>
----@field event_progressEnd table<string, fun(session: dap.Session, body: dap.ProgressEndEvent)>
----@field event_progressStart table<string, fun(session: dap.Session, body: dap.ProgressStartEvent)>
----@field event_progressUpdate table<string, fun(session: dap.Session, body: dap.ProgressUpdateEvent)>
----@field event_stopped table<string, fun(session: dap.Session, body: dap.StoppedEvent)>
----@field event_terminated table<string, fun(session: dap.Session, body: dap.TerminatedEvent)>
----@field event_thread table<string, fun(session: dap.Session, body: any)>
----@field attach table<string, fun(session: dap.Session, err: any, body: any, request: any, seq: number)>
----@field breakpointLocations table<string, fun(session: dap.Session, err: any, body: any, request: any, seq: number)>
----@field completions table<string, fun(session: dap.Session, err: any, body: any, request: any, seq: number)>
----@field configurationDone table<string, fun(session: dap.Session, err: any, body: any, request: any, seq: number)>
----@field continue table<string, fun(session: dap.Session, err: any, body: any, request: any, seq: number)>
----@field dataBreakpointInfo table<string, fun(session: dap.Session, err: any, body: any, request: any, seq: number)>
----@field disassemble table<string, fun(session: dap.Session, err: any, body: any, request: any, seq: number)>
----@field disconnect table<string, fun(session: dap.Session, err: any, body: any, request: any, seq: number)>
----@field evaluate table<string, fun(session: dap.Session, err: any, body: any, request: any, seq: number)>
----@field exceptionInfo table<string, fun(session: dap.Session, err: any, body: any, request: any, seq: number)>
----@field goto table<string, fun(session: dap.Session, err: any, body: any, request: any, seq: number)>
----@field gotoTargets table<string, fun(session: dap.Session, err: any, body: any, request: any, seq: number)>
----@field initialize table<string, fun(session: dap.Session, err: any, body: any, request: any, seq: number)>
----@field launch table<string, fun(session: dap.Session, err: any, body: any, request: any, seq: number)>
----@field loadedSources table<string, fun(session: dap.Session, err: any, body: any, request: any, seq: number)>
----@field modules table<string, fun(session: dap.Session, err: any, body: any, request: any, seq: number)>
----@field next table<string, fun(session: dap.Session, err: any, body: any, request: any, seq: number)>
----@field pause table<string, fun(session: dap.Session, err: any, body: any, request: any, seq: number)>
----@field readMemory table<string, fun(session: dap.Session, err: any, body: any, request: any, seq: number)>
----@field restart table<string, fun(session: dap.Session, err: any, body: any, request: any, seq: number)>
----@field restartFrame table<string, fun(session: dap.Session, err: any, body: any, request: any, seq: number)>
----@field reverseContinue table<string, fun(session: dap.Session, err: any, body: any, request: any, seq: number)>
----@field scopes table<string, fun(session: dap.Session, err: any, body: any, request: any, seq: number)>
----@field setBreakpoints table<string, fun(session: dap.Session, err: any, body: any, request: any, seq: number)>
----@field setDataBreakpoints table<string, fun(session: dap.Session, err: any, body: any, request: any, seq: number)>
----@field setExceptionBreakpoints table<string, fun(session: dap.Session, err: any, body: any, request: any, seq: number)>
----@field setExpression table<string, fun(session: dap.Session, err: any, body: any, request: any, seq: number)>
----@field setFunctionBreakpoints table<string, fun(session: dap.Session, err: any, body: any, request: any, seq: number)>
----@field setInstructionBreakpoints table<string, fun(session: dap.Session, err: any, body: any, request: any, seq: number)>
----@field setVariable table<string, fun(session: dap.Session, err: any, body: any, request: any, seq: number)>
----@field source table<string, fun(session: dap.Session, err: any, body: any, request: any, seq: number)>
----@field stackTrace table<string, fun(session: dap.Session, err: any, body: any, request: any, seq: number)>
----@field stepBack table<string, fun(session: dap.Session, err: any, body: any, request: any, seq: number)>
----@field stepIn table<string, fun(session: dap.Session, err: any, body: any, request: any, seq: number)>
----@field stepInTargets table<string, fun(session: dap.Session, err: any, body: any, request: any, seq: number)>
----@field stepOut table<string, fun(session: dap.Session, err: any, body: any, request: any, seq: number)>
----@field terminate table<string, fun(session: dap.Session, err: any, body: any, request: any, seq: number)>
----@field terminateThreads table<string, fun(session: dap.Session, err: any, body: any, request: any, seq: number)>
----@field threads table<string, fun(session: dap.Session, err: any, body: any, request: any, seq: number)>
----@field variables table<string, fun(session: dap.Session, err: any, body: any, request: any, seq: number)>
----@field writeMemory table<string, fun(session: dap.Session, err: any, body: any, request: any, seq: number)>
+---@field event_breakpoint table<string, dap.EventListener<dap.BreakpointEvent>>
+---@field event_capabilities table<string, dap.EventListener<any>>
+---@field event_continued table<string, dap.EventListener<dap.ContinuedEvent>>
+---@field event_exited table<string, dap.EventListener<any>>
+---@field event_initialized table<string, dap.EventListener<dap.InitializedEvent>>
+---@field event_invalidated table<string, dap.EventListener<any>>
+---@field event_loadedSource table<string, dap.EventListener<any>>
+---@field event_memory table<string, dap.EventListener<any>>
+---@field event_module table<string, dap.EventListener<any>>
+---@field event_output table<string, dap.EventListener<dap.OutputEvent>>
+---@field event_process table<string, dap.EventListener<any>>
+---@field event_progressEnd table<string, dap.EventListener<dap.ProgressEndEvent>>
+---@field event_progressStart table<string, dap.EventListener<dap.ProgressStartEvent>>
+---@field event_progressUpdate table<string, dap.EventListener<dap.ProgressUpdateEvent>>
+---@field event_stopped table<string, dap.EventListener<dap.StoppedEvent>>
+---@field event_terminated table<string, dap.EventListener<dap.TerminatedEvent>>
+---@field event_thread table<string, dap.EventListener<dap.ThreadEvent>>
+---@field attach table<string, dap.RequestListener>
+---@field breakpointLocations table<string, dap.RequestListener>
+---@field completions table<string, dap.RequestListener<dap.CompletionsResponse, dap.CompletionsArguments>>
+---@field configurationDone table<string, dap.RequestListener>
+---@field continue table<string, dap.RequestListener>
+---@field dataBreakpointInfo table<string, dap.RequestListener>
+---@field disassemble table<string, dap.RequestListener>
+---@field disconnect table<string, dap.RequestListener<any, dap.DisconnectArguments>>
+---@field evaluate table<string, dap.RequestListener<dap.EvaluateResponse, dap.EvaluateArguments>>
+---@field exceptionInfo table<string, dap.RequestListener>
+---@field goto table<string, dap.RequestListener>
+---@field gotoTargets table<string, dap.RequestListener>
+---@field initialize table<string, dap.RequestListener>
+---@field launch table<string, dap.RequestListener>
+---@field loadedSources table<string, dap.RequestListener>
+---@field modules table<string, dap.RequestListener>
+---@field next table<string, dap.RequestListener>
+---@field pause table<string, dap.RequestListener>
+---@field readMemory table<string, dap.RequestListener>
+---@field restart table<string, dap.RequestListener>
+---@field restartFrame table<string, dap.RequestListener>
+---@field reverseContinue table<string, dap.RequestListener>
+---@field scopes table<string, dap.RequestListener>
+---@field setBreakpoints table<string, dap.RequestListener>
+---@field setDataBreakpoints table<string, dap.RequestListener>
+---@field setExceptionBreakpoints table<string, dap.RequestListener>
+---@field setExpression table<string, dap.RequestListener>
+---@field setFunctionBreakpoints table<string, dap.RequestListener>
+---@field setInstructionBreakpoints table<string, dap.RequestListener>
+---@field setVariable table<string, dap.RequestListener>
+---@field source table<string, dap.RequestListener>
+---@field stackTrace table<string, dap.RequestListener>
+---@field stepBack table<string, dap.RequestListener>
+---@field stepIn table<string, dap.RequestListener>
+---@field stepInTargets table<string, dap.RequestListener>
+---@field stepOut table<string, dap.RequestListener>
+---@field terminate table<string, dap.RequestListener>
+---@field terminateThreads table<string, dap.RequestListener>
+---@field threads table<string, dap.RequestListener>
+---@field variables table<string, dap.RequestListener<dap.VariableResponse, dap.VariablesArguments>>
+---@field writeMemory table<string, dap.RequestListener>
 
 
 M.listeners = {
