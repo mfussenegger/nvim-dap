@@ -1849,33 +1849,36 @@ end
 
 
 --- Send a request to the debug adapter
----@param command string command to execute
----@param arguments any|nil object containing arguments for the command
----@param callback fun(err: table, result: any)|nil called with the response result.
---- If nil and running within a coroutine the function will yield the result
-function Session:request(command, arguments, callback)
+---
+---@param command string command name
+---@param arguments any? command arguments
+---@param on_result fun(err: dap.ErrorResponse?, result: any)? response callback
+---@return dap.ErrorResponse? err, any response # (if running in coroutine and on_response is empty)
+---@overload fun(self: dap.Session, command: "evaluate", arguments: dap.EvaluateArguments, on_result: fun(err: dap.ErrorResponse?, result: dap.EvaluateResponse?)?):(dap.ErrorResponse?, dap.EvaluateResponse?)
+---@overload fun(self: dap.Session, command: "variables", arguments: dap.VariablesArguments, on_result: fun(err: dap.ErrorResponse?, result: dap.VariableResponse?)?):(dap.ErrorResponse?, dap.VariableResponse?)
+function Session:request(command, arguments, on_result)
   local payload = {
-    seq = self.seq;
-    type = 'request';
-    command = command;
-    arguments = arguments
+    seq = self.seq,
+    type = 'request',
+    command = command,
+    arguments = arguments,
   }
   log:debug('request', payload)
   local current_seq = self.seq
   self.seq = self.seq + 1
-  local co
-  if not callback then
-    co = coroutine.running()
-    if co then
-      callback = coresume(co)
+  local co, is_main
+  if not on_result then
+    co, is_main = coroutine.running()
+    if co and not is_main then
+      on_result = coresume(co)
     else
       -- Assume missing callback is intentional.
       -- Prevent error logging in Session:handle_body
-      callback = function(_, _)
+      on_result = function(_, _)
       end
     end
   end
-  self.message_callbacks[current_seq] = callback
+  self.message_callbacks[current_seq] = on_result
   self.message_requests[current_seq] = arguments
   send_payload(self.client, payload)
   if co then
@@ -1964,7 +1967,7 @@ function Session:evaluate(args, fn)
     }
   end
   args.frameId = args.frameId or (self.current_frame or {}).id
-  return self:request('evaluate', args, fn)
+  return self:request("evaluate", args, fn)
 end
 
 
