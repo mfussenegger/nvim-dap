@@ -1048,6 +1048,17 @@ function Session:set_exception_breakpoints(filters, exceptionOptions, on_done)
 end
 
 
+---@param listeners table<string, dap.RequestListener<any>|dap.EventListener<any>>
+local function call_listener(listeners, ...)
+  for key, listener in pairs(listeners) do
+    local remove = listener(...)
+    if remove then
+      listeners[key] = nil
+    end
+  end
+end
+
+
 function Session:handle_body(body)
   local decoded = assert(json_decode(body), "Debug adapter must send JSON objects")
   log:debug(self.id, decoded)
@@ -1061,49 +1072,36 @@ function Session:handle_body(body)
       log:error('No callback found. Did the debug adapter send duplicate responses?', decoded)
       return
     end
+    local err = nil
+    local response = nil
     if decoded.success then
-      vim.schedule(function()
-        for _, c in pairs(listeners.before[decoded.command]) do
-          c(self, nil, decoded.body, request, decoded.request_seq)
-        end
-        callback(nil, decoded.body, decoded.request_seq)
-        for _, c in pairs(listeners.after[decoded.command]) do
-          c(self, nil, decoded.body, request, decoded.request_seq)
-        end
-      end)
+      response = decoded.body
     else
-      vim.schedule(function()
-        local err = {
-          message = decoded.message,
-          body = decoded.body,
-        }
-        setmetatable(err, err_mt)
-        for _, c in pairs(listeners.before[decoded.command]) do
-          c(self, err, nil, request, decoded.request_seq)
-        end
-        callback(err, nil, decoded.request_seq)
-        for _, c in pairs(listeners.after[decoded.command]) do
-          c(self, err, nil, request, decoded.request_seq)
-        end
-      end)
+      err = {
+        message = decoded.message,
+        body = decoded.body,
+      }
+      setmetatable(err, err_mt)
     end
-  elseif decoded.event then
-    local callback = self['event_' .. decoded.event]
     vim.schedule(function()
-      local event_handled = false
-      for _, c in pairs(listeners.before['event_' .. decoded.event]) do
-        event_handled = true
-        c(self, decoded.body)
-      end
+      local before = listeners.before[decoded.command]
+      call_listener(before, self, err, response, request, decoded.request_seq)
+      callback(err, decoded.body, decoded.request_seq)
+      local after = listeners.after[decoded.command]
+      call_listener(after, self, err, response, request, decoded.request_seq)
+    end)
+  elseif decoded.event then
+    local callback_name = "event_" .. decoded.event
+    local callback = self[callback_name]
+    vim.schedule(function()
+      local before = listeners.before[callback_name]
+      call_listener(before, self, decoded.body)
       if callback then
-        event_handled = true
         callback(self, decoded.body)
       end
-      for _, c in pairs(listeners.after['event_' .. decoded.event]) do
-        event_handled = true
-        c(self, decoded.body)
-      end
-      if not event_handled then
+      local after = listeners.after[callback_name]
+      call_listener(after, self, decoded.body)
+      if not callback and not next(before) and not next(after) then
         log:warn('No event handler for ', decoded)
       end
     end)

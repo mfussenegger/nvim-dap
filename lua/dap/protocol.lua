@@ -297,6 +297,7 @@
 ---@field instructionReference? string
 ---@field offset? number
 
+---@class dap.InitializedEvent
 
 ---@class dap.StoppedEvent
 ---@field reason "step"|"breakpoint"|"exception"|"pause"|"entry"|"goto"|"function breakpoint"|"data breakpoint"|"instruction breakpoint"|string;
