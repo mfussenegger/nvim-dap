@@ -90,6 +90,7 @@ local function ui()
   return require('dap.ui')
 end
 
+---@param session dap.Session
 local function defaults(session)
   return dap().defaults[session.config.type]
 end
@@ -806,7 +807,8 @@ end
 
 ---@param body dap.OutputEvent
 function Session:event_output(body)
-  local on_output = defaults(self).on_output
+  local settings = defaults(self)
+  local on_output = settings.on_output
   if on_output then
     on_output(self, body)
     return
@@ -1362,7 +1364,7 @@ end
 ---@param config dap.Configuration
 ---@param on_connect fun(err?: string)
 ---@return dap.Session
-function Session.pipe(adapter, opts, config, on_connect)
+function Session.pipe(adapter, config, opts, on_connect)
   local pipe = assert(uv.new_pipe(), "Must be able to create pipe")
   local session = new_session(adapter, config, opts or {}, pipe)
 
