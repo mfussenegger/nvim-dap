@@ -218,7 +218,7 @@ local function set_expression(_, item, _, context)
   }
   session:request('setExpression', params, function(err)
     if err then
-      utils.notify('Error on setExpression: ' .. err.message, vim.log.levels.WARN)
+      utils.notify('Error on setExpression: ' .. tostring(err), vim.log.levels.WARN)
     else
       session:_request_scopes(session.current_frame)
     end
@@ -354,14 +354,14 @@ function threads_spec.fetch_children(thread, cb)
       local params = { threadId = thread.id }
       local err, resp = session:request('stackTrace', params)
       if err then
-        utils.notify('Error fetching stackTrace: ' .. utils.fmt_error(err), vim.log.levels.WARN)
+        utils.notify('Error fetching stackTrace: ' .. tostring(err), vim.log.levels.WARN)
       else
         thread.frames = resp.stackFrames
       end
       if not is_stopped then
         local err0 = session:request('continue', params)
         if err0 then
-          utils.notify('Error on continue: ' .. utils.fmt_error(err), vim.log.levels.WARN)
+          utils.notify('Error on continue: ' .. tostring(err0), vim.log.levels.WARN)
         else
           thread.stopped = false
           local progress = require('dap.progress')
@@ -409,7 +409,7 @@ function threads_spec.compute_actions(info)
             thread.stopped = false
             session:request('continue', { threadId = thread.id }, function(err)
               if err then
-                utils.notify('Error on continue: ' .. err.message, vim.log.levels.WARN)
+                utils.notify('Error on continue: ' .. tostring(err), vim.log.levels.WARN)
               end
               context.refresh()
             end)

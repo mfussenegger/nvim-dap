@@ -14,6 +14,12 @@ local mime_to_filetype = {
   ['text/javascript'] = 'javascript'
 }
 
+local err_mt = {
+  __tostring = function(e)
+    return utils.fmt_error(e)
+  end,
+}
+
 
 local ns_pool = {}
 do
@@ -318,7 +324,7 @@ function Session:event_initialized()
     if self.capabilities.supportsConfigurationDoneRequest then
       self:request('configurationDone', nil, function(err1, _)
         if err1 then
-          utils.notify(utils.fmt_error(err1), vim.log.levels.ERROR)
+          utils.notify(tostring(err1), vim.log.levels.ERROR)
         end
         self.initialized = true
       end)
@@ -347,7 +353,7 @@ function Session:_show_exception_info(thread_id, bufnr, frame)
   end
   local err, response = self:request('exceptionInfo', {threadId = thread_id})
   if err then
-    utils.notify('Error getting exception info: ' .. utils.fmt_error(err), vim.log.levels.ERROR)
+    utils.notify('Error getting exception info: ' .. tostring(err), vim.log.levels.ERROR)
   end
   if not response then
     return
@@ -704,7 +710,7 @@ function Session:event_stopped(stopped)
       self:update_threads(coresume(co))
       local err = coroutine.yield()
       if err then
-        utils.notify('Error retrieving threads: ' .. utils.fmt_error(err), vim.log.levels.ERROR)
+        utils.notify('Error retrieving threads: ' .. tostring(err), vim.log.levels.ERROR)
         return
       end
       if thread.stopped == false then
@@ -767,7 +773,7 @@ function Session:event_stopped(stopped)
       return
     end
     if err then
-      utils.notify('Error retrieving stack traces: ' .. utils.fmt_error(err), vim.log.levels.ERROR)
+      utils.notify('Error retrieving stack traces: ' .. tostring(err), vim.log.levels.ERROR)
       return
     end
     local frames = response.stackFrames --[=[@as dap.StackFrame[]]=]
@@ -879,7 +885,7 @@ function Session:_goto(line, source, col)
   coroutine.wrap(function()
     local err, response = self:request('gotoTargets',  {source = source or frame.source, line = line, col = col})
     if err then
-      utils.notify('Error getting gotoTargets: ' .. utils.fmt_error(err), vim.log.levels.ERROR)
+      utils.notify('Error getting gotoTargets: ' .. tostring(err), vim.log.levels.ERROR)
       return
     end
     if not response or not response.targets then
@@ -904,7 +910,7 @@ function Session:_goto(line, source, col)
       if thread then
         thread.stopped = true
       end
-      utils.notify('Error executing goto: ' .. utils.fmt_error(goto_err), vim.log.levels.ERROR)
+      utils.notify('Error executing goto: ' .. tostring(goto_err), vim.log.levels.ERROR)
     end
   end)()
 end
@@ -976,7 +982,7 @@ do
       ---@param resp dap.SetBreakpointsResponse
       local function on_response(err1, resp)
         if err1 then
-          utils.notify('Error setting breakpoints: ' .. utils.fmt_error(err1), vim.log.levels.ERROR)
+          utils.notify('Error setting breakpoints: ' .. tostring(err1), vim.log.levels.ERROR)
         elseif resp then
           for _, bp in pairs(resp.breakpoints) do
             breakpoints.set_state(bufnr, bp)
@@ -1033,7 +1039,7 @@ function Session:set_exception_breakpoints(filters, exceptionOptions, on_done)
     { filters = filters, exceptionOptions = exceptionOptions },
     function(err, _)
       if err then
-        utils.notify('Error setting exception breakpoints: ' .. utils.fmt_error(err), vim.log.levels.ERROR)
+        utils.notify('Error setting exception breakpoints: ' .. tostring(err), vim.log.levels.ERROR)
       end
       if on_done then
         on_done()
@@ -1067,7 +1073,11 @@ function Session:handle_body(body)
       end)
     else
       vim.schedule(function()
-        local err = { message = decoded.message; body = decoded.body; }
+        local err = {
+          message = decoded.message,
+          body = decoded.body,
+        }
+        setmetatable(err, err_mt)
         for _, c in pairs(listeners.before[decoded.command]) do
           c(self, err, nil, request, decoded.request_seq)
         end
@@ -1628,7 +1638,7 @@ local function pause_thread(session, thread_id, cb)
 
   session:request('pause', { threadId = thread_id; }, function(err)
     if err then
-      utils.notify('Error pausing: ' .. utils.fmt_error(err), vim.log.levels.ERROR)
+      utils.notify('Error pausing: ' .. tostring(err), vim.log.levels.ERROR)
     else
       utils.notify('Thread paused ' .. thread_id, vim.log.levels.INFO)
       local thread = session.threads[thread_id]
@@ -1651,7 +1661,7 @@ function Session:_pause(thread_id, cb)
   if self.dirty.threads then
     self:update_threads(function(err)
       if err then
-        utils.notify('Error requesting threads: ' .. utils.fmt_error(err), vim.log.levels.ERROR)
+        utils.notify('Error requesting threads: ' .. tostring(err), vim.log.levels.ERROR)
         return
       end
       self:_pause(nil, cb)
@@ -1707,7 +1717,7 @@ function Session:restart_frame()
     clear_running(self)
     local err = self:request('restartFrame', { frameId = frame.id })
     if err then
-      utils.notify('Error on restart_frame: ' .. utils.fmt_error(err), vim.log.levels.ERROR)
+      utils.notify('Error on restart_frame: ' .. tostring(err), vim.log.levels.ERROR)
     end
   end)()
 end
@@ -1744,7 +1754,7 @@ function Session:_step(step, params)
     clear_running(self, thread_id)
     self:request(step, params, function(err)
       if err then
-        utils.notify('Error on '.. step .. ': ' .. utils.fmt_error(err), vim.log.levels.ERROR)
+        utils.notify('Error on '.. step .. ': ' .. tostring(err), vim.log.levels.ERROR)
       end
       progress.report('Running')
     end)
@@ -1893,10 +1903,11 @@ function Session:initialize(config)
   vim.schedule(repl.clear)
   local adapter_responded = false
 
+  ---@param err0 dap.ErrorResponse?
   ---@param result dap.Capabilities?
   local function on_initialize(err0, result)
     if err0 then
-      utils.notify('Could not initialize debug adapter: ' .. utils.fmt_error(err0), vim.log.levels.ERROR)
+      utils.notify('Could not initialize debug adapter: ' .. tostring(err0), vim.log.levels.ERROR)
       adapter_responded = true
       return
     end
@@ -1904,7 +1915,7 @@ function Session:initialize(config)
     self:request(config.request, config, function(err)
       adapter_responded = true
       if err then
-        utils.notify(string.format('Error on %s: %s', config.request, utils.fmt_error(err)), vim.log.levels.ERROR)
+        utils.notify(string.format('Error on %s: %s', config.request, err), vim.log.levels.ERROR)
         self:close()
       end
     end)
