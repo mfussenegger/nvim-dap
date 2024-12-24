@@ -708,7 +708,7 @@ function M.step_into(opts)
   session:request('stepInTargets', { frameId = session.current_frame.id }, function(err, response)
     if err then
       notify(
-        'Error on step_into: ' .. lazy.utils.fmt_error(err) .. ' (while requesting stepInTargets)',
+        'Error on step_into: ' .. tostring(err) .. ' (while requesting stepInTargets)',
         vim.log.levels.ERROR
       )
       return
@@ -798,7 +798,7 @@ local function terminate(lsession, opts)
     local timeout_ms = timeout_sec * 1000
     lsession:request_with_timeout('terminate', args, timeout_ms, function(err)
       if err then
-        log():warn(lazy.utils.fmt_error(err))
+        log():warn(tostring(err))
       end
       if not lsession.closed then
         lsession:close()
@@ -928,7 +928,7 @@ function M.restart(config, opts)
       config = prepare_config(config)
       lsession:request('restart', config, function(err0, _)
         if err0 then
-          notify('Error restarting debug adapter: ' .. lazy.utils.fmt_error(err0), vim.log.levels.ERROR)
+          notify('Error restarting debug adapter: ' .. tostring(err0), vim.log.levels.ERROR)
         else
           notify('Restarted debug adapter', vim.log.levels.INFO)
         end

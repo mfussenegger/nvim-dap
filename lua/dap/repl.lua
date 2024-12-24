@@ -166,10 +166,7 @@ end
 
 local function evaluate_handler(err, resp)
   if err then
-    local message = utils.fmt_error(err)
-    if message then
-      M.append(message, nil, { newline = false })
-    end
+    M.append(tostring(err), nil, { newline = false })
     return
   end
   local layer = ui.layer(repl.buf)
