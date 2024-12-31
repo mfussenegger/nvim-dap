@@ -326,13 +326,12 @@ DEBUGEE CONFIGURATION via launch.json                *dap-launch.json*
 
 nvim-dap supports a subset of the `launch.json` file format used to configure
 debug adapters in Visual Studio Code.
-
-To load a `launch.json` file, use the `load_launchjs` function from the
-`dap.ext.vscode` module.
+`.vscode/launch.json` are read automatically whenever you start a new debug
+session using |dap.continue()| or `:DapNew`. (via a configuration provider,
+see |dap-providers-configs|)
 
 Unlike VS Code, nvim-dap supports standard JSON. Trailing commas on the
 last item of a list are an error.
-
 If you install a 3rd-party json5 parser you can override the json decode
 function to support json5 features like trailing comma.
 >
@@ -341,23 +340,7 @@ function to support json5 features like trailing comma.
 (One json5 parser implementation is https://github.com/Joakker/lua-json5)
 
 
-load_launchjs({path}, {type_to_filetypes})        *dap.ext.vscode.load_launchjs*
-
-  Parses a JSON file at {path} and adds the entries to `dap.configurations`.
-  Configurations are overwritten by name, so if filetype and name matches a
-  configuration in `dap.configurations`, the config is overwritten by the
-  one loaded from the file at {path}.
-
-  Parameters:
-      {path}    Path to the `launch.json` file. Defaults to
-                `.vscode/launch.json` in the current working directory.
-
-      {type_to_filetypes}  A table mapping `type` values in `launch.json` to
-                           one or more filetypes.
-                           By default, the `type` values in `launch.json` will
-                           be used as filetypes verbatim.
-
-An example `launch.json` might look like this:
+An example `launch.json` looks like this:
 
 >json
   {
@@ -375,15 +358,6 @@ An example `launch.json` might look like this:
           }
       ]
   }
-<
-
-For the above configuration, calling `load_launchjs` adds the first entry to
-`dap.configurations.java` and the second entry to `dap.configurations.cppdbg`.
-If you wanted to add the second entry to the `c` or `cpp` configurations you
-could call `load_launchjs` like this instead:
->
->lua
-  require('dap.ext.vscode').load_launchjs(nil, { cppdbg = {'c', 'cpp'} })
 <
 
 load_launchjs supports `inputs`. Inputs can be used to define custom input prompts.
