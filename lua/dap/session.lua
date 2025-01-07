@@ -268,8 +268,8 @@ local function run_in_terminal(lsession, request)
   local opts = {
     env = next(body.env or {}) and body.env or vim.empty_dict(),
     cwd = (body.cwd and body.cwd ~= '') and body.cwd or nil,
-    height = terminal_win and api.nvim_win_get_height(terminal_win) or 40,
-    width = terminal_win and api.nvim_win_get_width(terminal_win) or 80,
+    height = terminal_win and api.nvim_win_get_height(terminal_win) or math.ceil(vim.o.lines / 2),
+    width = terminal_win and api.nvim_win_get_width(terminal_win) or vim.o.columns,
     pty = true,
     on_stdout = function(_, data)
       local count = #data
