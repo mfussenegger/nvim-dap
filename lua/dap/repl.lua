@@ -1,6 +1,7 @@
 local api = vim.api
 local ui = require('dap.ui')
 local utils = require('dap.utils')
+local prompt = "dap> "
 local M = {}
 
 local history = {
@@ -36,13 +37,35 @@ local function new_buf()
   api.nvim_buf_set_keymap(buf, 'n', 'o', "<Cmd>lua require('dap.ui').trigger_actions()<CR>", {})
   api.nvim_buf_set_keymap(buf, 'i', '<up>', "<Cmd>lua require('dap.repl').on_up()<CR>", {})
   api.nvim_buf_set_keymap(buf, 'i', '<down>', "<Cmd>lua require('dap.repl').on_down()<CR>", {})
+  vim.keymap.set("n", "]]", function()
+    local lnum = api.nvim_win_get_cursor(0)[1] - 1
+    local lines = api.nvim_buf_get_lines(buf, lnum + 1, -1, false)
+    for i, line in ipairs(lines) do
+      if vim.startswith(line, prompt) then
+        api.nvim_win_set_cursor(0, { i + lnum + 1, #line - 1 })
+        break
+      end
+    end
+  end, { buffer = buf, desc = "Move to next prompt" })
+  vim.keymap.set("n", "[[", function()
+    local lnum = api.nvim_win_get_cursor(0)[1] - 1
+    local lines = api.nvim_buf_get_lines(buf, 0, lnum, true)
+    local num_lines = #lines
+    for i = num_lines, 1, -1 do
+      local line = lines[i]
+      if vim.startswith(line, prompt) then
+        api.nvim_win_set_cursor(0, { lnum - (num_lines - i), #line - 1 })
+        break
+      end
+    end
+  end, { buffer = buf, desc = "Move to previous prompt" })
   api.nvim_create_autocmd("TextYankPost", {
     buffer = buf,
     callback = function()
       require("dap._cmds").yank_evalname()
     end,
   })
-  vim.fn.prompt_setprompt(buf, 'dap> ')
+  vim.fn.prompt_setprompt(buf, prompt)
   vim.fn.prompt_setcallback(buf, execute)
   if vim.fn.has('nvim-0.7') == 1 then
     vim.keymap.set('n', 'G', function()
@@ -344,7 +367,7 @@ end
 
 --- Add and execute text as if entered directly
 function M.execute(text)
-  M.append("dap> " .. text .. "\n", "$", { newline = true })
+  M.append(prompt .. text .. "\n", "$", { newline = true })
   local numlines = api.nvim_buf_line_count(repl.buf)
   if repl.win and api.nvim_win_is_valid(repl.win) then
     pcall(api.nvim_win_set_cursor, repl.win, { numlines, 0 })
@@ -394,7 +417,7 @@ local function select_history(delta)
   if text then
     local lnum = vim.fn.line('$')
     local lines = vim.split(text, "\n", { plain = true })
-    lines[1] = "dap> " .. lines[1]
+    lines[1] = prompt .. lines[1]
     api.nvim_buf_set_lines(repl.buf, lnum - 1, -1, true, lines)
     vim.fn.setcursorcharpos({ vim.fn.line("$"), vim.fn.col('$') })  -- move cursor to the end of line
   end
@@ -428,13 +451,13 @@ function M.append(line, lnum, opts)
     if opts.newline == false then
       local last_line = api.nvim_buf_get_lines(buf, -2, -1, true)[1]
       local insert_pos = #last_line
-      if last_line == 'dap> ' then
+      if last_line == prompt then
         -- insert right in front of the empty prompt
         insert_pos = 0
         if lines[#lines] ~= '' then
           table.insert(lines, #lines + 1, '')
         end
-      elseif vim.startswith(last_line, 'dap> ') then
+      elseif vim.startswith(last_line, prompt) then
         table.insert(lines, 1, '')
       end
       api.nvim_buf_set_text(buf, lnum, insert_pos, lnum, insert_pos, lines)
@@ -495,7 +518,7 @@ do
     local session = get_session()
     local col = api.nvim_win_get_cursor(0)[2]
     local line = api.nvim_get_current_line()
-    local offset = vim.startswith(line, 'dap> ') and 5 or 0
+    local offset = vim.startswith(line, prompt) and 5 or 0
     local line_to_cursor = line:sub(offset + 1, col)
     local text_match = vim.fn.match(line_to_cursor, '\\k*$')
     if vim.startswith(line_to_cursor, '.') or base ~= '' then
