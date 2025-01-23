@@ -203,6 +203,10 @@ M._trim_procname = trim_procname
 ---                      and it must return a boolean.
 ---                      Matches are included.
 ---
+--- - label         fun: A function to generate a custom label for the processes.
+---                      If not provided, a default label is used.
+--- - prompt     string: The title/prompt of pick process select.
+---
 --- <pre>
 --- require("dap.utils").pick_process({ filter = "sway" })
 --- </pre>
@@ -213,12 +217,18 @@ M._trim_procname = trim_procname
 --- })
 --- </pre>
 ---
----@param opts? {filter: string|(fun(proc: {pid: integer, name: string}): boolean)}
+--- <pre>
+--- require("dap.utils").pick_process({
+---   label = function(proc) return string.format("Process: %s (PID: %d)", proc.name, proc.pid) end
+--- })
+--- </pre>
+---
+---@param opts? {filter: string|(fun(proc: {pid: integer, name: string}): boolean), label: (fun(proc: {pid: integer, name: string}): string), prompt: string}
 function M.pick_process(opts)
   opts = opts or {}
   local cols = math.max(14, math.floor(vim.o.columns * 0.7))
   local wordlimit = math.max(10, math.floor(cols / 3))
-  local label_fn = function(proc)
+  local label_fn = opts.label or function(proc)
     local name = trim_procname(proc.name, cols, wordlimit)
     return string.format("id=%d name=%s", proc.pid, name)
   end
@@ -226,7 +236,7 @@ function M.pick_process(opts)
   local co, ismain = coroutine.running()
   local ui = require("dap.ui")
   local pick = (co and not ismain) and ui.pick_one or ui.pick_one_sync
-  local result = pick(procs, "Select process: ", label_fn)
+  local result = pick(procs, opts.prompt or "Select process: ", label_fn)
   return result and result.pid or require("dap").ABORT
 end
 
