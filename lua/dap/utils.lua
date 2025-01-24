@@ -78,9 +78,9 @@ end
 --- })
 --- </pre>
 ---
----@param opts? {filter: string|(fun(proc: {pid: integer, name: string}): boolean)}
+---@param opts? {filter: string|(fun(proc: dap.utils.Proc): boolean)}
 ---
----@return {pid: integer, name: string}[]
+---@return dap.utils.Proc[]
 function M.get_processes(opts)
   opts = opts or {}
   local is_windows = vim.fn.has('win32') == 1
@@ -192,6 +192,15 @@ end
 M._trim_procname = trim_procname
 
 
+---@class dap.utils.Proc
+---@field pid integer
+---@field name string
+
+---@class dap.utils.pick_process.Opts
+---@field filter? string|fun(proc: dap.utils.Proc):boolean
+---@field label? fun(proc: dap.utils.Proc): string
+---@field prompt? string
+
 --- Show a prompt to select a process pid
 --- Requires `ps ah -u $USER` on Linux/Mac and `tasklist /nh /fo csv` on windows.
 --
@@ -223,7 +232,7 @@ M._trim_procname = trim_procname
 --- })
 --- </pre>
 ---
----@param opts? {filter: string|(fun(proc: {pid: integer, name: string}): boolean), label: (fun(proc: {pid: integer, name: string}): string), prompt: string}
+---@param opts? dap.utils.pick_process.Opts
 function M.pick_process(opts)
   opts = opts or {}
   local cols = math.max(14, math.floor(vim.o.columns * 0.7))
