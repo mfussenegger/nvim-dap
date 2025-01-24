@@ -155,19 +155,13 @@ end
 
 
 ---@param terminal_win_cmd string|fun(config: dap.Configuration):(integer, integer?)
----@param filetype string
 ---@param config dap.Configuration
 ---@return integer bufnr, integer? winnr
-local function create_terminal_buf(terminal_win_cmd, filetype, config)
+local function create_terminal_buf(terminal_win_cmd, config)
   local cur_win = api.nvim_get_current_win()
   if type(terminal_win_cmd) == "string" then
     api.nvim_command(terminal_win_cmd)
     local bufnr = api.nvim_get_current_buf()
-    if vim.filetype then
-      local path = vim.filetype.get_option(filetype, "path")
-      assert(type(path) == "string", "path option must be a string")
-      vim.bo[bufnr].path = path
-    end
     local win = api.nvim_get_current_win()
     api.nvim_set_current_win(cur_win)
     return bufnr, win
@@ -195,7 +189,17 @@ do
       end
     end
     local terminal_win
-    buf, terminal_win = create_terminal_buf(win_cmd, filetype, config)
+    local prev_buf = api.nvim_get_current_buf()
+    buf, terminal_win = create_terminal_buf(win_cmd, config)
+    assert(buf, "terminal_win_cmd must return a buffer number")
+    vim.bo[buf].errorformat = vim.bo[prev_buf].errorformat
+    if vim.filetype then
+      local path = vim.filetype.get_option(filetype, "path")
+      assert(type(path) == "string", "path option must be a string")
+      vim.bo[buf].path = path
+    else
+      vim.bo[buf].path = vim.bo[prev_buf].path
+    end
     if terminal_win then
       if vim.fn.has('nvim-0.8') == 1 then
         -- older versions don't support the `win` key
