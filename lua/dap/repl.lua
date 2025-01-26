@@ -267,8 +267,11 @@ local function trystart(confname)
 end
 
 
-local function coexecute(text)
+---@param text string
+---@param opts? dap.repl.execute.Opts
+local function coexecute(text, opts)
   assert(coroutine.running() ~= nil, "Must run in coroutine")
+  opts = opts or {}
 
   local session = get_session()
   if not session then
@@ -322,12 +325,23 @@ local function coexecute(text)
     local args = string.sub(text, string.len(command)+2)
     M.commands.custom_commands[command](args)
   else
-    session:evaluate(text, evaluate_handler)
+    ---@type dap.EvaluateArguments
+    local params = {
+      expression = text,
+      context = opts.context or "repl"
+    }
+    session:evaluate(params, evaluate_handler)
   end
 end
 
 
-function execute(text)
+---@class dap.repl.execute.Opts
+---@field context? "watch"|"repl"|"hover"|"variables"|"clipboard"
+
+
+---@param text string
+---@param opts? dap.repl.execute.Opts
+function execute(text, opts)
   if text == '' then
     if history.last then
       text = history.last
@@ -359,14 +373,16 @@ function execute(text)
     end
   else
     require("dap.async").run(function()
-      coexecute(text)
+      coexecute(text, opts)
     end)
   end
 end
 
 
 --- Add and execute text as if entered directly
-function M.execute(text)
+---@param text string
+---@param opts? dap.repl.execute.Opts
+function M.execute(text, opts)
   M.append(prompt .. text .. "\n", "$", { newline = true })
   local numlines = api.nvim_buf_line_count(repl.buf)
   if repl.win and api.nvim_win_is_valid(repl.win) then
@@ -375,7 +391,7 @@ function M.execute(text)
       vim.cmd.normal({"zt", bang = true })
     end)
   end
-  execute(text)
+  execute(text, opts)
 end
 
 
