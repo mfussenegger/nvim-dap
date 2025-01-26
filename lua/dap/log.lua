@@ -86,7 +86,7 @@ function Log:_log(level, levelnr, ...)
   if argc == 0 then
     return true
   end
-  local info = debug.getinfo(2, 'Sl')
+  local info = debug.getinfo(3, 'Sl')
   local _, end_ = info.short_src:find("nvim-dap/lua", 1, true)
   local src = end_ and info.short_src:sub(end_ + 2) or info.short_src
   local fileinfo = string.format('%s:%s', src, info.currentline)
