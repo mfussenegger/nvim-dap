@@ -296,7 +296,7 @@ end
 
 
 providers.configs["dap.global"] = function(bufnr)
-  local filetype = vim.bo[bufnr].filetype
+  local filetype = vim.b["dap-srcft"] or vim.bo[bufnr].filetype
   local configurations = M.configurations[filetype] or {}
   assert(
     islist(configurations),
