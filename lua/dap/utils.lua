@@ -377,6 +377,8 @@ end
 --- Split an argument string on whitespace characters into a list,
 --- except if the whitespace is contained within single or double quotes.
 ---
+--- Leading and trailing whitespace is removed.
+---
 --- Examples:
 ---
 --- ```lua
@@ -403,6 +405,10 @@ function M.splitstr(str)
     local quote = P(quotestr)
     local escaped_quote = P('\\') * quote
     return quote * C(((1 - P(quote)) + escaped_quote) ^ 0) * quote
+  end
+  str = str:match("^%s*(.*%S)")
+  if not str or str == "" then
+    return {}
   end
 
   local space = S(" \t\n\r") ^ 1
