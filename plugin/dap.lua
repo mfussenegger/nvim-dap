@@ -5,8 +5,9 @@ end
 
 local cmd = api.nvim_create_user_command
 cmd('DapSetLogLevel',
+  ---@param opts vim.api.keyset.create_user_command.command_args
   function(opts)
-    require('dap').set_log_level(unpack(opts.fargs))
+    require('dap').set_log_level(vim.trim(opts.args))
   end,
   {
     nargs = 1,
