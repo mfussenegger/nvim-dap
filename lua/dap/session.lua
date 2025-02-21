@@ -1860,6 +1860,8 @@ end
 ---@return dap.ErrorResponse? err, any response # (if running in coroutine and on_response is empty)
 ---@overload fun(self: dap.Session, command: "evaluate", arguments: dap.EvaluateArguments, on_result: fun(err: dap.ErrorResponse?, result: dap.EvaluateResponse?)?):(dap.ErrorResponse?, dap.EvaluateResponse?)
 ---@overload fun(self: dap.Session, command: "variables", arguments: dap.VariablesArguments, on_result: fun(err: dap.ErrorResponse?, result: dap.VariableResponse?)?):(dap.ErrorResponse?, dap.VariableResponse?)
+---@overload fun(self: dap.Session, command: "threads", arguments: nil, on_result: fun(err: dap.ErrorResponse?, result: dap.ThreadResponse?)?):(dap.ErrorResponse?, dap.ThreadResponse?)
+---@overload fun(self: dap.Session, command: "stackTrace", arguments: dap.StackTraceArguments, on_result: fun(err: dap.ErrorResponse?, result: dap.StackTraceResponse?)?):(dap.ErrorResponse?, dap.StackTraceResponse?)
 function Session:request(command, arguments, on_result)
   local payload = {
     seq = self.seq,
