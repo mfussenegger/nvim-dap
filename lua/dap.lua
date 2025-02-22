@@ -311,6 +311,10 @@ end
 
 providers.configs["dap.launch.json"] = function()
   local ok, configs = pcall(require("dap.ext.vscode").getconfigs)
+  if not ok then
+    local msg = string.format("Cannot get configurations from `launch.json`:\n%s", configs)
+    notify(msg, vim.log.levels.ERROR)
+  end
   return ok and configs or {}
 end
 
