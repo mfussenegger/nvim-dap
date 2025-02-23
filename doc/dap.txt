@@ -538,6 +538,7 @@ Stepping:
 - `DapStepInto`: Step into the current expression
 - `DapStepOut`: Step out of the current scope
 - `DapStepOver`: Step over the current line
+- `DapPause`: Pause the current thread or pick a thread to pause
 
 REPL:
 
