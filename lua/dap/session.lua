@@ -843,7 +843,7 @@ function Session:_request_scopes(current_frame)
     end
     local scopes = scope_resp.scopes
     current_frame.scopes = scopes
-    for _, scope in ipairs(scopes) do
+    for _, scope in ipairs(scopes or {}) do
       if not scope.expensive then
 
         ---@param resp dap.VariableResponse?
