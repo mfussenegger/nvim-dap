@@ -26,7 +26,7 @@
 
 
 ---@class dap.ErrorResponse: dap.Response
----@field message string
+---@field message? "cancelled"|"notStopped"|string
 ---@field body {error?: dap.Message}
 
 

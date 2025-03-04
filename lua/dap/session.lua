@@ -16,7 +16,7 @@ local mime_to_filetype = {
 
 local err_mt = {
   __tostring = function(e)
-    return utils.fmt_error(e)
+    return utils.fmt_error(e) or "Undefined error"
   end,
 }
 
