@@ -240,6 +240,24 @@
 ---@field supportsExceptionFilterOptions boolean|nil
 ---@field supportsSingleThreadExecutionRequests boolean|nil
 
+---@class dap.InitializeRequestArguments
+---@field clientId? string
+---@field clientName? string
+---@field adapterId string
+---@field locale string
+---@field linesStartAt1? boolean
+---@field columnsStartAt1? boolean
+---@field pathFormat? "path" | "uri" | string
+---@field supportsVariableType? boolean
+---@field supportsVariablePaging? boolean
+---@field supportsRunInTerminalRequest? boolean
+---@field supportsMemoryReferences? boolean
+---@field supportsProgressReporting? boolean
+---@field supportsInvalidatedEvent? boolean
+---@field supportsMemoryEvent? boolean
+---@field supportsArgsCanBeInterpretedByShell? boolean
+---@field supportsStartDebuggingRequest? boolean
+---@field supportsANSIStyling? boolean
 
 ---@class dap.ExceptionBreakpointsFilter
 ---@field filter string

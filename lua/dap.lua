@@ -90,7 +90,7 @@ M.repl = setmetatable({}, {
 ---@field exceptionInfo table<string, dap.RequestListener>
 ---@field goto table<string, dap.RequestListener>
 ---@field gotoTargets table<string, dap.RequestListener>
----@field initialize table<string, dap.RequestListener>
+---@field initialize table<string, dap.RequestListener<dap.Capabilities?, dap.InitializeRequestArguments>>
 ---@field launch table<string, dap.RequestListener>
 ---@field loadedSources table<string, dap.RequestListener>
 ---@field modules table<string, dap.RequestListener>
