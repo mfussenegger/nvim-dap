@@ -1090,7 +1090,7 @@ function Session:handle_body(body)
     vim.schedule(function()
       local before = listeners.before[decoded.command]
       call_listener(before, self, err, response, request, decoded.request_seq)
-      callback(err, decoded.body, decoded.request_seq)
+      callback(err, response, decoded.request_seq)
       local after = listeners.after[decoded.command]
       call_listener(after, self, err, response, request, decoded.request_seq)
     end)
