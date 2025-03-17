@@ -24,6 +24,23 @@ describe('dap with fake server', function()
     require('dap.breakpoints').clear()
     wait(function() return dap.session() == nil end)
   end)
+
+  it("handler is called without response if there is an error", function()
+    local session = run_and_wait_until_initialized(config, server)
+    server.client.threads = function(self, request)
+      self:send_err_response(request, "this is wrong", "err1")
+    end
+
+    local err, resp
+    session:request("threads", nil, function (e, r)
+      err = e
+      resp = r
+    end)
+    wait(function() return err ~= nil end)
+    assert.is_nil(resp)
+    assert.are.same(tostring(err), "this is wrong")
+  end)
+
   it('clear breakpoints clears all active breakpoints', function()
     local session = run_and_wait_until_initialized(config, server)
     assert.are_not.same(session, nil)
