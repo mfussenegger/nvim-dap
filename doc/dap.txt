@@ -592,11 +592,12 @@ The configuration values are set via `dap.defaults.fallback` (for global) or
                        See |'switchbuf'|. Defaults to the global `'switchbuf'`
                        setting.
 
-                       nvim-dap provides an additional `usevisible` option
-                       that can be used to prevent jumps within the active
-                       window if a stopped event is within the visible region.
-                       Best used in combination with other options. For
-                       example: 'usevisible,usetab,uselast'
+                       nvim-dap provides an additional `usevisible`
+                       (`tabusevisible`) option that can be used to prevent
+                       jumps within the active window (tab) if a stopped event
+                       is within the visible region. Best used in combination
+                       with other options. For example:
+                       'usevisible,usetab,uselast'
 
 - `on_output`. A function with two parameters: `session` and `output_event`:
   Overrides the default output handling with a custom handler.
