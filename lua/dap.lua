@@ -262,6 +262,7 @@ M.adapters = {}
 ---@field type string
 ---@field request "launch"|"attach"
 ---@field name string
+---@field [string] any
 
 
 --- Configurations per adapter. See `:help dap-configuration` for more help.
