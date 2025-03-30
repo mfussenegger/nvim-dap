@@ -1,6 +1,5 @@
 local M = {}
 
-
 ---@param err dap.ErrorResponse
 ---@return string?
 function M.fmt_error(err)
@@ -8,13 +7,12 @@ function M.fmt_error(err)
   if body.error and body.error.showUser then
     local msg = body.error.format
     for key, val in pairs(body.error.variables or {}) do
-      msg = msg:gsub('{' .. key .. '}', val)
+      msg = msg:gsub("{" .. key .. "}", val)
     end
     return msg
   end
   return err.message
 end
-
 
 -- Group values (a list) into a dictionary.
 --  `get_key`   is used to get the key from an element of values
@@ -26,13 +24,14 @@ function M.to_dict(values, get_key, get_value)
     vim.notify_once("dap.utils.to_dict is deprecated for removal in nvim-dap 0.10.0")
   end
   local rtn = {}
-  get_value = get_value or function(v) return v end
+  get_value = get_value or function(v)
+    return v
+  end
   for _, v in pairs(values or {}) do
     rtn[get_key(v)] = get_value(v)
   end
   return rtn
 end
-
 
 ---@param object? table|string
 ---@return boolean
@@ -42,7 +41,6 @@ function M.non_empty(object)
   end
   return object and #object > 0 or false
 end
-
 
 ---@generic T
 ---@param items T[]
@@ -56,7 +54,6 @@ function M.index_of(items, predicate)
   end
   return nil
 end
-
 
 --- Return running processes as a list with { pid, name } tables.
 ---
@@ -83,14 +80,14 @@ end
 ---@return dap.utils.Proc[]
 function M.get_processes(opts)
   opts = opts or {}
-  local is_windows = vim.fn.has('win32') == 1
-  local separator = is_windows and ',' or ' \\+'
-  local command = is_windows and {'tasklist', '/nh', '/fo', 'csv'} or {'ps', 'ah', '-U', os.getenv("USER")}
+  local is_windows = vim.fn.has("win32") == 1
+  local separator = is_windows and "," or " \\+"
+  local command = is_windows and { "tasklist", "/nh", "/fo", "csv" } or { "ps", "ah", "-U", os.getenv("USER") }
   -- output format for `tasklist /nh /fo` csv
   --    '"smss.exe","600","Services","0","1,036 K"'
   -- output format for `ps ah`
   --    " 107021 pts/4    Ss     0:00 /bin/zsh <args>"
-  local get_pid = function (parts)
+  local get_pid = function(parts)
     if is_windows then
       return vim.fn.trim(parts[2], '"')
     else
@@ -98,16 +95,16 @@ function M.get_processes(opts)
     end
   end
 
-  local get_process_name = function (parts)
+  local get_process_name = function(parts)
     if is_windows then
       return vim.fn.trim(parts[1], '"')
     else
-      return table.concat({unpack(parts, 5)}, ' ')
+      return table.concat({ unpack(parts, 5) }, " ")
     end
   end
 
   local output = vim.fn.system(command)
-  local lines = vim.split(output, '\n')
+  local lines = vim.split(output, "\n")
   local procs = {}
 
   local nvim_pid = vim.fn.getpid()
@@ -140,9 +137,6 @@ function M.get_processes(opts)
 
   return procs
 end
-
-
-
 
 --- Trim a process name to better fit into `columns`
 ---
@@ -191,7 +185,6 @@ end
 ---@private
 M._trim_procname = trim_procname
 
-
 ---@class dap.utils.Proc
 ---@field pid integer
 ---@field name string
@@ -237,10 +230,11 @@ function M.pick_process(opts)
   opts = opts or {}
   local cols = math.max(14, math.floor(vim.o.columns * 0.7))
   local wordlimit = math.max(10, math.floor(cols / 3))
-  local label_fn = opts.label or function(proc)
-    local name = trim_procname(proc.name, cols, wordlimit)
-    return string.format("id=%d name=%s", proc.pid, name)
-  end
+  local label_fn = opts.label
+    or function(proc)
+      local name = trim_procname(proc.name, cols, wordlimit)
+      return string.format("id=%d name=%s", proc.pid, name)
+    end
   local procs = M.get_processes(opts)
   local co, ismain = coroutine.running()
   local ui = require("dap.ui")
@@ -249,19 +243,17 @@ function M.pick_process(opts)
   return result and result.pid or require("dap").ABORT
 end
 
-
 ---@param msg string
 ---@param log_level? integer
 function M.notify(msg, log_level)
   if vim.in_fast_event() then
     vim.schedule(function()
-      vim.notify(msg, log_level, {title = 'DAP'})
+      vim.notify(msg, log_level, { title = "DAP" })
     end)
   else
-    vim.notify(msg, log_level, {title = 'DAP'})
+    vim.notify(msg, log_level, { title = "DAP" })
   end
 end
-
 
 ---@generic T
 ---@param x T?
@@ -271,14 +263,15 @@ function M.if_nil(x, default)
   return x == nil and default or x
 end
 
-
 ---@param opts {filter?: string|(fun(name: string):boolean), executables?: boolean}
 ---@return string[]
 local function get_files(path, opts)
   local is_windows = vim.fn.has("win32") == 1 or vim.fn.has("win64") == 1
   local uv = vim.uv or vim.loop
-  
-  local filter = function(_) return true end
+
+  local filter = function(_)
+    return true
+  end
   if opts.filter then
     if type(opts.filter) == "string" then
       filter = function(filepath)
@@ -289,20 +282,20 @@ local function get_files(path, opts)
         return opts.filter(filepath)
       end
     else
-      error('opts.filter must be a string or a function')
+      error("opts.filter must be a string or a function")
     end
   end
-  
+
   if opts.executables then
     local f = filter
-    
+
     filter = function(filepath)
       if not f(filepath) then
         return false
       end
-      
+
       if is_windows then
-        local executable_exts = {'.exe', '.bat', '.cmd', '.ps1', '.com'}
+        local executable_exts = { ".exe", ".bat", ".cmd", ".ps1", ".com" }
         local ext = string.match(filepath:lower(), "%.%w+$")
         if ext then
           for _, executable_ext in ipairs(executable_exts) do
@@ -334,7 +327,7 @@ local function get_files(path, opts)
   end
 
   local output
-  
+
   if is_windows then
     local ps_cmd = string.format(
       "powershell -NoProfile -Command \"Get-ChildItem -Path '%s' -Recurse -File | Select-Object -ExpandProperty FullName\"",
@@ -342,17 +335,16 @@ local function get_files(path, opts)
     )
     output = vim.fn.system(ps_cmd)
   else
-    local cmd = {"find", path, "-type", "f"}
+    local cmd = { "find", path, "-type", "f" }
     if opts.executables then
       table.insert(cmd, "-executable")
     end
     table.insert(cmd, "-follow")
     output = vim.fn.system(cmd)
   end
-  
-  return vim.tbl_filter(filter, vim.split(output, '\n'))
-end
 
+  return vim.tbl_filter(filter, vim.split(output, "\n"))
+end
 
 --- Show a prompt to select a file.
 --- Returns the path to the selected file.
@@ -375,13 +367,16 @@ end
 ---@return thread|string|dap.Abort
 function M.pick_file(opts)
   opts = opts or {}
-  local executables = opts.executables == nil and true or opts.executables
+  local executables = true
+  if opts.executables ~= nil then
+    executables = opts.executables
+  end
+
   local path = opts.path or vim.fn.getcwd()
   local files = get_files(path, {
     filter = opts.filter,
-    executables = executables
+    executables = executables,
   })
-  print(vim.inspect((files)))
   local prompt = executables and "Select executable: " or "Select file: "
   local co, ismain = coroutine.running()
   local ui = require("dap.ui")
@@ -399,7 +394,6 @@ function M.pick_file(opts)
   end
   return pick(files, prompt, relpath) or require("dap").ABORT
 end
-
 
 --- Split an argument string on whitespace characters into a list,
 --- except if the whitespace is contained within single or double quotes.
@@ -430,7 +424,7 @@ function M.splitstr(str)
   ---@return vim.lpeg.Pattern
   local function qtext(quotestr)
     local quote = P(quotestr)
-    local escaped_quote = P('\\') * quote
+    local escaped_quote = P("\\") * quote
     return quote * C(((1 - P(quote)) + escaped_quote) ^ 0) * quote
   end
   str = str:match("^%s*(.*%S)")
@@ -444,6 +438,5 @@ function M.splitstr(str)
   local p = lpeg.Ct(element * (space * element) ^ 0)
   return lpeg.match(p, str)
 end
-
 
 return M
