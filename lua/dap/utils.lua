@@ -275,6 +275,9 @@ end
 ---@param opts {filter?: string|(fun(name: string):boolean), executables?: boolean}
 ---@return string[]
 local function get_files(path, opts)
+  local is_windows = vim.fn.has("win32") == 1 or vim.fn.has("win64") == 1
+  local uv = vim.uv or vim.loop
+  
   local filter = function(_) return true end
   if opts.filter then
     if type(opts.filter) == "string" then
@@ -289,16 +292,31 @@ local function get_files(path, opts)
       error('opts.filter must be a string or a function')
     end
   end
-  if opts.executables and vim.fs.dir then
+  
+  if opts.executables then
     local f = filter
-    local uv = vim.uv or vim.loop
-    local user_execute = tonumber("00100", 8)
+    
     filter = function(filepath)
       if not f(filepath) then
         return false
       end
-      local stat = uv.fs_stat(filepath)
-      return stat and bit.band(stat.mode, user_execute) == user_execute or false
+      
+      if is_windows then
+        local executable_exts = {'.exe', '.bat', '.cmd', '.ps1', '.com'}
+        local ext = string.match(filepath:lower(), "%.%w+$")
+        if ext then
+          for _, executable_ext in ipairs(executable_exts) do
+            if ext == executable_ext then
+              return true
+            end
+          end
+        end
+        return false
+      else
+        local user_execute = tonumber("00100", 8)
+        local stat = uv.fs_stat(filepath)
+        return stat and bit.band(stat.mode, user_execute) == user_execute or false
+      end
     end
   end
 
@@ -315,15 +333,23 @@ local function get_files(path, opts)
     return files
   end
 
-
-  local cmd = {"find", path, "-type", "f"}
-  if opts.executables then
-    -- The order of options matters!
-    table.insert(cmd, "-executable")
+  local output
+  
+  if is_windows then
+    local ps_cmd = string.format(
+      "powershell -NoProfile -Command \"Get-ChildItem -Path '%s' -Recurse -File | Select-Object -ExpandProperty FullName\"",
+      path:gsub("/", "\\")
+    )
+    output = vim.fn.system(ps_cmd)
+  else
+    local cmd = {"find", path, "-type", "f"}
+    if opts.executables then
+      table.insert(cmd, "-executable")
+    end
+    table.insert(cmd, "-follow")
+    output = vim.fn.system(cmd)
   end
-  table.insert(cmd, "-follow")
-
-  local output = vim.fn.system(cmd)
+  
   return vim.tbl_filter(filter, vim.split(output, '\n'))
 end
 
@@ -355,6 +381,7 @@ function M.pick_file(opts)
     filter = opts.filter,
     executables = executables
   })
+  print(vim.inspect((files)))
   local prompt = executables and "Select executable: " or "Select file: "
   local co, ismain = coroutine.running()
   local ui = require("dap.ui")
