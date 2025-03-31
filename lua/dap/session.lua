@@ -1942,6 +1942,9 @@ function Session:initialize(config)
   }
   self:request('initialize', params, on_initialize)
   local adapter = self.adapter
+  if adapter.options ~= nil and adapter.options.initialize_timeout_sec == false then
+    return
+  end
   local sec_to_wait = (adapter.options or {}).initialize_timeout_sec or 4
   local timer = assert(uv.new_timer(), "Must be able to create timer")
   timer:start(sec_to_wait * sec_to_ms, 0, function()
