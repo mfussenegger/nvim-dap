@@ -265,14 +265,15 @@ local function run_in_terminal(lsession, request)
 
   local jobid
   vim.api.nvim_buf_call(terminal_buf, function()
-    jobid = vim.fn.jobstart(body.args, {
+    local termopen = vim.fn.has("nvim-0.11") == 1 and vim.fn.jobstart or vim.fn.termopen
+    jobid = termopen(body.args, {
       env = next(body.env or {}) and body.env or vim.empty_dict(),
       cwd = (body.cwd and body.cwd ~= '') and body.cwd or nil,
       height = terminal_win and api.nvim_win_get_height(terminal_win) or math.ceil(vim.o.lines / 2),
       width = terminal_win and api.nvim_win_get_width(terminal_win) or vim.o.columns,
-      term = true,
+      term = vim.fn.has("nvim-0.11") == 1 and true or nil,
       on_exit = function()
-         terminals.release(terminal_buf)
+        terminals.release(terminal_buf)
       end
     })
   end)
