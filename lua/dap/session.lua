@@ -251,12 +251,6 @@ local function run_in_terminal(lsession, request)
     lsession.config,
     lsession.filetype
   )
-  local terminal_buf_name = '[dap-terminal] ' .. (lsession.config.name or body.args[1])
-  local terminal_name_ok = pcall(api.nvim_buf_set_name, terminal_buf, terminal_buf_name)
-  if not terminal_name_ok then
-    log:warn(terminal_buf_name ..  ' is not a valid buffer name')
-    api.nvim_buf_set_name(terminal_buf, '[dap-terminal] dap-' .. tostring(lsession.id))
-  end
   pcall(api.nvim_buf_del_keymap, terminal_buf, "t", "<CR>")
   local path = vim.bo[cur_buf].path
   if path and path ~= "" then
@@ -277,6 +271,13 @@ local function run_in_terminal(lsession, request)
       end
     })
   end)
+
+  local terminal_buf_name = "[dap-terminal] " .. (lsession.config.name or body.args[1])
+  local terminal_name_ok = pcall(api.nvim_buf_set_name, terminal_buf, terminal_buf_name)
+  if not terminal_name_ok then
+    log:warn(terminal_buf_name .. " is not a valid buffer name")
+    api.nvim_buf_set_name(terminal_buf, "[dap-terminal] dap-" .. tostring(lsession.id))
+  end
 
   if settings.focus_terminal then
     for _, win in pairs(api.nvim_tabpage_list_wins(0)) do
