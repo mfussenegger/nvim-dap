@@ -973,7 +973,9 @@ repl.open({winopts}, {wincmd})                                 *dap.repl.open()*
           .exit               Closes the REPL
           .c or .continue     Same as |dap.continue|
           .n or .next         Same as |dap.step_over|
+          .ni or .nexti       Same as |dap.step_over| with instruction granularity
           .into               Same as |dap.step_into|
+          .intoi              Same as |dap.step_into| with instruction granularity
           .into_target        Same as |dap.step_into{askForTargets=true}|
           .out                Same as |dap.step_out|
           .up                 Same as |dap.up|
@@ -984,6 +986,7 @@ repl.open({winopts}, {wincmd})                                 *dap.repl.open()*
           .frames             Print the stack frames
           .capabilities       Print the capabilities of the debug adapter
           .b or .back         Same as |dap.step_back|
+          .bi or .backi       Same as |dap.step_back| with instruction granularity
           .rc or
           .reverse-continue   Same as |dap.reverse_continue|
 
