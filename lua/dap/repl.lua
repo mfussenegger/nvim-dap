@@ -136,9 +136,12 @@ local repl = ui.new_view(
 M.commands = {
   continue = {'.continue', '.c'},
   next_ = {'.next', '.n'},
+  nexti = {'.nexti', '.ni'},
   step_back = {'.back', '.b'},
+  step_backi = {'.backi', '.bi'},
   reverse_continue = {'.reverse-continue', '.rc'},
   into = {'.into'},
+  intoi = {'.intoi'},
   into_targets = {'.into-targets'},
   out = {'.out'},
   scopes = {'.scopes'},
@@ -302,10 +305,14 @@ local function coexecute(text, opts)
     require('dap').continue()
   elseif vim.tbl_contains(M.commands.next_, text) then
     require('dap').step_over()
+  elseif vim.tbl_contains(M.commands.nexti, text) then
+    require('dap').step_over({granularity = "instruction"})
   elseif vim.tbl_contains(M.commands.capabilities, text) then
     M.append(vim.inspect(session.capabilities))
   elseif vim.tbl_contains(M.commands.into, text) then
     require('dap').step_into()
+  elseif vim.tbl_contains(M.commands.intoi, text) then
+    require('dap').step_into({granularity = "instruction"})
   elseif vim.tbl_contains(M.commands.into_targets, text) then
     require('dap').step_into({askForTargets=true})
   elseif vim.tbl_contains(M.commands.out, text) then
@@ -315,6 +322,8 @@ local function coexecute(text, opts)
     M.print_stackframes()
   elseif vim.tbl_contains(M.commands.step_back, text) then
     require('dap').step_back()
+  elseif vim.tbl_contains(M.commands.step_backi, text) then
+    require('dap').step_back({granularity = "instruction"})
   elseif vim.tbl_contains(M.commands.pause, text) then
     session:_pause()
   elseif vim.tbl_contains(M.commands.reverse_continue, text) then
