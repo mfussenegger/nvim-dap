@@ -881,9 +881,9 @@ step_into([{opts}])                                            *dap.step_into()*
         want to step into if there are multiple choices.
 
         Some debug adapters allow a more fine-grained control over the
-        behavior of this command using the `steppingGranularity` {opts} parameter:
+        behavior of this command using the `granularity` {opts} parameter:
 
-        steppingGranularity:
+        granularity:
           Can be 'statement' | 'line' | 'instruction'
           Will fall back to dap.defaults.fallback.stepping_granularity
           Default: 'statement'
