@@ -433,7 +433,6 @@ for name in pairs(signs) do
   sign_try_define(name)
 end
 
-
 ---@param lsession dap.Session
 local function add_reset_session_hook(lsession)
   lsession.on_close['dap.session'] = function(s)
@@ -548,6 +547,20 @@ local function select_config_and_run(opts)
       end
     )
   end)
+end
+
+local on_session_changed_handlers = {}
+
+M.register_on_session_changed_handler = function(f)
+  table.insert(on_session_changed_handlers, f)
+end
+
+---@param new_session dap.Session|nil
+local set_session = function(new_session)
+  session = new_session
+  for _, handler in ipairs(on_session_changed_handlers) do
+    handler(session)
+  end
 end
 
 
@@ -668,7 +681,7 @@ end
 --- Step over the current line
 ---@param opts table|nil
 function M.step_over(opts)
-  session = first_stopped_session()
+  set_session(first_stopped_session())
   if not session then
     return
   end
@@ -701,7 +714,7 @@ end
 
 ---@param opts? {askForTargets?: boolean, steppingGranularity?: dap.SteppingGranularity}
 function M.step_into(opts)
-  session = first_stopped_session()
+  set_session(first_stopped_session())
   if not session then
     return
   end
@@ -739,7 +752,7 @@ function M.step_into(opts)
 end
 
 function M.step_out(opts)
-  session = first_stopped_session()
+  set_session(first_stopped_session())
   if not session then
     return
   end
@@ -747,7 +760,7 @@ function M.step_out(opts)
 end
 
 function M.step_back(opts)
-  session = first_stopped_session()
+  set_session(first_stopped_session())
   if not session then
     return
   end
@@ -1111,7 +1124,7 @@ end
 ---@param opts? {new?: boolean}
 function M.continue(opts)
   if not session then
-    session = first_stopped_session()
+    set_session(first_stopped_session())
   end
 
   opts = opts or {}
@@ -1271,21 +1284,21 @@ function M.sessions()
   return sessions
 end
 
-
 ---@param new_session dap.Session|nil
 function M.set_session(new_session)
   if new_session then
     if new_session.parent == nil then
       sessions[new_session.id] = new_session
     end
-    session = new_session
+    set_session(new_session)
   else
     local _, lsession = next(sessions)
     local msg = lsession and ("Running: " .. lsession.config.name) or ""
     lazy.progress.report(msg)
-    session = lsession
+    set_session(lsession)
   end
 end
+
 
 
 function M._tagfunc(_, flags, _)

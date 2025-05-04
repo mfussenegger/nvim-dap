@@ -171,6 +171,15 @@ local function create_terminal_buf(terminal_win_cmd, config)
   end
 end
 
+local enable_termbuf_pooling = true
+
+Session.termbuf_pooling_disable = function()
+  enable_termbuf_pooling = false
+end
+
+Session.termbuf_pooling_enable = function()
+  enable_termbuf_pooling = true
+end
 
 local terminals = {}
 do
@@ -180,12 +189,14 @@ do
   ---@param filetype string
   ---@return integer, integer|nil
   function terminals.acquire(win_cmd, config, filetype)
-    local buf = next(pool)
-    if buf then
-      pool[buf] = nil
-      if api.nvim_buf_is_valid(buf) then
-        vim.bo[buf].modified = false
-        return buf
+    if enable_termbuf_pooling then
+      local buf = next(pool)
+      if buf then
+        pool[buf] = nil
+        if api.nvim_buf_is_valid(buf) then
+          vim.bo[buf].modified = false
+          return buf
+        end
       end
     end
     local terminal_win
@@ -258,6 +269,7 @@ local function run_in_terminal(lsession, request)
   end
 
   local jobid
+  local on_exit = enable_termbuf_pooling and function() terminals.release(terminal_buf) end or nil
   vim.api.nvim_buf_call(terminal_buf, function()
     local termopen = vim.fn.has("nvim-0.11") == 1 and vim.fn.jobstart or vim.fn.termopen
     jobid = termopen(body.args, {
@@ -266,9 +278,7 @@ local function run_in_terminal(lsession, request)
       height = terminal_win and api.nvim_win_get_height(terminal_win) or math.ceil(vim.o.lines / 2),
       width = terminal_win and api.nvim_win_get_width(terminal_win) or vim.o.columns,
       term = vim.fn.has("nvim-0.11") == 1 and true or nil,
-      on_exit = function()
-        terminals.release(terminal_buf)
-      end
+      on_exit = on_exit,
     })
   end)
 
