@@ -230,7 +230,9 @@ do
 
   ---@param b number
   function terminals.release(b)
-    pool[b] = true
+    if enable_termbuf_pooling then
+      pool[b] = true
+    end
   end
 end
 
@@ -269,7 +271,6 @@ local function run_in_terminal(lsession, request)
   end
 
   local jobid
-  local on_exit = enable_termbuf_pooling and function() terminals.release(terminal_buf) end or nil
   vim.api.nvim_buf_call(terminal_buf, function()
     local termopen = vim.fn.has("nvim-0.11") == 1 and vim.fn.jobstart or vim.fn.termopen
     jobid = termopen(body.args, {
@@ -278,7 +279,7 @@ local function run_in_terminal(lsession, request)
       height = terminal_win and api.nvim_win_get_height(terminal_win) or math.ceil(vim.o.lines / 2),
       width = terminal_win and api.nvim_win_get_width(terminal_win) or vim.o.columns,
       term = vim.fn.has("nvim-0.11") == 1 and true or nil,
-      on_exit = on_exit,
+      on_exit = function() terminals.release(terminal_buf) end,
     })
   end)
 
