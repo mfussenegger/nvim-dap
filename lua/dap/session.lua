@@ -251,53 +251,34 @@ local function run_in_terminal(lsession, request)
     lsession.config,
     lsession.filetype
   )
-  local terminal_buf_name = '[dap-terminal] ' .. (lsession.config.name or body.args[1])
-  local terminal_name_ok = pcall(api.nvim_buf_set_name, terminal_buf, terminal_buf_name)
-  if not terminal_name_ok then
-    log:warn(terminal_buf_name ..  ' is not a valid buffer name')
-    api.nvim_buf_set_name(terminal_buf, '[dap-terminal] dap-' .. tostring(lsession.id))
-  end
   pcall(api.nvim_buf_del_keymap, terminal_buf, "t", "<CR>")
   local path = vim.bo[cur_buf].path
   if path and path ~= "" then
     vim.bo[terminal_buf].path = path
   end
-  local jobid
 
-  local chan = api.nvim_open_term(terminal_buf, {
-    on_input = function(_, _, _, data)
-      pcall(api.nvim_chan_send, jobid, data)
-    end,
-  })
-  local opts = {
-    env = next(body.env or {}) and body.env or vim.empty_dict(),
-    cwd = (body.cwd and body.cwd ~= '') and body.cwd or nil,
-    height = terminal_win and api.nvim_win_get_height(terminal_win) or math.ceil(vim.o.lines / 2),
-    width = terminal_win and api.nvim_win_get_width(terminal_win) or vim.o.columns,
-    pty = true,
-    on_stdout = function(_, data)
-      local count = #data
-      for idx, line in pairs(data) do
-        if idx == count then
-          local send_ok = pcall(api.nvim_chan_send, chan, line)
-          if not send_ok then
-            return
-          end
-        else
-          local send_ok = pcall(api.nvim_chan_send, chan, line .. '\n')
-          if not send_ok then
-            return
-          end
-        end
+  local jobid
+  vim.api.nvim_buf_call(terminal_buf, function()
+    local termopen = vim.fn.has("nvim-0.11") == 1 and vim.fn.jobstart or vim.fn.termopen
+    jobid = termopen(body.args, {
+      env = next(body.env or {}) and body.env or vim.empty_dict(),
+      cwd = (body.cwd and body.cwd ~= '') and body.cwd or nil,
+      height = terminal_win and api.nvim_win_get_height(terminal_win) or math.ceil(vim.o.lines / 2),
+      width = terminal_win and api.nvim_win_get_width(terminal_win) or vim.o.columns,
+      term = vim.fn.has("nvim-0.11") == 1 and true or nil,
+      on_exit = function()
+        terminals.release(terminal_buf)
       end
-    end,
-    on_exit = function(_, exit_code)
-      pcall(api.nvim_chan_send, chan, '\r\n[Process exited ' .. tostring(exit_code) .. ']')
-      pcall(api.nvim_buf_set_keymap, terminal_buf, "t", "<CR>", "<cmd>bd!<CR>", { noremap = true, silent = true})
-      terminals.release(terminal_buf)
-    end,
-  }
-  jobid = vim.fn.jobstart(body.args, opts)
+    })
+  end)
+
+  local terminal_buf_name = "[dap-terminal] " .. (lsession.config.name or body.args[1])
+  local terminal_name_ok = pcall(api.nvim_buf_set_name, terminal_buf, terminal_buf_name)
+  if not terminal_name_ok then
+    log:warn(terminal_buf_name .. " is not a valid buffer name")
+    api.nvim_buf_set_name(terminal_buf, "[dap-terminal] dap-" .. tostring(lsession.id))
+  end
+
   if settings.focus_terminal then
     for _, win in pairs(api.nvim_tabpage_list_wins(0)) do
       if api.nvim_win_get_buf(win) == terminal_buf then
