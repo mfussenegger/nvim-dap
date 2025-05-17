@@ -936,6 +936,63 @@ describe('breakpoint events', function()
     signs = vim.fn.sign_getplaced(buf1, { group = 'dap_breakpoints' })
     assert.are.same('DapBreakpoint', signs[1].signs[1].name)
   end)
+
+  it('can add and remove breakpoints from adapter events', function()
+    run_and_wait_until_initialized(config, server)
+
+    local win = api.nvim_get_current_win()
+    local buf2 = api.nvim_create_buf(false, true)
+    api.nvim_buf_set_name(buf2, 'dummy_buf2')
+    api.nvim_buf_set_lines(buf2, 0, -1, false, {'buf2: line1'})
+    api.nvim_win_set_buf(win, buf2)
+    api.nvim_win_set_cursor(win, { 1, 0 })
+
+    -- initialize, launch == 2 requests
+    wait(function() return #server.spy.requests == 2 end)
+    wait(function() return #server.spy.responses == 2 end)
+
+    local breakpoint_state = {
+      id = 1,
+      line = 1,
+      verified = true,
+      source = {
+        path = vim.uri_from_bufnr(buf2)
+      },
+    }
+
+    local num_events = #server.spy.events
+    server.client:send_event('breakpoint', {
+      reason = 'new',
+      breakpoint = breakpoint_state,
+    })
+
+    local breakpoints = require('dap.breakpoints')
+
+    wait(function() return #server.spy.events == num_events + 1 end)
+    wait(function() return breakpoints.get()[buf2] ~= nil end)
+
+    local expected_breakpoints = {
+      [buf2] = {
+        [1] = {
+          line = breakpoint_state.line,
+          state = breakpoint_state,
+        }
+      }
+    }
+
+    assert.are.same(expected_breakpoints, breakpoints.get())
+
+    num_events = #server.spy.events
+    server.client:send_event('breakpoint', {
+      reason = 'removed',
+      breakpoint = { id = 1 },
+    })
+
+    wait(function() return #server.spy.events == num_events + 1 end)
+    wait(function() return breakpoints.get()[buf2] == nil end)
+
+    assert.are.same({}, breakpoints.get())
+  end)
 end)
 
 describe('restart_frame', function()

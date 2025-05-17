@@ -533,10 +533,9 @@ end
 --- Must be called in a coroutine
 ---
 ---@param session dap.Session
----@param frame dap.StackFrame
+---@param source dap.Source?
 ---@return number|nil
-local function frame_to_bufnr(session, frame)
-  local source = frame.source
+local function source_to_bufnr(session, source)
   if not source then
     return nil
   end
@@ -573,7 +572,7 @@ local function jump_to_frame(session, frame, preserve_focus_hint, stopped)
   if preserve_focus_hint or frame.line < 0 then
     return
   end
-  local bufnr = frame_to_bufnr(session, frame)
+  local bufnr = source_to_bufnr(session, frame.source)
   if not bufnr then
     utils.notify('Source missing, cannot jump to frame: ' .. frame.name, vim.log.levels.INFO)
     return
@@ -774,7 +773,7 @@ function Session:event_stopped(stopped)
       jump_to_frame(self, current_frame, stopped.preserveFocusHint, stopped)
       self:_request_scopes(current_frame)
     elseif stopped.reason == "exception" then
-      local bufnr = frame_to_bufnr(self, current_frame)
+      local bufnr = source_to_bufnr(self, current_frame.source)
       if bufnr then
         self:_show_exception_info(stopped.threadId, bufnr, current_frame)
       end
@@ -2069,11 +2068,25 @@ end
 
 
 ---@param event dap.BreakpointEvent
-function Session.event_breakpoint(_, event)
+function Session.event_breakpoint(session, event)
   if event.reason == 'changed' then
     local bp = event.breakpoint
     if bp.id then
       breakpoints.update(bp)
+    end
+  elseif event.reason == 'new' then
+    local bp = event.breakpoint
+    if bp.id then
+      local bufnr = source_to_bufnr(session, bp.source)
+      if bufnr then
+        breakpoints.set({}, bufnr, bp.line)
+        breakpoints.set_state(bufnr, bp)
+      end
+    end
+  elseif event.reason == 'removed' then
+    local bp = event.breakpoint
+    if bp.id then
+      breakpoints.remove_by_id(bp.id)
     end
   end
 end
