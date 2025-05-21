@@ -19,7 +19,7 @@ description = {
     'debug-adapter-protocol',
     'debugger',
   },
-  homepage = 'https://github.com/mfussenegger/nvim-dap',
+  homepage = 'https://codeberg.org/mfussenegger/nvim-dap',
   license = 'GPL-3.0',
 }
 
@@ -32,7 +32,7 @@ test_dependencies = {
 }
 
 source = {
-   url = 'git://github.com/mfussenegger/nvim-dap',
+   url = 'git://codeberg.org/mfussenegger/nvim-dap',
 }
 
 build = {

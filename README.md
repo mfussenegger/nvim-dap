@@ -15,7 +15,7 @@
 [![LuaRocks](https://img.shields.io/luarocks/v/mfussenegger/nvim-dap?logo=lua&color=purple)](https://luarocks.org/modules/mfussenegger/nvim-dap)
 
 - Install nvim-dap like any other Neovim plugin:
-  - `git clone https://github.com/mfussenegger/nvim-dap.git ~/.config/nvim/pack/plugins/start/nvim-dap`
+  - `git clone https://codeberg.org/mfussenegger/nvim-dap.git ~/.config/nvim/pack/plugins/start/nvim-dap`
   - Or with [vim-plug][11]: `Plug 'mfussenegger/nvim-dap'`
   - Or with [packer.nvim][12]: `use 'mfussenegger/nvim-dap'`
 - Generate the documentation for nvim-dap using `:helptags ALL` or
@@ -58,7 +58,7 @@ The Wiki is community maintained. If you got an adapter working that isn't
 listed yet, please extend the Wiki.
 
 Some debug adapters have [language specific
-extensions](https://github.com/mfussenegger/nvim-dap/wiki/Extensions#language-specific-extensions).
+extensions](https://codeberg.org/mfussenegger/nvim-dap/wiki/Extensions#language-specific-extensions).
 Using them over a manual configuration is recommended, as they're
 usually better maintained.
 
@@ -137,11 +137,11 @@ time.
 
 [1]: https://neovim.io/
 [2]: https://github.com/puremourning/vimspector
-[5]: https://github.com/mfussenegger/nvim-dap/wiki/Debug-Adapter-installation
+[5]: https://codeberg.org/mfussenegger/nvim-dap/wiki/Debug-Adapter-installation
 [7]: https://github.com/theHamsta/nvim-dap-virtual-text
-[8]: https://github.com/mfussenegger/nvim-jdtls
-[9]: https://github.com/mfussenegger/nvim-dap-python
-[10]: https://github.com/mfussenegger/nvim-dap/wiki/Extensions
+[8]: https://codeberg.org/mfussenegger/nvim-jdtls
+[9]: https://codeberg.org/mfussenegger/nvim-dap-python
+[10]: https://codeberg.org/mfussenegger/nvim-dap/wiki/Extensions
 [11]: https://github.com/junegunn/vim-plug
 [12]: https://github.com/wbthomason/packer.nvim
 [13]: https://microsoft.github.io/debug-adapter-protocol/implementors/adapters/
