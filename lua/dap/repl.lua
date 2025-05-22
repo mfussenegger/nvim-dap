@@ -498,15 +498,18 @@ function M.clear()
 end
 
 do
-  local function completions_to_items(candidates, st)
+
+  ---@param candidates dap.CompletionItem[]
+  ---@param start integer
+  local function completions_to_items(candidates, start)
     table.sort(candidates, function(a, b)
       return (a.sortText or a.label) < (b.sortText or b.label)
     end)
     local items = {}
     for _, candidate in pairs(candidates) do
       table.insert(items, {
-        word = string.sub(candidate.text or candidate.label, st);
-        abbr = string.sub(candidate.label, st);
+        word = string.sub(candidate.text or candidate.label, start);
+        abbr = string.sub(candidate.label, start);
         dup = 0;
         icase = 1;
       })
@@ -591,7 +594,7 @@ do
         if mixed or not start or (prefixed and start == 0) then
           start = text_match
         end
-        local st = prefixed and (text_match+1) or 0
+        local st = prefixed and (text_match + 1) or 0
         vim.fn.complete(offset + start + 1, completions_to_items(items, st))
       end
     end
