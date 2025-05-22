@@ -500,16 +500,15 @@ end
 do
 
   ---@param candidates dap.CompletionItem[]
-  ---@param start integer
-  local function completions_to_items(candidates, start)
+  local function completions_to_items(candidates)
     table.sort(candidates, function(a, b)
       return (a.sortText or a.label) < (b.sortText or b.label)
     end)
     local items = {}
     for _, candidate in pairs(candidates) do
       table.insert(items, {
-        word = string.sub(candidate.text or candidate.label, start);
-        abbr = string.sub(candidate.label, start);
+        word = candidate.text or candidate.label,
+        abbr = candidate.label,
         dup = 0;
         icase = 1;
       })
@@ -517,12 +516,13 @@ do
     return items
   end
 
+  --- Finds word boundary for [vim.fn.complete]
+  ---
   ---@param items dap.CompletionItem[]
-  ---@return boolean mixed, integer? start, boolean prefixed
+  ---@return boolean mixed, integer? start
   local function get_start(items, prefix)
     local start = nil
     local mixed = false
-    local prefixed = true
     for _, item in ipairs(items) do
       if item.start and (item.length or 0) > 0 then
         if start and start ~= item.start then
@@ -532,11 +532,11 @@ do
           start = item.start
         end
       end
-      if prefixed and (item.text or item.label):sub(1, #prefix) ~= prefix then
-        prefixed = false
+      if not start and (item.text or item.label):sub(1, #prefix) == prefix then
+        start = 0
       end
     end
-    return mixed, start, prefixed
+    return mixed, start
   end
 
   function M.omnifunc(findstart, base)
@@ -590,12 +590,12 @@ do
         require('dap.utils').notify('completions request failed: ' .. err.message, vim.log.levels.WARN)
       elseif response then
         local items = response.targets
-        local mixed, start, prefixed = get_start(items, line_to_cursor)
-        if mixed or not start or (prefixed and start == 0) then
-          start = text_match
+        local mixed, start = get_start(items, line_to_cursor)
+        if start and not mixed then
+          vim.fn.complete(offset + start + 1, completions_to_items(items))
+        else
+          vim.fn.complete(offset + text_match + 1, completions_to_items(items))
         end
-        local st = prefixed and (text_match + 1) or 0
-        vim.fn.complete(offset + start + 1, completions_to_items(items, st))
       end
     end
     session:request('completions', args, on_response)

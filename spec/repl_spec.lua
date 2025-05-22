@@ -42,22 +42,22 @@ local function prepare_session(server, replline, completion_results)
   api.nvim_set_current_buf(bufnr)
   api.nvim_set_current_win(win)
   api.nvim_buf_set_lines(bufnr, 0, -1, true, {replline})
-  api.nvim_win_set_cursor(win, {1, 9})
+  api.nvim_win_set_cursor(win, {1, #replline})
 end
 
 
 local function getcompletion_results(server)
-  local repl = require("dap.repl")
-  repl.omnifunc(1, "")
-
-  local captured_startcol
-  local captured_items
+  local captured_startcol = nil
+  local captured_items = nil
 
   ---@diagnostic disable-next-line, duplicate-set-field: 211
   function vim.fn.complete(startcol, items)
     captured_startcol = startcol
     captured_items = items
   end
+
+  local repl = require("dap.repl")
+  repl.omnifunc(1, "")
 
   helpers.wait_for_response(server, "completions")
   helpers.wait(function() return captured_startcol ~= nil end)
@@ -160,19 +160,19 @@ describe("dap.repl completion", function()
     })
 
     local startcol, items = getcompletion_results(server)
-    assert.are.same(#"dap> `" + 1 , startcol)
+    assert.are.same(#"dap> " + 1, startcol)
     local expected_items = {
       {
-        abbr = 'info bookmarks',
+        abbr = '`info bookmarks',
         dup = 0,
         icase = 1,
-        word = 'info bookmarks',
+        word = '`info bookmarks',
       },
       {
-        abbr = 'info breakpoints',
+        abbr = '`info breakpoints',
         dup = 0,
         icase = 1,
-        word = 'info breakpoints',
+        word = '`info breakpoints',
       }
     }
     assert.are.same(expected_items, items)
