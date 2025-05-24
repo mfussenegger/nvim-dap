@@ -49,12 +49,30 @@ describe('breakpoints', function()
     assert.are.same({}, breakpoints.get())
   end)
 
+  it('can remove breakpoint by id', function()
+    local lnum = api.nvim_win_get_cursor(0)[1]
+    breakpoints.toggle()
+    local state = { line = lnum, id = 1 }
+    breakpoints.set_state(api.nvim_get_current_buf(), state)
+    local expected = {
+      [1] = {
+        {
+          line = lnum,
+          state = state,
+        },
+      },
+    }
+    breakpoints.remove_by_id(1)
+    assert.are.same({}, breakpoints.get())
+  end)
+
   it('toggle adds bp if missing, otherwise removes', function()
     breakpoints.toggle()
     assert.are.same({{{line = 1}}}, breakpoints.get())
     breakpoints.toggle()
     assert.are.same({}, breakpoints.get())
   end)
+
 
   it('can convert breakpoints to qf_list items', function()
     local buf = api.nvim_get_current_buf()
