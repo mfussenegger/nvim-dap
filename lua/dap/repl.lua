@@ -498,13 +498,17 @@ function M.clear()
 end
 
 do
+
+  ---@param candidates dap.CompletionItem[]
   local function completions_to_items(candidates)
-    table.sort(candidates, function(a, b) return (a.sortText or a.label) < (b.sortText or b.label) end)
+    table.sort(candidates, function(a, b)
+      return (a.sortText or a.label) < (b.sortText or b.label)
+    end)
     local items = {}
     for _, candidate in pairs(candidates) do
       table.insert(items, {
-        word = candidate.text or candidate.label;
-        abbr = candidate.label;
+        word = candidate.text or candidate.label,
+        abbr = candidate.label,
         dup = 0;
         icase = 1;
       })
@@ -512,9 +516,11 @@ do
     return items
   end
 
+  --- Finds word boundary for [vim.fn.complete]
+  ---
   ---@param items dap.CompletionItem[]
   ---@return boolean mixed, integer? start
-  local function get_start(items)
+  local function get_start(items, prefix)
     local start = nil
     local mixed = false
     for _, item in ipairs(items) do
@@ -525,6 +531,9 @@ do
         else
           start = item.start
         end
+      end
+      if not start and (item.text or item.label):sub(1, #prefix) == prefix then
+        start = 0
       end
     end
     return mixed, start
@@ -581,7 +590,7 @@ do
         require('dap.utils').notify('completions request failed: ' .. err.message, vim.log.levels.WARN)
       elseif response then
         local items = response.targets
-        local mixed, start = get_start(items)
+        local mixed, start = get_start(items, line_to_cursor)
         if start and not mixed then
           vim.fn.complete(offset + start + 1, completions_to_items(items))
         else

@@ -34,7 +34,7 @@ Available debug adapters:
   https://microsoft.github.io/debug-adapter-protocol/implementors/adapters/
 
 Debug adapter configuration and installation instructions:
-  https://github.com/mfussenegger/nvim-dap/wiki/Debug-Adapter-installation
+  https://codeberg.org/mfussenegger/nvim-dap/wiki/Debug-Adapter-installation
 
 Debug Adapter Protocol:
   https://microsoft.github.io/debug-adapter-protocol/
