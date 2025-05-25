@@ -106,7 +106,7 @@ end
 function M.remove_by_id(id)
   for sign_id, bp in pairs(bp_by_sign) do
     if bp.state and bp.state.id == id then
-      vim.fn.sign_unplace(ns, { buffer = bp.bufnr, id = sign_id, })
+      vim.fn.sign_unplace(ns, { buffer = bp.buf, id = sign_id, })
       bp_by_sign[sign_id] = nil
       return
     end

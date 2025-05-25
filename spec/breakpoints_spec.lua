@@ -62,6 +62,7 @@ describe('breakpoints', function()
         },
       },
     }
+    assert.are.same(expected, breakpoints.get())
     breakpoints.remove_by_id(1)
     assert.are.same({}, breakpoints.get())
   end)
