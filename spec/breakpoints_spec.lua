@@ -74,7 +74,6 @@ describe('breakpoints', function()
     assert.are.same({}, breakpoints.get())
   end)
 
-
   it('can convert breakpoints to qf_list items', function()
     local buf = api.nvim_get_current_buf()
     api.nvim_buf_set_lines(buf, 0, -1, true, {'Hello breakpoint'})
