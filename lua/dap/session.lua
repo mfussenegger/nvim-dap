@@ -579,6 +579,7 @@ local function jump_to_frame(session, frame, preserve_focus_hint, stopped)
     return
   end
   vim.fn.bufload(bufnr)
+  vim.bo[bufnr].buflisted = true
   local ok, failure = pcall(vim.fn.sign_place, 0, session.sign_group, 'DapStopped', bufnr, { lnum = frame.line; priority = 22 })
   if not ok then
     utils.notify(tostring(failure), vim.log.levels.ERROR)
