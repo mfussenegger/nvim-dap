@@ -279,7 +279,9 @@ local function run_in_terminal(lsession, request)
       height = terminal_win and api.nvim_win_get_height(terminal_win) or math.ceil(vim.o.lines / 2),
       width = terminal_win and api.nvim_win_get_width(terminal_win) or vim.o.columns,
       term = vim.fn.has("nvim-0.11") == 1 and true or nil,
-      on_exit = function() terminals.release(terminal_buf) end,
+      on_exit = function()
+        terminals.release(terminal_buf)
+      end,
     })
   end)
 
