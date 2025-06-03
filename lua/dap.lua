@@ -138,7 +138,9 @@ M.listeners = {
   }),
 
   ---@type table<string, fun(config: dap.Configuration):dap.Configuration>
-  on_config = {}
+  on_config = {},
+  ---@type table<string, fun(session: dap.Session|nil)>
+  on_session_change = {},
 }
 
 
@@ -549,17 +551,14 @@ local function select_config_and_run(opts)
   end)
 end
 
-local on_session_changed_handlers = {}
-
-M.register_on_session_changed_handler = function(f)
-  table.insert(on_session_changed_handlers, f)
-end
 
 ---@param new_session dap.Session|nil
 local set_session = function(new_session)
   session = new_session
-  for _, handler in ipairs(on_session_changed_handlers) do
-    handler(session)
+
+  local listeners = M.listeners["on_session_change"]
+  for key, listener in pairs(listeners) do
+    listener(new_session)
   end
 end
 
