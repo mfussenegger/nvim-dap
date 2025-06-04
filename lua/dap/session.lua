@@ -171,6 +171,15 @@ local function create_terminal_buf(terminal_win_cmd, config)
   end
 end
 
+local enable_termbuf_pooling = true
+
+Session.termbuf_pooling_disable = function()
+  enable_termbuf_pooling = false
+end
+
+Session.termbuf_pooling_enable = function()
+  enable_termbuf_pooling = true
+end
 
 local terminals = {}
 do
@@ -180,12 +189,14 @@ do
   ---@param filetype string
   ---@return integer, integer|nil
   function terminals.acquire(win_cmd, config, filetype)
-    local buf = next(pool)
-    if buf then
-      pool[buf] = nil
-      if api.nvim_buf_is_valid(buf) then
-        vim.bo[buf].modified = false
-        return buf
+    if enable_termbuf_pooling then
+      local buf = next(pool)
+      if buf then
+        pool[buf] = nil
+        if api.nvim_buf_is_valid(buf) then
+          vim.bo[buf].modified = false
+          return buf
+        end
       end
     end
     local terminal_win
@@ -219,7 +230,9 @@ do
 
   ---@param b number
   function terminals.release(b)
-    pool[b] = true
+    if enable_termbuf_pooling then
+      pool[b] = true
+    end
   end
 end
 
@@ -268,7 +281,7 @@ local function run_in_terminal(lsession, request)
       term = vim.fn.has("nvim-0.11") == 1 and true or nil,
       on_exit = function()
         terminals.release(terminal_buf)
-      end
+      end,
     })
   end)
 
