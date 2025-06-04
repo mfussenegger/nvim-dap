@@ -20,6 +20,7 @@ describe('dap with fake server', function()
   end)
   after_each(function()
     server.stop()
+    dap.terminate({ all = true, hierarchy = true })
     dap.close()
     require('dap.breakpoints').clear()
     wait(function() return dap.session() == nil end)
@@ -501,6 +502,39 @@ describe('dap with fake server', function()
     wait(function() return msg ~= nil end)
     assert.is_nil(dap.session())
     assert.are.same("Run aborted", msg)
+  end)
+
+  it("triggers on_session listener on session changes", function()
+    local on_session_results = {}
+    local conf1 = {
+      name = "s1",
+      type = "dummy",
+      request = "launch"
+    }
+    dap.listeners.on_session["dap.testcase"] = function (old, new)
+      table.insert(on_session_results, { old = old, new = new })
+    end
+    local session1 = run_and_wait_until_initialized(conf1, server)
+    assert.are.same(1, #on_session_results)
+    assert.are.same(session1.id, on_session_results[1].new.id)
+
+    local conf2 = {
+      name = "s2",
+      type = "dummy",
+      request = "launch"
+    }
+    local session2 = run_and_wait_until_initialized(conf2, server)
+    assert.are.same(2, #on_session_results)
+    assert.are.same(session1.id, on_session_results[2].old.id)
+    assert.are.same(session2.id, on_session_results[2].new.id)
+
+    dap.set_session(session1)
+    assert.are.same(3, #on_session_results)
+
+    dap.terminate({ all = true })
+    wait(function() return dap.session() == nil end)
+    assert.are.same(5, #on_session_results)
+    assert.is_nil(on_session_results[5].new)
   end)
 end)
 

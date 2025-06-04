@@ -1295,9 +1295,10 @@ client.
 Currently there are:
 
 - `dap.listeners.on_config` (See |dap-listeners-on_config|)
+- `dap.listeners.on_session` (See |dap-listeners-on_session|)
 
 ==============================================================================
-ON_CONFIG EXTENSIONS API                              *dap-listeners-on_config*
+ON_CONFIG LISTENER                                    *dap-listeners-on_config*
 
 
 Plugins can pre-process the |dap-configuration| whenever a debug session
@@ -1332,6 +1333,35 @@ should prefer using the `enrich_config` function available in |dap-adapter|.
 If you are not owning the adapter definition but the plugin's functionality is
 still specific to a limited selection of adapters, please make sure you're not
 messing with configurations used with adapters foreign to your plugin.
+
+==============================================================================
+ON_SESSION LISTENER                                  *dap-listeners-on_session*
+
+`on_session` listeners can be used to listen to session changes. Opposed to
+the initialize and terminated events from debug adapters - to which you
+could listen to using |dap-listeners| - `on_session` listeners are also called
+whenever the focused session changes. The full list of triggers is:
+
+- New sessions
+- Focused session changes
+- Last remaining session finishes
+
+A listener is a function with two parameters, the old session and the new
+session.
+
+To register a `on_session` listener, add an entry to the
+`dap.listeners.on_session` table. For example:
+>lua
+  local dap = require("dap")
+  dap.listeners.on_session["dummy-noop"] = function(old, new)
+    if new then
+      vim.print("New session: ", new.id)
+    end
+  end
+<
+As with other listeners, `dummy-noop` in the example above is an arbitrary
+name. Plugins should namespace those with their name to avoid conflicts with
+others.
 
 ==============================================================================
 PROVIDERS EXTENSIONS API                                       *dap-providers*
