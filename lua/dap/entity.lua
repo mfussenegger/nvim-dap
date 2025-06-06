@@ -1,4 +1,5 @@
 local utils = require('dap.utils')
+local async = require("dap.async")
 local M = {}
 
 
@@ -99,27 +100,26 @@ function variable.fetch_children(var, cb)
         utils.notify('Error fetching variables: ' .. err.message, vim.log.levels.ERROR)
       elseif resp then
         local variables = resp.variables
-        local unloaded = #variables
-        local function countdown()
-          unloaded = unloaded - 1
-          if unloaded == 0 then
-            var.variables = variables
-            cb(variables)
-          end
-        end
-
         table.sort(variables, cmp_vars)
+
+        local tasks = {}
         for i, v in ipairs(variables) do
           v.parent = var
           if variable.is_lazy(v) then
-            variable.load_value(v, function(loaded_v)
-              variables[i] = loaded_v
-              countdown()
+            table.insert(tasks, function(on_done)
+              variable.load_value(v, function(loaded_v)
+                variables[i] = loaded_v
+                on_done()
+              end)
             end)
-          else
-            countdown()
           end
         end
+
+        async.await_all(tasks, function()
+          var.variables = variables
+          cb(variables)
+        end)
+
       end
     end
     ---@type dap.VariablesArguments
