@@ -100,10 +100,16 @@ function variable.fetch_children(var, cb)
       elseif resp then
         local variables = resp.variables
         local unloaded = #variables
+        var.variables = variables
+
+        if unloaded == 0 then
+          cb(variables)
+          return
+        end
+
         local function countdown()
           unloaded = unloaded - 1
           if unloaded == 0 then
-            var.variables = variables
             cb(variables)
           end
         end
