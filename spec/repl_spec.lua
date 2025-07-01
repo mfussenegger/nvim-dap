@@ -1,20 +1,12 @@
 local dap = require("dap")
 local api = vim.api
 local helpers = require("spec.helpers")
-
-describe('dap.repl', function()
-  it("append doesn't add newline with newline = false", function()
-    local repl = require('dap.repl')
-    local buf = repl.open()
-    repl.append('foo', nil, { newline = false })
-    repl.append('bar', nil, { newline = false })
-    repl.append('\nbaz\n', nil, { newline = false })
-
-    local lines = api.nvim_buf_get_lines(buf, 0, -1, true)
-    assert.are.same({'foobar', 'baz', ''}, lines)
-  end)
-end)
-
+local repl = require('dap.repl')
+local config = {
+  type = "dummy",
+  request = "launch",
+  name = "Launch file",
+}
 
 
 ---@param replline string
@@ -31,13 +23,7 @@ local function prepare_session(server, replline, completion_results)
       targets = completion_results
     })
   end
-  local config = {
-    type = "dummy",
-    request = "launch",
-    name = "Launch file",
-  }
   helpers.run_and_wait_until_initialized(config, server)
-  local repl = require("dap.repl")
   local bufnr, win = repl.open()
   api.nvim_set_current_buf(bufnr)
   api.nvim_set_current_win(win)
@@ -56,13 +42,114 @@ local function getcompletion_results(server)
     captured_items = items
   end
 
-  local repl = require("dap.repl")
   repl.omnifunc(1, "")
 
   helpers.wait_for_response(server, "completions")
   helpers.wait(function() return captured_startcol ~= nil end)
   return captured_startcol, captured_items
 end
+
+
+describe('dap.repl', function()
+  local server
+  before_each(function()
+    local buf = repl.open()
+    api.nvim_buf_delete(buf, {force = true})
+  end)
+  after_each(function()
+    if server then
+      server.stop()
+      dap.close()
+      helpers.wait(function() return dap.session() == nil end, "session should become nil")
+      server = nil
+    end
+  end)
+  it("append doesn't add newline with newline = false", function()
+    local buf = repl.open()
+    repl.append('foo', nil, { newline = false })
+    repl.append('bar', nil, { newline = false })
+    repl.append('\nbaz\n', nil, { newline = false })
+
+    local lines = api.nvim_buf_get_lines(buf, 0, -1, true)
+    assert.are.same({'foobar', 'baz', ''}, lines)
+  end)
+
+  it("adds newline with newline = true", function()
+    local buf = repl.open()
+    repl.append("foo", nil, { newline = true })
+    repl.append("bar", nil, { newline = true })
+    repl.append("\nbaz\n", nil, { newline = true })
+
+    local lines = api.nvim_buf_get_lines(buf, 0, -1, true)
+    assert.are.same({"", "foo", "bar", "", "baz", ""}, lines)
+  end)
+
+  it("repl.execute inserts text and executes it, shows result", function()
+    server = require("spec.server").spawn()
+    dap.adapters.dummy = server.adapter
+    server.client.evaluate = function(self, request)
+      self:send_response(request, {
+        result = "2",
+        variablesReference = 0
+      })
+    end
+    helpers.run_and_wait_until_initialized(config, server)
+    local buf = repl.open()
+    repl.execute("1 + 1")
+    local commands = helpers.wait_for_response(server, "evaluate")
+    assert.are.same({"initialize", "launch", "evaluate"}, commands)
+    helpers.wait(function()
+      local lines = api.nvim_buf_get_lines(buf, 0, -1, true)
+      return lines[3] == "2"
+    end)
+    local lines = api.nvim_buf_get_lines(buf, 0, -1, true)
+    assert.are.same({"", "dap> 1 + 1", "2"}, lines)
+  end)
+  it("repl.execute shows structured results", function()
+    server = require("spec.server").spawn()
+    dap.adapters.dummy = server.adapter
+    server.client.evaluate = function(self, request)
+      self:send_response(request, {
+        result = "table xy",
+        variablesReference = 1
+      })
+    end
+    server.client.variables = function(self, request)
+      self:send_response(request, {
+        variables = {
+          {
+            name = "x",
+            value = 1,
+            variablesReference = 0
+          },
+          {
+            name = "y",
+            value = 2,
+            variablesReference = 0
+          }
+        }
+      })
+    end
+    helpers.run_and_wait_until_initialized(config, server)
+    local buf = repl.open()
+    repl.execute("tbl")
+    local commands = helpers.wait_for_response(server, "evaluate")
+    assert.are.same({"initialize", "launch", "evaluate"}, commands)
+    helpers.wait(function()
+      local lines = api.nvim_buf_get_lines(buf, 0, -1, true)
+      return lines[3] == "table xy"
+    end)
+    local lines = api.nvim_buf_get_lines(buf, 0, -1, true)
+    local expected = {
+      "",
+      "dap> tbl",
+      "table xy",
+      "  x: 1",
+      "  y: 2"
+    }
+    assert.are.same(expected, lines)
+  end)
+end)
 
 
 describe("dap.repl completion", function()
