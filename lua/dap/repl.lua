@@ -455,9 +455,6 @@ end
 function M.append(line, lnum, opts)
   opts = opts or {}
   local buf = repl._init_buf()
-  if api.nvim_get_current_win() == repl.win and lnum == '$' then
-    lnum = nil
-  end
   if vim.bo[buf].fileformat ~= "dos" then
     line = line:gsub('\r\n', '\n')
   end
@@ -480,8 +477,10 @@ function M.append(line, lnum, opts)
     else
       api.nvim_buf_set_lines(buf, -1, -1, true, lines)
     end
-  else
+  elseif type(lnum) == "number" then
     api.nvim_buf_set_lines(buf, lnum, lnum, true, lines)
+  else
+    error("Unsupported lnum argument: " .. tostring(lnum))
   end
   if autoscroll and repl.win and api.nvim_win_is_valid(repl.win) then
     pcall(api.nvim_win_set_cursor, repl.win, { lnum + 2, 0 })
