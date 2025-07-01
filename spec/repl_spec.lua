@@ -135,10 +135,15 @@ describe('dap.repl', function()
     repl.execute("tbl")
     local commands = helpers.wait_for_response(server, "evaluate")
     assert.are.same({"initialize", "launch", "evaluate"}, commands)
-    helpers.wait(function()
-      local lines = api.nvim_buf_get_lines(buf, 0, -1, true)
-      return lines[3] == "table xy"
-    end)
+    helpers.wait(
+      function()
+        local lines = api.nvim_buf_get_lines(buf, 0, -1, true)
+        return lines[3] == "table xy"
+      end,
+      function()
+        return api.nvim_buf_get_lines(buf, 0, -1, true)
+      end
+    )
     local lines = api.nvim_buf_get_lines(buf, 0, -1, true)
     local expected = {
       "",
