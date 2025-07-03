@@ -50,6 +50,16 @@ local function getcompletion_results(server)
 end
 
 
+---@param buf integer
+---@param lnum integer
+local function assert_prompt_mark(buf, lnum)
+  if vim.fn.has("nvim-0.12") == 1 then
+    local prompt_mark = api.nvim_buf_get_mark(buf, ":")
+    assert.are.same(lnum, prompt_mark[1], "prompt mark expected to be in line " .. tostring(lnum))
+  end
+end
+
+
 describe('dap.repl', function()
   local server
   before_each(function()
@@ -68,20 +78,26 @@ describe('dap.repl', function()
     local buf = repl.open()
     repl.append('foo', nil, { newline = false })
     repl.append('bar', nil, { newline = false })
+    assert_prompt_mark(buf, 1)
     repl.append('\nbaz\n', nil, { newline = false })
 
     local lines = api.nvim_buf_get_lines(buf, 0, -1, true)
     assert.are.same({'foobar', 'baz', ''}, lines)
+    assert_prompt_mark(buf, 3)
   end)
 
   it("adds newline with newline = true", function()
     local buf = repl.open()
+    assert_prompt_mark(buf, 1)
     repl.append("foo", nil, { newline = true })
+    assert_prompt_mark(buf, 2)
     repl.append("bar", nil, { newline = true })
+    assert_prompt_mark(buf, 3)
     repl.append("\nbaz\n", nil, { newline = true })
+    assert_prompt_mark(buf, 6)
 
     local lines = api.nvim_buf_get_lines(buf, 0, -1, true)
-    assert.are.same({"", "foo", "bar", "", "baz", ""}, lines)
+    assert.are.same({"foo", "bar", "", "baz", "", ""}, lines)
   end)
 
   it("repl.execute inserts text and executes it, shows result", function()
@@ -98,12 +114,18 @@ describe('dap.repl', function()
     repl.execute("1 + 1")
     local commands = helpers.wait_for_response(server, "evaluate")
     assert.are.same({"initialize", "launch", "evaluate"}, commands)
-    helpers.wait(function()
-      local lines = api.nvim_buf_get_lines(buf, 0, -1, true)
-      return lines[3] == "2"
-    end)
+    helpers.wait(
+      function()
+        local lines = api.nvim_buf_get_lines(buf, 0, -1, true)
+        return lines[2] == "2"
+      end,
+      function()
+        return api.nvim_buf_get_lines(buf, 0, -1, true)
+      end
+    )
     local lines = api.nvim_buf_get_lines(buf, 0, -1, true)
-    assert.are.same({"", "dap> 1 + 1", "2"}, lines)
+    assert.are.same({"dap> 1 + 1", "2", ""}, lines)
+    assert_prompt_mark(buf, 3)
   end)
   it("repl.execute shows structured results", function()
     server = require("spec.server").spawn()
@@ -138,21 +160,47 @@ describe('dap.repl', function()
     helpers.wait(
       function()
         local lines = api.nvim_buf_get_lines(buf, 0, -1, true)
-        return lines[3] == "table xy"
+        return lines[2] == "table xy"
       end,
       function()
         return api.nvim_buf_get_lines(buf, 0, -1, true)
       end
     )
-    local lines = api.nvim_buf_get_lines(buf, 0, -1, true)
     local expected = {
-      "",
       "dap> tbl",
       "table xy",
       "  x: 1",
-      "  y: 2"
+      "  y: 2",
+      "",
     }
-    assert.are.same(expected, lines)
+    assert.are.same(expected, api.nvim_buf_get_lines(buf, 0, -1, true))
+    assert_prompt_mark(buf, 5)
+
+    server.spy.clear()
+    repl.execute("tbl")
+    commands = helpers.wait_for_response(server, "evaluate")
+    assert.are.same({"evaluate"}, commands)
+    helpers.wait(
+      function()
+        local lines = api.nvim_buf_get_lines(buf, 0, -1, true)
+        return lines[6] == "table xy"
+      end,
+      function()
+        return api.nvim_buf_get_lines(buf, 0, -1, true)
+      end
+    )
+    expected = {
+      "dap> tbl",
+      "table xy",
+      "  x: 1",
+      "  y: 2",
+      "dap> tbl",
+      "table xy",
+      "  x: 1",
+      "  y: 2",
+      "",
+    }
+    assert.are.same(expected, api.nvim_buf_get_lines(buf, 0, -1, true))
   end)
 end)
 

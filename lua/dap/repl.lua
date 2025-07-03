@@ -20,6 +20,19 @@ end
 local execute  -- required for forward reference
 
 
+---@param buf integer
+local function line_count(buf)
+  assert(vim.bo[buf].buftype == "prompt", "buf must have buftype=prompt")
+  if vim.fn.has("nvim-0.12") == 1 then
+    local ok, mark = pcall(api.nvim_buf_get_mark, buf, ":")
+    if ok then
+      return mark[1] - 1
+    end
+  end
+  return api.nvim_buf_line_count(buf) - 1
+end
+
+
 local function new_buf()
   local prev_buf = api.nvim_get_current_buf()
   local buf = api.nvim_create_buf(true, true)
@@ -79,7 +92,7 @@ local function new_buf()
         local active_buf = api.nvim_win_get_buf(0)
         if active_buf == buf then
           local lnum = api.nvim_win_get_cursor(0)[1]
-          autoscroll = lnum == api.nvim_buf_line_count(buf)
+          autoscroll = lnum >= line_count(buf)
         end
       end
     })
@@ -189,7 +202,7 @@ end
 
 local function evaluate_handler(err, resp)
   if err then
-    M.append(tostring(err), nil, { newline = false })
+    M.append(tostring(err), nil, { newline = true })
     return
   end
   local layer = ui.layer(repl.buf)
@@ -201,16 +214,15 @@ local function evaluate_handler(err, resp)
     -- Appending twice would result in a intermediate "dap> " prompt
     -- To avoid that this eagerly fetches the children; pre-renders the region
     -- and lets tree.render override it
-    local lnum = api.nvim_buf_line_count(repl.buf) - 1
     if spec.has_children(resp) then
       spec.fetch_children(resp, function()
-        tree.render(layer, resp, nil, lnum, -1)
+        tree.render(layer, resp, nil)
       end)
     else
-      tree.render(layer, resp, nil, lnum, -1)
+      tree.render(layer, resp, nil)
     end
   else
-    M.append(resp.result, nil, { newline = false })
+    M.append(resp.result, nil, { newline = true })
   end
 end
 
@@ -383,8 +395,8 @@ end
 ---@param text string
 ---@param opts? dap.repl.execute.Opts
 function M.execute(text, opts)
-  M.append(prompt .. text .. "\n", "$", { newline = true })
-  local numlines = api.nvim_buf_line_count(repl.buf)
+  M.append(prompt .. text, "$", { newline = true })
+  local numlines = line_count(repl.buf)
   if repl.win and api.nvim_win_is_valid(repl.win) then
     pcall(api.nvim_win_set_cursor, repl.win, { numlines, 0 })
     api.nvim_win_call(repl.win, function()
@@ -449,6 +461,7 @@ function M.on_down()
 end
 
 
+
 ---@param line string
 ---@param lnum (integer|string)?
 ---@param opts? {newline: boolean}
@@ -460,22 +473,22 @@ function M.append(line, lnum, opts)
   end
   local lines = vim.split(line, '\n')
   if lnum == '$' or not lnum then
-    lnum = api.nvim_buf_line_count(buf) - 1
+    lnum = line_count(buf)
     if opts.newline == false then
-      local last_line = api.nvim_buf_get_lines(buf, -2, -1, true)[1]
-      local insert_pos = #last_line
+      local last_line = api.nvim_buf_get_lines(buf, lnum, lnum + 1, true)[1]
+      local insert_pos = last_line ~= nil and #last_line or 0
       if last_line == prompt then
         -- insert right in front of the empty prompt
         insert_pos = 0
         if lines[#lines] ~= '' then
           table.insert(lines, #lines + 1, '')
         end
-      elseif vim.startswith(last_line, prompt) then
+      elseif vim.startswith(last_line or "", prompt) then
         table.insert(lines, 1, '')
       end
       api.nvim_buf_set_text(buf, lnum, insert_pos, lnum, insert_pos, lines)
     else
-      api.nvim_buf_set_lines(buf, -1, -1, true, lines)
+      api.nvim_buf_set_lines(buf, lnum, lnum, true, lines)
     end
   elseif type(lnum) == "number" then
     api.nvim_buf_set_lines(buf, lnum, lnum, true, lines)

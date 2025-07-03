@@ -216,7 +216,7 @@ function M.new_tree(opts)
     }
     context = vim.tbl_deep_extend('keep', context, extra_context)
     for _, child in pairs(opts.get_children(value)) do
-      layer.render({child}, with_indent(indent, opts.render_child), context, -1)
+      layer.render({child}, with_indent(indent, opts.render_child), context)
       if is_expanded(child) then
         render_all_expanded(layer, child, indent + 2)
       end
@@ -426,6 +426,21 @@ end
 ---@field item any
 ---@field context table|nil
 
+
+---@param buf integer
+local function line_count(buf)
+  if vim.bo[buf].buftype ~= "prompt" then
+    return api.nvim_buf_line_count(buf)
+  end
+  if vim.fn.has("nvim-0.12") == 1 then
+    local ok, mark = pcall(api.nvim_buf_get_mark, buf, ":")
+    if ok then
+      return mark[1] - 1
+    end
+  end
+  return api.nvim_buf_line_count(buf) - 1
+end
+
 --- Returns a layer, creating it if it's missing.
 ---@param buf integer
 ---@return dap.ui.Layer
@@ -473,7 +488,7 @@ function M.layer(buf)
       local modifiable = vim.bo[buf].modifiable
       vim.bo[buf].modifiable = true
       if not start and not end_ then
-        start = api.nvim_buf_line_count(buf)
+        start = line_count(buf)
         -- Avoid inserting a new line at the end of the buffer
         -- The case of no lines and one empty line are ambiguous;
         -- set_lines(buf, 0, 0) would "preserve" the "empty buffer line" while set_lines(buf, 0, -1) replaces it
@@ -485,7 +500,7 @@ function M.layer(buf)
           end_ = start
         end
       else
-        start = start or (api.nvim_buf_line_count(buf) - 1)
+        start = start or (line_count(buf) - 1)
         end_ = end_ or start
       end
       render_fn = render_fn or tostring
@@ -499,7 +514,7 @@ function M.layer(buf)
       local lines = vim.tbl_map(function() return '' end, xs)
       api.nvim_buf_set_lines(buf, start, end_, true, lines)
       if start == -1 then
-        start = api.nvim_buf_line_count(buf) - #lines
+        start = line_count(buf) - #lines
       end
 
       for i = start, start + #lines - 1 do
