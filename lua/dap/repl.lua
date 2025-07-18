@@ -618,4 +618,12 @@ do
 end
 
 
+function M._exit()
+  local buf = repl.buf
+  if buf and vim.bo[buf].modified then
+    vim.bo[buf].modified = false
+  end
+end
+
+
 return M

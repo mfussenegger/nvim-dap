@@ -1374,7 +1374,7 @@ api.nvim_create_autocmd("ExitPre", {
       ---@diagnostic disable-next-line: redundant-return-value
       return session == nil and next(sessions) == nil
     end)
-    M.repl.close()
+    M.repl._exit()
     if _log then
       _log:close()
     end
