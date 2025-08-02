@@ -136,6 +136,9 @@ describe('dap with fake server', function()
       }
     end)
     local diagnostics = vim.diagnostic.get(buf)
+    for _, d in ipairs(diagnostics) do
+      d._extmark_id = nil
+    end
     local expected = {
       {
         bufnr = buf,
