@@ -1,4 +1,4 @@
-DAP client                                           *dap.txt*
+*dap.txt*                                         DAP client
 
 
 nvim-dap is a Debug Adapter Protocol client, or "debugger", or "debug-frontend".
