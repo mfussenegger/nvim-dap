@@ -65,6 +65,7 @@ function M.new_centered_float_win(buf)
     vim.wo[win].wrap = false
   end
   vim.bo[buf].filetype = "dap-float"
+  vim.keymap.set('n', 'q', '<cmd>close<cr>', { buffer = buf, nowait = true, silent = true })
   return win
 end
 
