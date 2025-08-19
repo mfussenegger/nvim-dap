@@ -162,8 +162,6 @@ time.
 [2]: https://github.com/puremourning/vimspector
 [5]: https://codeberg.org/mfussenegger/nvim-dap/wiki/Debug-Adapter-installation
 [7]: https://github.com/theHamsta/nvim-dap-virtual-text
-[8]: https://codeberg.org/mfussenegger/nvim-jdtls
-[9]: https://codeberg.org/mfussenegger/nvim-dap-python
 [10]: https://codeberg.org/mfussenegger/nvim-dap/wiki/Extensions
 [11]: https://github.com/junegunn/vim-plug
 [12]: https://github.com/wbthomason/packer.nvim
