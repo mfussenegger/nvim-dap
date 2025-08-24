@@ -28,7 +28,6 @@ dependencies = {
 }
 
 test_dependencies = {
-  "nlua",
 }
 
 source = {

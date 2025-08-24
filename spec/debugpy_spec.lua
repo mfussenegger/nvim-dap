@@ -2,12 +2,13 @@ local luassert = require('luassert')
 local spy = require('luassert.spy')
 local venv_dir = os.tmpname()
 local dap = require('dap')
+local helpers = require("spec.helpers")
 
 local function get_num_handles()
   local pid = vim.fn.getpid()
-  local output = vim.fn.system({"lsof", "-p"}, tostring(pid))
+  local output = vim.fn.system({"lsof", "-p", tostring(pid)})
   local lines = vim.split(output, "\n", { plain = true })
-  return #lines
+  return #lines, output
 end
 
 
@@ -31,8 +32,7 @@ describe('dap with debugpy', function()
     local breakpoints = require('dap.breakpoints')
     dap.adapters.python = {
       type = 'executable',
-      command = venv_dir .. '/bin/python',
-      args = {'-m', 'debugpy.adapter'},
+      command = venv_dir .. '/bin/debugpy-adapter',
       options = {
         cwd = venv_dir,
       }
@@ -65,18 +65,24 @@ describe('dap with debugpy', function()
       events.setBreakpoints = resp
     end
     dap.listeners.after.event_stopped['dap.tests'] = function(session)
-      vim.wait(1000, function()
+      vim.wait(5000, function()
         return session.stopped_thread_id ~= nil
       end)
       dap.continue()
       events.stopped = true
     end
 
-    local num_handles = get_num_handles()
+    -- force log creation now to not interfere with handle leak check
+    require("dap.session")
+
+    local num_handles, lsof_output = get_num_handles()
 
     local launch = spy.on(dap, 'launch')
     dap.run(config, { filetype = 'python' })
-    vim.wait(1000, function() return dap.session() == nil end, 100)
+    helpers.wait(
+      function() return events.stopped end,
+      function() return "Must hit breakpoints. Events: " .. vim.json.encode(events) end
+    )
     assert.are.same({
       initialized = true,
       setBreakpoints = {
@@ -110,6 +116,24 @@ describe('dap with debugpy', function()
     dap.terminate()
     vim.wait(1000, function() return dap.session() == nil end)
 
+    helpers.wait(
+      function()
+        return num_handles == get_num_handles()
+      end,
+      function()
+        local pid = vim.fn.getpid()
+        local output = vim.fn.system({"lsof", "-p", tostring(pid)})
+        local lines = vim.split(output, "\n", { plain = true })
+        local new_num_handles = #lines
+        return string.format(
+          "Must not leak handles. %d should be %d\nHandles:\n%s\n\nBefore:\n%s\n\n",
+          new_num_handles,
+          num_handles,
+          output,
+          lsof_output
+        )
+      end
+    )
     assert.are.same(num_handles, get_num_handles())
   end)
 end)

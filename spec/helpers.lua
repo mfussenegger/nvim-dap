@@ -3,7 +3,7 @@ local dap = require("dap")
 local assert = require("luassert")
 
 function M.wait(predicate, msg)
-  vim.wait(1000, predicate)
+  vim.wait(5000, predicate)
   local result = predicate()
   if type(msg) == "string" then
     assert.are_not.same(false, result, msg)
@@ -51,7 +51,7 @@ function M.run_and_wait_until_initialized(conf, server)
     return (
       session ~= nil
       and session.initialized == true
-      and (server == nil or #server.spy.requests == 2)
+      and (server == nil or (#server.spy.requests == 2 and #server.spy.responses == 2))
     )
   end, 100)
   return assert(dap.session(), "Must have session after run")

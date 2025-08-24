@@ -1,0 +1,18 @@
+---
+when:
+  - event: push
+    branch: master
+  - event: pull_request
+
+matrix:
+  nvim_version:
+    - latest
+    - 0.11
+
+steps:
+  - name: test
+    image: anatolelucet/neovim:${nvim_version}-alpine
+    commands:
+      - apk add python3 lua5.1 luarocks5.1 lua-busted
+      - eval $(luarocks-5.1 path --no-bin)
+      - busted

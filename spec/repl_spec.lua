@@ -72,6 +72,7 @@ describe('dap.repl', function()
       dap.close()
       helpers.wait(function() return dap.session() == nil end, "session should become nil")
       server = nil
+      dap.adapters.dummy = nil
     end
   end)
   it("append doesn't add newline with newline = false", function()
@@ -216,6 +217,8 @@ describe("dap.repl completion", function()
     dap.close()
     require('dap.breakpoints').clear()
     helpers.wait(function() return dap.session() == nil end, "session should become nil")
+    local repl_buf = repl.open()
+    api.nvim_buf_delete(repl_buf, { force = true })
   end)
   it("Uses start position from completion response", function()
     prepare_session(server, "dap> com. ", {
