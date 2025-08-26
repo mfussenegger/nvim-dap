@@ -56,6 +56,7 @@ end
 ---@field private handle uv.uv_stream_t
 ---@field current_frame dap.StackFrame|nil
 ---@field initialized boolean
+---@field term_buf? integer
 ---@field stopped_thread_id number|nil
 ---@field id number
 ---@field threads table<number, dap.Thread>
@@ -258,6 +259,7 @@ local function run_in_terminal(lsession, request)
   end
 
   local jobid
+  lsession.term_buf = terminal_buf
   vim.api.nvim_buf_call(terminal_buf, function()
     local termopen = vim.fn.has("nvim-0.11") == 1 and vim.fn.jobstart or vim.fn.termopen
     jobid = termopen(body.args, {
