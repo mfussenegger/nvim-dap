@@ -1314,7 +1314,7 @@ parameter and must return a |dap-configuration|.
 
 Before making modifications to the config you should copy it, to ensure you
 don't make permanent changes to a configuration stored within
-`dap.configrations.<filetype>` via mutations.
+`dap.configurations.<filetype>` via mutations.
 
 Example:
 >lua
