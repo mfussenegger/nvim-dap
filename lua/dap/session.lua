@@ -427,6 +427,7 @@ local function jump_to_location(bufnr, line, column, switchbuf, filetype)
   end
 
   local cur_win = api.nvim_get_current_win()
+  local cur_tab = api.nvim_win_get_tabpage(cur_win)
   local switchbuf_fn = {}
 
   function switchbuf_fn.uselast()
@@ -451,6 +452,19 @@ local function jump_to_location(bufnr, line, column, switchbuf, filetype)
       local last = vim.fn.line("w$", cur_win)
       if first <= line and line <= last then
         return true
+      end
+    end
+    return false
+  end
+
+  function switchbuf_fn.tabusevisible()
+    for _, win in ipairs(vim.api.nvim_tabpage_list_wins(cur_tab)) do
+      if api.nvim_win_get_buf(win) == bufnr then
+        local first = vim.fn.line("w0", win)
+        local last = vim.fn.line("w$", win)
+        if first <= line and line <= last then
+          return true
+        end
       end
     end
     return false
