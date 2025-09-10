@@ -943,6 +943,10 @@ do
         api.nvim_buf_attach(bufnr, false, { on_detach = remove_breakpoints })
       end
       local path = api.nvim_buf_get_name(bufnr)
+      local is_windows = vim.fn.has('win32') == 1
+      if is_windows then
+        path = path:gsub("/", "\\")
+      end
       ---@type dap.SetBreakpointsArguments
       local payload = {
         source = {
