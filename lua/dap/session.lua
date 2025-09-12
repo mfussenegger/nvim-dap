@@ -945,7 +945,6 @@ do
       local path = api.nvim_buf_get_name(bufnr)
       local is_windows = vim.fn.has('win32') == 1
       if is_windows and self.config.type == "coreclr" then
-        utils.notify(string.format("random_debug: %s", self.config.type))
         path = path:gsub("/", "\\")
       end
       ---@type dap.SetBreakpointsArguments
