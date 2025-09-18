@@ -53,7 +53,9 @@ function Client:send_event(event, body)
     event = event,
     body = body,
   }
-  self.socket:write(rpc.msg_with_content_length(json_encode(payload)))
+  if self.socket then
+    self.socket:write(rpc.msg_with_content_length(json_encode(payload)))
+  end
   table.insert(self.spy.events, payload)
 end
 

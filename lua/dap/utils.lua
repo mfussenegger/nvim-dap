@@ -201,7 +201,7 @@ M._trim_procname = trim_procname
 ---@field label? fun(proc: dap.utils.Proc): string
 ---@field prompt? string
 
---- Show a prompt to select a process pid
+--- Show a prompt to select a process pid and returns the pid on selection
 --- Requires `ps ah -u $USER` on Linux/Mac and `tasklist /nh /fo csv` on windows.
 --
 --- Takes an optional `opts` table with the following options:
@@ -233,6 +233,7 @@ M._trim_procname = trim_procname
 --- </pre>
 ---
 ---@param opts? dap.utils.pick_process.Opts
+---@return integer|dap.Abort
 function M.pick_process(opts)
   opts = opts or {}
   local cols = math.max(14, math.floor(vim.o.columns * 0.7))

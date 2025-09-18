@@ -4,7 +4,12 @@ describe('breakpoints', function()
 
   require('dap')
   local breakpoints = require('dap.breakpoints')
-  after_each(breakpoints.clear)
+  after_each(function()
+    breakpoints.clear()
+    for _, b in ipairs(api.nvim_list_bufs()) do
+      api.nvim_buf_delete(b, { force = true })
+    end
+  end)
 
   it('can set normal breakpoints', function()
     breakpoints.set()
@@ -53,23 +58,40 @@ describe('breakpoints', function()
     local lnum = api.nvim_win_get_cursor(0)[1]
     breakpoints.toggle()
     local state = { line = lnum, id = 1 }
-    breakpoints.set_state(api.nvim_get_current_buf(), state)
+    local fstbuf = api.nvim_get_current_buf()
+    breakpoints.set_state(fstbuf, state)
+    local newbuf = api.nvim_create_buf(true, true)
+    api.nvim_set_current_buf(newbuf)
+    api.nvim_buf_set_lines(newbuf, 0, -1, true, {"Hello", "World"})
+    breakpoints.toggle({}, newbuf, 2)
     local expected = {
-      [1] = {
+      [fstbuf] = {
         {
           line = lnum,
           state = state,
         },
       },
+      [newbuf] = {
+        {
+          line = 2,
+        }
+      }
     }
     assert.are.same(expected, breakpoints.get())
     breakpoints.remove_by_id(1)
-    assert.are.same({}, breakpoints.get())
+    expected[fstbuf] = nil
+    assert.are.same(expected, breakpoints.get())
   end)
 
   it('toggle adds bp if missing, otherwise removes', function()
     breakpoints.toggle()
-    assert.are.same({{{line = 1}}}, breakpoints.get())
+    local buf = api.nvim_get_current_buf()
+    local expected = {
+      [buf] = {
+        { line = 1 },
+      }
+    }
+    assert.are.same(expected, breakpoints.get())
     breakpoints.toggle()
     assert.are.same({}, breakpoints.get())
   end)
@@ -81,7 +103,7 @@ describe('breakpoints', function()
     assert.are.same(
       {
         {
-          bufnr = 1,
+          bufnr = buf,
           col = 0,
           lnum = 1,
           text = 'Hello breakpoint, Condition: x > 10'

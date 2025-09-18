@@ -1,7 +1,16 @@
 local api = vim.api
 local non_empty = require('dap.utils').non_empty
 
-local bp_by_sign = {}
+---@class dap.bp
+---@field buf integer
+---@field line integer
+---@field condition string?
+---@field logMessage string?
+---@field hitCondition string?
+---@field state dap.Breakpoint?
+
+---@type table<integer, table<integer, dap.bp>> buffer → sign id → bp
+local bp_by_sign_by_buf = {}
 local ns = 'dap_breakpoints'
 local M = {}
 
@@ -21,9 +30,9 @@ local function get_breakpoint_signs(bufexpr)
   return result
 end
 
-
+---@param bp dap.bp
 local function get_sign_name(bp)
-  if bp.verified == false then
+  if bp.state and bp.state.verified == false then
     return 'DapBreakpointRejected'
   elseif non_empty(bp.condition) then
     return 'DapBreakpointCondition'
@@ -38,23 +47,23 @@ end
 ---@param breakpoint dap.Breakpoint
 function M.update(breakpoint)
   assert(breakpoint.id, "To update a breakpoint it must have an id property")
-  for sign_id, bp in pairs(bp_by_sign) do
-    if bp.state and bp.state.id == breakpoint.id then
-      local verified_changed =
-        bp.state.verified == false and breakpoint.verified
-        or breakpoint.verified == false and bp.state.verified
-      if verified_changed then
-        vim.fn.sign_place(
-          sign_id,
-          ns,
-          get_sign_name(bp),
-          bp.buf,
-          { lnum = bp.line; priority = 21; }
-        )
+  for _, bp_by_sign in pairs(bp_by_sign_by_buf) do
+    for sign_id, bp in pairs(bp_by_sign) do
+      if bp.state and bp.state.id == breakpoint.id then
+        local verified_changed = bp.state.verified ~= breakpoint.verified
+        bp.state.verified = breakpoint.verified
+        bp.state.message = breakpoint.message
+        if verified_changed then
+          vim.fn.sign_place(
+            sign_id,
+            ns,
+            get_sign_name(bp),
+            bp.buf,
+            { lnum = bp.line; priority = 21; }
+          )
+        end
+        return
       end
-      bp.state.verified = breakpoint.verified
-      bp.state.message = breakpoint.message
-      return
     end
   end
 end
@@ -72,7 +81,7 @@ function M.set_state(bufnr, state)
     return
   end
   for _, sign in pairs(signs) do
-    local bp = bp_by_sign[sign.id]
+    local bp = bp_by_sign_by_buf[bufnr][sign.id]
     if bp then
       bp.state = state
     end
@@ -95,7 +104,7 @@ function M.remove(bufnr, lnum)
   if signs and #signs > 0 then
     for _, sign in pairs(signs) do
       vim.fn.sign_unplace(ns, { buffer = bufnr; id = sign.id; })
-      bp_by_sign[sign.id] = nil
+      bp_by_sign_by_buf[bufnr][sign.id] = nil
     end
     return true
   else
@@ -104,11 +113,13 @@ function M.remove(bufnr, lnum)
 end
 
 function M.remove_by_id(id)
-  for sign_id, bp in pairs(bp_by_sign) do
-    if bp.state and bp.state.id == id then
-      vim.fn.sign_unplace(ns, { buffer = bp.buf, id = sign_id, })
-      bp_by_sign[sign_id] = nil
-      return
+  for _, bp_by_sign in pairs(bp_by_sign_by_buf) do
+    for sign_id, bp in pairs(bp_by_sign) do
+      if bp.state and bp.state.id == id then
+        vim.fn.sign_unplace(ns, { buffer = bp.buf, id = sign_id, })
+        bp_by_sign_by_buf[bp.buf][sign_id] = nil
+        return
+      end
     end
   end
 end
@@ -120,8 +131,9 @@ function M.toggle(opts, bufnr, lnum)
   if M.remove(bufnr, lnum) and not opts.replace then
     return
   end
-  local bp = {
+  local bp = { ---@type dap.bp
     buf = bufnr,
+    line = lnum,
     condition = opts.condition,
     logMessage = opts.log_message,
     hitCondition = opts.hit_condition
@@ -135,7 +147,10 @@ function M.toggle(opts, bufnr, lnum)
     { lnum = lnum; priority = 21; }
   )
   if sign_id ~= -1 then
-    bp_by_sign[sign_id] = bp
+    if not bp_by_sign_by_buf[bufnr] then
+      bp_by_sign_by_buf[bufnr] = {}
+    end
+    bp_by_sign_by_buf[bufnr][sign_id] = bp
   end
 end
 
@@ -159,7 +174,7 @@ function M.get(bufexpr)
     local bufnr = buf_bp_signs.bufnr
     result[bufnr] = breakpoints
     for _, bp in pairs(buf_bp_signs.signs) do
-      local bp_entry = bp_by_sign[bp.id] or {}
+      local bp_entry = bp_by_sign_by_buf[bufnr][bp.id] or {}
       table.insert(breakpoints, {
         line = bp.lnum;
         condition = bp_entry.condition;
@@ -175,7 +190,7 @@ end
 
 function M.clear()
   vim.fn.sign_unplace(ns)
-  bp_by_sign = {}
+  bp_by_sign_by_buf = {}
 end
 
 

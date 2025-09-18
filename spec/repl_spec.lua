@@ -62,17 +62,17 @@ end
 
 describe('dap.repl', function()
   local server
-  before_each(function()
-    local buf = repl.open()
-    api.nvim_buf_delete(buf, {force = true})
-  end)
   after_each(function()
     if server then
+      dap.terminate()
       server.stop()
-      dap.close()
       helpers.wait(function() return dap.session() == nil end, "session should become nil")
       server = nil
+      dap.adapters.dummy = nil
     end
+    repl.execute(".format structured")
+    local buf = repl.open()
+    api.nvim_buf_delete(buf, {force = true})
   end)
   it("append doesn't add newline with newline = false", function()
     local buf = repl.open()
@@ -212,10 +212,12 @@ describe("dap.repl completion", function()
     dap.adapters.dummy = server.adapter
   end)
   after_each(function()
+    dap.terminate()
     server.stop()
-    dap.close()
     require('dap.breakpoints').clear()
     helpers.wait(function() return dap.session() == nil end, "session should become nil")
+    local repl_buf = repl.open()
+    api.nvim_buf_delete(repl_buf, { force = true })
   end)
   it("Uses start position from completion response", function()
     prepare_session(server, "dap> com. ", {

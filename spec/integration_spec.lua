@@ -136,6 +136,9 @@ describe('dap with fake server', function()
       }
     end)
     local diagnostics = vim.diagnostic.get(buf)
+    for _, d in ipairs(diagnostics) do
+      d._extmark_id = nil
+    end
     local expected = {
       {
         bufnr = buf,
@@ -748,13 +751,13 @@ describe('run_to_cursor', function()
   local server
   before_each(function()
     server = require('spec.server').spawn()
+    dap.adapters.dummy = server.adapter
     server.client.setBreakpoints = function(self, request)
       local breakpoints = request.arguments.breakpoints
       self:send_response(request, {
         breakpoints = vim.tbl_map(function() return { verified = true } end, breakpoints)
       })
     end
-    dap.adapters.dummy = server.adapter
   end)
   after_each(function()
     dap.close()
@@ -1318,22 +1321,21 @@ describe("on_output", function()
   local server
   before_each(function()
     server = require('spec.server').spawn()
-    dap.adapters.dummy = server.adapter
+    dap.adapters.dummy_on_output = server.adapter
   end)
   after_each(function()
-    server.stop()
     dap.terminate()
+    server.stop()
     wait(function() return dap.session() == nil end, "Session should become nil after terminate")
     assert.are.same(0, vim.tbl_count(dap.sessions()), "Sessions should go down to 0 after terminate/stop")
-
-    dap.defaults.fallback.on_output = nil
-    assert.are.is_nil(dap.defaults.fallback.on_output)
+    dap.defaults.dummy_on_output.on_output = nil
+    assert.are.is_nil(dap.defaults.dummy_on_output.on_output)
   end)
 
   it("can override output handling", function()
     local captured_output = nil
 
-    function dap.defaults.fallback.on_output(_, output)
+    function dap.defaults.dummy_on_output.on_output(_, output)
       captured_output = output
     end
 
@@ -1346,7 +1348,12 @@ describe("on_output", function()
       })
     end
 
-    run_and_wait_until_initialized(config, server)
+    run_and_wait_until_initialized({
+      type = "dummy_on_output",
+      request = "launch",
+      name = "dummy"
+    }, server)
+
     assert.are.same(captured_output, {
       category = "stdout",
       output = "dummy output"
