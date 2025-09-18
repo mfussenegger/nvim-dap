@@ -120,11 +120,22 @@ local function coresume(co)
 end
 
 
-local function launch_external_terminal(env, terminal, args)
+local function launch_external_terminal(env, terminal, args, cwd)
   local handle
   local pid_or_err
   local full_args = {}
-  vim.list_extend(full_args, terminal.args or {})
+  -- Allow passing the desired cwd to terminals via placeholder substitution.
+  -- Users can add "${cwd}" to their external_terminal.args (e.g. kitty: {"--hold", "-d", "${cwd}"})
+  local function substitute(arg)
+    if type(arg) == "string" and cwd and cwd ~= '' then
+      return (arg:gsub("%${cwd}", cwd))
+    end
+    return arg
+  end
+  for _, a in ipairs(terminal.args or {}) do
+    full_args[#full_args+1] = substitute(a)
+  end
+  -- Adapter-provided args are appended as-is
   vim.list_extend(full_args, args)
   -- Initializing to nil is important so environment is inherited by the terminal
   local env_formatted = nil
@@ -140,6 +151,7 @@ local function launch_external_terminal(env, terminal, args)
   local opts = {
     args = full_args,
     detached = true,
+    cwd = cwd,
     env = env_formatted,
   }
   handle, pid_or_err = uv.spawn(terminal.command, opts, function(code)
@@ -234,7 +246,7 @@ local function run_in_terminal(lsession, request)
     if not terminal then
       utils.notify('Requested external terminal, but none configured. Fallback to integratedTerminal', vim.log.levels.WARN)
     else
-      local handle, pid = launch_external_terminal(body.env, terminal, body.args)
+      local handle, pid = launch_external_terminal(body.env, terminal, body.args, body.cwd)
       if not handle then
         utils.notify('Could not launch terminal ' .. terminal.command, vim.log.levels.ERROR)
       end
@@ -301,6 +313,7 @@ local function run_in_terminal(lsession, request)
       };
     })
   end
+
 end
 
 

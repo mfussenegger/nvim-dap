@@ -657,6 +657,28 @@ should be launched by nvim-dap:
   }
 <
 
+You can include the placeholder `${cwd}` in `external_terminal.args` to pass
+the working directory requested by the debug adapter (for example from
+`launch.json`). This is useful for terminals that require an explicit working
+directory flag.
+
+Examples:
+
+>lua
+  local dap = require('dap')
+  -- Kitty: open in the requested cwd and run the command, keep the tab open
+  dap.defaults.fallback.external_terminal = {
+    command = 'kitty';
+    args = { '--hold', '-d', '${cwd}' };
+  }
+
+  -- alacritty: set working directory explicitly
+  dap.defaults.fallback.external_terminal = {
+    command = 'alacritty';
+    args = { '--working-directory', '${cwd}', '-e' };
+  }
+<
+
 Some debug adapters support launching the debugee in a terminal, but don't
 provide an option to choose between integrated terminal or external terminal.
 `nvim-dap` provides an option to force the external terminal.
