@@ -443,5 +443,12 @@
 ---@field selectionStart? number
 ---@field selectionLength? number
 
-
 ---@alias dap.SteppingGranularity 'statement'|'line'|'instruction'
+
+---@class dap.RunInTerminalRequestArguments
+---@field kind? 'integrated'|'external'
+---@field title? string
+---@field cwd string
+---@field args string[]
+---@field env? table<string, string>
+---@field argsCanBeInterpretedByShell? boolean

@@ -121,7 +121,11 @@ local function coresume(co)
 end
 
 
-local function launch_external_terminal(env, terminal, args)
+---@param env table<string, string>?
+---@param terminal {command: string, args: string[]?}
+---@param args string[]
+---@param cwd string
+local function launch_external_terminal(env, terminal, args, cwd)
   local handle
   local pid_or_err
   local full_args = {}
@@ -141,6 +145,7 @@ local function launch_external_terminal(env, terminal, args)
   local opts = {
     args = full_args,
     detached = true,
+    cwd = cwd == "" and nil or cwd,
     env = env_formatted,
   }
   handle, pid_or_err = uv.spawn(terminal.command, opts, function(code)
@@ -227,6 +232,7 @@ end
 
 ---@param lsession dap.Session
 local function run_in_terminal(lsession, request)
+  ---@type dap.RunInTerminalRequestArguments
   local body = request.arguments
   log:debug('run_in_terminal', body)
   local settings = dap().defaults[lsession.config.type]
@@ -235,7 +241,7 @@ local function run_in_terminal(lsession, request)
     if not terminal then
       utils.notify('Requested external terminal, but none configured. Fallback to integratedTerminal', vim.log.levels.WARN)
     else
-      local handle, pid = launch_external_terminal(body.env, terminal, body.args)
+      local handle, pid = launch_external_terminal(body.env, terminal, body.args, body.cwd)
       if not handle then
         utils.notify('Could not launch terminal ' .. terminal.command, vim.log.levels.ERROR)
       end
@@ -261,6 +267,7 @@ local function run_in_terminal(lsession, request)
   local jobid
   lsession.term_buf = terminal_buf
   vim.api.nvim_buf_call(terminal_buf, function()
+    ---@diagnostic disable-next-line: deprecated
     local termopen = vim.fn.has("nvim-0.11") == 1 and vim.fn.jobstart or vim.fn.termopen
     jobid = termopen(body.args, {
       env = next(body.env or {}) and body.env or vim.empty_dict(),
