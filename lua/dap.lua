@@ -168,7 +168,7 @@ M.defaults = setmetatable(
       focus_terminal = false,
       auto_continue_if_many_stopped = true,
 
-      ---@type string|nil
+      ---@type string|fun(bufnr: integer, line: integer, column: integer):nil|nil
       switchbuf = nil,
 
       ---@type nil|fun(session: dap.Session, output: dap.OutputEvent)

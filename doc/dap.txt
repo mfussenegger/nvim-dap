@@ -588,15 +588,19 @@ The configuration values are set via `dap.defaults.fallback` (for global) or
   threads to be able to stop, you may want to set this to false.
   Defaults to true.
 
-- switchbuf. (string). Controls the behavior when jumping to a breakpoint.
-                       See |'switchbuf'|. Defaults to the global `'switchbuf'`
-                       setting.
+- switchbuf. (string|fun). Controls the behavior when jumping to a
+  breakpoint. See |'switchbuf'|. Defaults to the global `'switchbuf'` setting.
 
-                       nvim-dap provides an additional `usevisible` option
-                       that can be used to prevent jumps within the active
-                       window if a stopped event is within the visible region.
-                       Best used in combination with other options. For
-                       example: 'usevisible,usetab,uselast'
+  nvim-dap provides an additional `usevisible` option
+  that can be used to prevent jumps within the active
+  window if a stopped event is within the visible region.
+  Best used in combination with other options. For
+  example: 'usevisible,usetab,uselast'
+
+  For more complex use cases, nvim-dap allows overriding with a function. The
+  function receives 3 arguments: (bufnr, line, column). It has full control of
+  how Neovim should behave and it is not expected to return anything.
+
 
 - `on_output`. A function with two parameters: `session` and `output_event`:
   Overrides the default output handling with a custom handler.

@@ -409,7 +409,7 @@ end
 ---@param bufnr number
 ---@param line number
 ---@param column number
----@param switchbuf string
+---@param switchbuf string|fun(bufnr: integer, line: integer, column: integer):nil
 ---@param filetype string
 local function jump_to_location(bufnr, line, column, switchbuf, filetype)
   progress.report('Stopped at line ' .. line)
@@ -507,13 +507,18 @@ local function jump_to_location(bufnr, line, column, switchbuf, filetype)
     return true
   end
 
-  if switchbuf:find('usetab') then
+  if type(switchbuf) == "string" and switchbuf:find('usetab') then
     switchbuf_fn.useopen = switchbuf_fn.usetab
   end
 
-  if switchbuf:find('newtab') then
+  if type(switchbuf) == "string" and switchbuf:find('newtab') then
     switchbuf_fn.vsplit = switchbuf_fn.newtab
     switchbuf_fn.split = switchbuf_fn.newtab
+  end
+
+  if type(switchbuf) == "function" then
+    switchbuf(bufnr, line, column)
+    return
   end
 
   local opts = vim.split(switchbuf, ',', { plain = true })
