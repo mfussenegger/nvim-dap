@@ -1260,7 +1260,7 @@ end
 
 
 function M.set_log_level(level)
-  log():set_level(level)
+  require("dap.log").set_level(level)
 end
 
 

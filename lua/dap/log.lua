@@ -14,7 +14,23 @@ M.levels = {
   ERROR = 4,
 }
 
+---@alias dap.log.Levels "TRACE"|"DEBUG"|"INFO"|"WARN"|"ERROR"
+
+local default_level = M.levels.INFO
 local log_date_format = "!%F %H:%M:%S"
+
+
+---@param level dap.log.Level|dap.log.Levels
+---@return dap.log.Level
+local function tolevel(level)
+  if type(level) == "string" then
+    return assert(
+      M.levels[tostring(level):upper()],
+      string.format('Log level must be one of (trace, debug, info, warn, error), got: %q', level)
+    )
+  end
+  return level
+end
 
 
 ---@class dap.log.Log
@@ -45,14 +61,7 @@ end
 
 ---@param level dap.log.Level|string
 function Log:set_level(level)
-  if type(level) == "string" then
-    self._level = assert(
-      M.levels[tostring(level):upper()],
-      string.format('Log level must be one of (trace, debug, info, warn, error), got: %q', level)
-    )
-  else
-    self._level = level
-  end
+  self._level = tolevel(level)
 end
 
 function Log:get_path()
@@ -131,6 +140,15 @@ function Log:error(...)
 end
 
 
+---@param level dap.log.Level|dap.log.Levels
+function M.set_level(level)
+  for _, logger in pairs(loggers) do
+    logger:set_level(level)
+  end
+  default_level = tolevel(level)
+end
+
+
 ---@param fname string
 ---@return string path
 ---@return string cache_dir
@@ -146,6 +164,7 @@ local function getpath(fname)
 end
 
 
+---@param filename string
 ---@return dap.log.Log
 function M.create_logger(filename)
   local logger = loggers[filename]
@@ -157,7 +176,7 @@ function M.create_logger(filename)
   local log = {
     _fname = filename,
     _path = path,
-    _level = M.levels.INFO
+    _level = default_level
   }
   logger = setmetatable(log, log_mt)
   loggers[filename] = logger
