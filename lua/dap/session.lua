@@ -409,7 +409,7 @@ end
 ---@param bufnr number
 ---@param line number
 ---@param column number
----@param switchbuf string|fun(bufnr: integer, line: integer, column: integer):nil
+---@param switchbuf string|fun(bufnr: integer):integer
 ---@param filetype string
 local function jump_to_location(bufnr, line, column, switchbuf, filetype)
   progress.report('Stopped at line ' .. line)
@@ -517,7 +517,8 @@ local function jump_to_location(bufnr, line, column, switchbuf, filetype)
   end
 
   if type(switchbuf) == "function" then
-    switchbuf(bufnr, line, column)
+    local win = switchbuf(bufnr)
+    set_cursor(win, line, column)
     return
   end
 
