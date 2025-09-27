@@ -598,8 +598,9 @@ The configuration values are set via `dap.defaults.fallback` (for global) or
   example: 'usevisible,usetab,uselast'
 
   For more complex use cases, nvim-dap allows overriding with a function. The
-  function receives 3 arguments: (bufnr, line, column). It has full control of
-  how Neovim should behave and it is not expected to return anything.
+  function receives bufnr and should return a window id with its current
+  buffer set to the given buffer. It has full control of how Neovim should
+  behave.
 
 
 - `on_output`. A function with two parameters: `session` and `output_event`:
