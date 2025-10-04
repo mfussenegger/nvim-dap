@@ -726,6 +726,12 @@ function M.step_into(opts)
       return
     end
 
+    -- Fall back to step-into/over functionality if there are no targets
+    if #response.targets == 0 then
+      M.step_into(opts)
+      return
+    end
+
     lazy.ui.pick_if_many(
       response.targets,
       "Step into which function?",
