@@ -53,12 +53,12 @@ so, how, you need to configure them via the `dap.adapters` table. The key of
 the table is an arbitrary name that debug adapters are looked up by when using
 a |dap-configuration|.
 
-For example, to register the `debugpy` debug adapter under the type `python` you
-can add the following entry:
+For example, to register the `debugpy` debug adapter you can add the following 
+entry:
 
 >lua
   local dap = require('dap')
-  dap.adapters.python = {
+  dap.adapters.debugpy = {
     type = 'executable';
     command = os.getenv('HOME') .. '/.virtualenvs/tools/bin/python';
     args = { '-m', 'debugpy.adapter' };
@@ -133,7 +133,7 @@ For `server` the following options are supported:
 
 For `pipe` the following options are supported:
 
-
+>
     pipe: string      -- Absolute path to the pipe file.
                       -- If `${pipe}` nvim-dap generates a temporary filename
                       -- that is intended for use with `executable`
@@ -249,7 +249,7 @@ For example:
     local dap = require('dap')
     dap.configurations.python = {
       {
-        type = 'python';
+        type = 'debugpy';
         request = 'launch';
         name = "Launch file";
         program = "${file}";
@@ -383,7 +383,7 @@ Inputs can be referenced with `${input:<id>}` placeholders.
       "version": "0.2.0",
       "configurations": [
           {
-              "type": "python",
+              "type": "debugpy",
               "request": "launch",
               "name": "Launch",
               "program": "${input:myPrompt}"
@@ -629,8 +629,8 @@ Some more examples:
   local dap = require('dap')
   -- Use "tabnew" for all debug adapters
   dap.defaults.fallback.terminal_win_cmd = 'tabnew'
-  -- Except for python
-  dap.defaults.python.terminal_win_cmd = 'belowright new'
+  -- Except for debugpy
+  dap.defaults.debugpy.terminal_win_cmd = 'belowright new'
 
   dap.defaults.java.auto_continue_if_many_stopped = false
 
@@ -857,10 +857,10 @@ set_exception_breakpoints({filters}, {exceptionOptions})
     Or per config/adapter type:
 
 >lua
-        require('dap').defaults.python.exception_breakpoints = {'raised'}
+        require('dap').defaults.debugpy.exception_breakpoints = {'raised'}
 <
 
-    In this example `python` is the type. This is the same type used in
+    In this example `debugpy` is the type. This is the same type used in
     |dap-configuration| or the |dap-adapter| definition.
 
 
