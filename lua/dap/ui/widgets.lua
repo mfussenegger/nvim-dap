@@ -131,7 +131,7 @@ local function resizing_layer(win, buf)
   ---@diagnostic disable-next-line: inject-field
   layer.render = function(...)
     orig_render(...)
-    if api.nvim_win_get_config(win).relative ~= '' then
+    if api.nvim_win_is_valid(win) and api.nvim_win_get_config(win).relative ~= '' then
       resize_window(win, buf)
     end
   end
