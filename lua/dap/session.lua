@@ -768,6 +768,7 @@ function Session:event_stopped(stopped)
       utils.notify('Error retrieving stack traces: ' .. tostring(err), vim.log.levels.ERROR)
       return
     end
+    assert(response, "Must have response if there is no error")
     local frames = response.stackFrames --[=[@as dap.StackFrame[]]=]
     thread.frames = frames
     local current_frame = get_top_frame(frames)
@@ -2041,6 +2042,7 @@ function Session:event_thread(event)
       thread.stopped = false
       if self.stopped_thread_id == thread.id then
         self.stopped_thread_id = nil
+        self.current_frame = nil
       end
     else
       self.dirty.threads = true
@@ -2060,10 +2062,12 @@ function Session:event_continued(event)
       t.stopped = false
     end
     self.stopped_thread_id = nil
+    self.current_frame = nil
     vim.fn.sign_unplace(self.sign_group)
   else
     if self.stopped_thread_id == event.threadId then
       self.stopped_thread_id = nil
+      self.current_frame = nil
       vim.fn.sign_unplace(self.sign_group)
     end
     local thread = self.threads[event.threadId]
