@@ -7,12 +7,14 @@ M.variable = variable
 
 local types_to_hl_group = {
   boolean = "Boolean",
+  str = "String",
   string = "String",
   int = "Number",
   long = "Number",
   number = "Number",
   double = "Float",
   float = "Float",
+  nonetype = "Constant",
   ["function"] = "Function",
 }
 

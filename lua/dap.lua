@@ -168,7 +168,7 @@ M.defaults = setmetatable(
       focus_terminal = false,
       auto_continue_if_many_stopped = true,
 
-      ---@type string|nil
+      ---@type string|fun(bufnr: integer, line: integer, column: integer):nil|nil
       switchbuf = nil,
 
       ---@type nil|fun(session: dap.Session, output: dap.OutputEvent)
@@ -221,7 +221,7 @@ local DAP_QUICKFIX_CONTEXT = DAP_QUICKFIX_TITLE
 ---@class dap.ServerAdapter : dap.Adapter
 ---@field type "server"
 ---@field host string|nil
----@field port integer
+---@field port integer|"${port}"
 ---@field executable nil|dap.ServerAdapterExecutable
 ---@field options nil|ServerOptions
 
@@ -1260,7 +1260,7 @@ end
 
 
 function M.set_log_level(level)
-  log():set_level(level)
+  require("dap.log").set_level(level)
 end
 
 

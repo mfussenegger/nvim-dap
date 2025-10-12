@@ -422,7 +422,7 @@ end
 ---@param bufnr number
 ---@param line number
 ---@param column number
----@param switchbuf string
+---@param switchbuf string|fun(bufnr: integer, line: integer, column: integer):nil
 ---@param filetype string
 local function jump_to_location(bufnr, line, column, switchbuf, filetype)
   progress.report('Stopped at line ' .. line)
@@ -520,13 +520,18 @@ local function jump_to_location(bufnr, line, column, switchbuf, filetype)
     return true
   end
 
-  if switchbuf:find('usetab') then
+  if type(switchbuf) == "string" and switchbuf:find('usetab') then
     switchbuf_fn.useopen = switchbuf_fn.usetab
   end
 
-  if switchbuf:find('newtab') then
+  if type(switchbuf) == "string" and switchbuf:find('newtab') then
     switchbuf_fn.vsplit = switchbuf_fn.newtab
     switchbuf_fn.split = switchbuf_fn.newtab
+  end
+
+  if type(switchbuf) == "function" then
+    switchbuf(bufnr, line, column)
+    return
   end
 
   local opts = vim.split(switchbuf, ',', { plain = true })
@@ -776,6 +781,7 @@ function Session:event_stopped(stopped)
       utils.notify('Error retrieving stack traces: ' .. tostring(err), vim.log.levels.ERROR)
       return
     end
+    assert(response, "Must have response if there is no error")
     local frames = response.stackFrames --[=[@as dap.StackFrame[]]=]
     thread.frames = frames
     local current_frame = get_top_frame(frames)
@@ -2049,6 +2055,7 @@ function Session:event_thread(event)
       thread.stopped = false
       if self.stopped_thread_id == thread.id then
         self.stopped_thread_id = nil
+        self.current_frame = nil
       end
     else
       self.dirty.threads = true
@@ -2068,10 +2075,12 @@ function Session:event_continued(event)
       t.stopped = false
     end
     self.stopped_thread_id = nil
+    self.current_frame = nil
     vim.fn.sign_unplace(self.sign_group)
   else
     if self.stopped_thread_id == event.threadId then
       self.stopped_thread_id = nil
+      self.current_frame = nil
       vim.fn.sign_unplace(self.sign_group)
     end
     local thread = self.threads[event.threadId]

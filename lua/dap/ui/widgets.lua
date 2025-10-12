@@ -27,7 +27,8 @@ end
 
 function M.new_cursor_anchored_float_win(buf)
   vim.bo[buf].bufhidden = "wipe"
-  local opts = vim.lsp.util.make_floating_popup_options(50, 30, {border = 'single'})
+  local border = vim.fn.exists('&winborder') == 1 and vim.o.winborder or 'single'
+  local opts = vim.lsp.util.make_floating_popup_options(50, 30, {border = border})
   local win = api.nvim_open_win(buf, true, opts)
   if vim.fn.has("nvim-0.11") == 1 then
     vim.wo[win][0].scrolloff = 0
@@ -47,6 +48,7 @@ function M.new_centered_float_win(buf)
   local lines = vim.o.lines
   local width = math.floor(columns * 0.9)
   local height = math.floor(lines * 0.8)
+  local border = vim.fn.exists('&winborder') == 1 and vim.o.winborder or 'single'
   local opts = {
     relative = 'editor',
     style = 'minimal',
@@ -54,7 +56,7 @@ function M.new_centered_float_win(buf)
     col = math.floor((columns - width) * 0.5),
     width = width,
     height = height,
-    border = 'single',
+    border = border,
   }
   local win = api.nvim_open_win(buf, true, opts)
   if vim.fn.has("nvim-0.11") == 1 then
@@ -129,7 +131,7 @@ local function resizing_layer(win, buf)
   ---@diagnostic disable-next-line: inject-field
   layer.render = function(...)
     orig_render(...)
-    if api.nvim_win_get_config(win).relative ~= '' then
+    if api.nvim_win_is_valid(win) and api.nvim_win_get_config(win).relative ~= '' then
       resize_window(win, buf)
     end
   end
