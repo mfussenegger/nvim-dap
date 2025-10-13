@@ -125,18 +125,7 @@ local function launch_external_terminal(env, terminal, args, cwd)
   local handle
   local pid_or_err
   local full_args = {}
-  -- Allow passing the desired cwd to terminals via placeholder substitution.
-  -- Users can add "${cwd}" to their external_terminal.args (e.g. kitty: {"--hold", "-d", "${cwd}"})
-  local function substitute(arg)
-    if type(arg) == "string" and cwd and cwd ~= '' then
-      return (arg:gsub("%${cwd}", cwd))
-    end
-    return arg
-  end
-  for _, a in ipairs(terminal.args or {}) do
-    full_args[#full_args+1] = substitute(a)
-  end
-  -- Adapter-provided args are appended as-is
+  vim.list_extend(full_args, terminal.args or {})
   vim.list_extend(full_args, args)
   -- Initializing to nil is important so environment is inherited by the terminal
   local env_formatted = nil
@@ -315,7 +304,6 @@ local function run_in_terminal(lsession, request)
       };
     })
   end
-
 end
 
 
