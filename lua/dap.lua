@@ -685,7 +685,7 @@ function M.focus_frame()
       session:_frame_set(session.current_frame)
     else
       local w = require('dap.ui.widgets')
-      w.centered_float(w.threads).open()
+      w.centered_float(w.threads)
     end
   else
     notify('No active session', vim.log.levels.INFO)
