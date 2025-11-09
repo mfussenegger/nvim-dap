@@ -542,7 +542,8 @@ Stepping:
 
 REPL:
 
-- `DapEval`: Create a new window & buffer to evaluate expressions
+- `DapEval`: Create a new window & buffer to evaluate expressions. Use `:w` to
+trigger evaluation of the buffer contents.
 - `DapToggleRepl`: Open or close the REPL
 
 Breakpoints:
