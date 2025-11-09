@@ -970,9 +970,19 @@ repl.open({winopts}, {wincmd})                                 *dap.repl.open()*
                      the REPL. Defaults to 'belowright split'
 
 
-        The REPL can be used to evaluate expressions. A `omnifunc` is set to
-        support completion of expressions. It supports the following special
-        commands:
+        The REPL can be used to evaluate expressions.
+
+        Starting with nvim 0.12 you can input multiline text by using
+        Shift+Enter to add a new line without submitting the prompt, or just
+        |put| or |paste| multiline text.
+
+        Alternatively you can write the input text in a dedicated
+        `dap-eval://` buffer. Open one using `:DapEval`, input any expression
+        you want to evaluate as regular text and then use
+        `:w` to evaluate the expression.
+
+        A `omnifunc` is set to support completion of expressions.
+        It supports the following special commands:
 
           .exit               Closes the REPL
           .c or .continue     Same as |dap.continue|
