@@ -339,6 +339,15 @@ do
       end)
       option = coroutine.yield()
     end
+    -- Users could resume coroutine from luv threads which would break subsequent logic
+    -- Schedule back onto main thread if this is the case.
+    if vim.in_fast_event() then
+      local co = coroutine.running()
+      vim.schedule(function()
+        coroutine.resume(co)
+      end)
+      coroutine.yield()
+    end
     return option
   end
 

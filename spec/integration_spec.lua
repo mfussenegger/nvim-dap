@@ -508,6 +508,23 @@ describe('dap with fake server', function()
     assert.are.same("Run aborted", msg)
   end)
 
+  it("Can trigger config property from luv thread", function()
+    local conf = {
+      name = "dummy",
+      type = "dummy",
+      request = "launch",
+      foo = function()
+        local co = coroutine.running()
+        vim.system({"echo", "test"}, function()
+          coroutine.resume(co, 1)
+        end)
+        return coroutine.yield()
+      end,
+    }
+    local session = run_and_wait_until_initialized(conf, server)
+    assert.is_not_nil(session)
+  end)
+
   it("triggers on_session listener on session changes", function()
     local on_session_results = {}
     local conf1 = {
