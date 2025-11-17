@@ -145,7 +145,7 @@ local function launch_external_terminal(env, terminal, args, cwd)
   local opts = {
     args = full_args,
     detached = true,
-    cwd = cwd == "" and nil or cwd,
+    cwd = (cwd and cwd ~= "") and cwd or nil,
     env = env_formatted,
   }
   handle, pid_or_err = uv.spawn(terminal.command, opts, function(code)
