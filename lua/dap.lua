@@ -949,7 +949,7 @@ function M.restart(config, opts)
   if lsession.capabilities.supportsRestartRequest then
     lazy.async.run(function()
       config = prepare_config(config)
-      lsession:request('restart', config, function(err0, _)
+      lsession:request('restart', { arguments = config }, function(err0, _)
         if err0 then
           notify('Error restarting debug adapter: ' .. tostring(err0), vim.log.levels.ERROR)
         else
