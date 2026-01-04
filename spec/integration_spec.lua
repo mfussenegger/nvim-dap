@@ -191,6 +191,52 @@ describe('dap with fake server', function()
     )
   end)
 
+  it("jumps to location on stopped with threadId that is missing", function()
+    local session = run_and_wait_until_initialized(config, server)
+
+    server.spy.clear()
+    server.client.threads = function(self, request)
+      self:send_response(request, {
+        threads = { { id = 1, name = 'thread1' }, }
+      })
+    end
+    local frame1 = {
+      id = 1,
+      name = "stackFrame1",
+      line = 1,
+    }
+    server.client.stackTrace = function(self, request)
+      self:send_response(request, {
+        stackFrames = { frame1 },
+      })
+    end
+    session:event_stopped({
+      allThreadsStopped = false,
+      threadId = 2,
+      reason = 'breakpoint',
+    })
+    vim.wait(1000, function() return #server.spy.requests == 3 end)
+    local expected_commands = {"threads", "stackTrace", "scopes"}
+    assert.are.same(
+      expected_commands,
+      vim.tbl_map(function(x) return x.command end, server.spy.requests)
+    )
+    assert.are_same({
+      [1] = {
+        id = 1,
+        name = "thread1",
+      },
+      [2] = {
+        id = 2,
+        name = "Unknown",
+        stopped = true,
+        frames = {
+          frame1,
+        }
+      }
+    }, session.threads)
+  end)
+
   it('jumps to location on stopped with reason=pause and allThreadsStopped', function()
     local session = run_and_wait_until_initialized(config, server)
     server.spy.clear()
@@ -1193,8 +1239,8 @@ describe('event_terminated', function()
     expected_args.__restart = 'dummy_value'
     assert.are.same(expected_args, request.arguments)
     local new_session = dap.session()
-    assert.are.not_same(nil, new_session)
-    assert.are.not_same(session.id, new_session.id)
+    assert.is_not_nil(new_session)
+    assert.are_not_same(session.id, assert(new_session).id)
 
     server.client:send_event('terminated')
     dap.terminate()

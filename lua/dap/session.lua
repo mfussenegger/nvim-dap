@@ -748,18 +748,23 @@ function Session:event_stopped(stopped)
       for _, thread in pairs(self.threads) do
         thread.stopped = true
       end
-    elseif stopped.threadId then
-      progress.report('Thread stopped: ' .. stopped.threadId)
-      self.threads[stopped.threadId].stopped = true
-    else
+    elseif not stopped.threadId then
       utils.notify('Stopped event received, but no threadId or allThreadsStopped', vim.log.levels.WARN)
     end
 
     if not stopped.threadId then
       return
     end
+    progress.report('Thread stopped: ' .. stopped.threadId)
     local thread = self.threads[stopped.threadId]
-    assert(thread, 'Thread not found: ' .. stopped.threadId)
+    if not thread then
+      thread = {
+        id = stopped.threadId,
+        name = "Unknown",
+      }
+      self.threads[stopped.threadId] = thread
+    end
+    thread.stopped = true
 
     ---@type dap.StackTraceArguments
     local params = {
