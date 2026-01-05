@@ -1075,10 +1075,21 @@ sessions()                                                      *dap.sessions()*
 
 status()                                                          *dap.status()*
         Returns the status of the current debug session as text
-        This is intended to be used within the statusline
-
         If no debug session is active the result is empty.
 
+        This is intended to be used within the statusline with an expression
+        like `%{luaeval("require'dap'.status()")}`. See |'statusline'| for
+        more information.
+
+        You may also want to redraw the statusline whenever the status of the
+        debug session changes, for that you can setup an autocmd like this:
+
+>lua
+            api.nvim_create_autocmd("User", {
+              pattern = "DapProgressUpdate",
+              command = "redrawstatus"
+            })
+<
 
 disconnect(opts, cb)                                          *dap.disconnect()*
 
