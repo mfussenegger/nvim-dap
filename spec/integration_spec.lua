@@ -536,6 +536,67 @@ describe('dap with fake server', function()
     assert.are.same(session, dap.session())
   end)
 
+  it("step_into askForTargets=true uses step fallbacks on empty targets response", function()
+    local session = run_and_wait_until_initialized(config, server)
+    session.capabilities.supportsStepInTargetsRequest = true
+    server.spy.clear()
+    server.client.threads = function(self, request)
+      self:send_response(request, {
+        threads = { { id = 1, name = 'thread1' }, }
+      })
+    end
+
+    local buf = api.nvim_create_buf(true, false)
+    local win = api.nvim_get_current_win()
+    local tmpname = os.tmpname()
+    os.remove(tmpname)
+    api.nvim_buf_set_name(buf, tmpname)
+    api.nvim_buf_set_lines(buf, 0, -1, false, {'line 1', 'line 2'})
+    api.nvim_win_set_buf(win, buf)
+    api.nvim_win_set_cursor(win, { 1, 0})
+    local path = vim.uri_from_bufnr(buf)
+
+    server.client.stackTrace = function(self, request)
+      self:send_response(request, {
+        stackFrames = {
+          {
+            id = 1,
+            name = 'stackFrame1',
+            line = 1,
+            column = 1,
+            source = {
+              path = path
+            }
+          },
+        },
+      })
+    end
+    server.client.scopes = function(self, request)
+      self:send_response(request, {
+        scopes = {}
+      })
+    end
+    server.client:send_event('stopped', {
+      threadId = 1,
+      reason = 'breakpoint',
+    })
+    wait_for_response(server, "scopes")
+
+    server.client.stepInTargets = function(self, request)
+      self:send_response(request, {
+        targets = {}
+      })
+    end
+    server.client.stepIn = function(self, request)
+      self:send_response(request, {})
+    end
+
+    dap.step_into({ askForTargets = true })
+    wait_for_response(server, "stepIn")
+    local commands = vim.tbl_map(function(x) return x.command end, server.spy.requests)
+    assert.are.same({"threads", "stackTrace", "scopes", "stepInTargets", "stepIn"}, commands)
+  end)
+
   it("Run aborts if config value is dap.ABORT", function()
     local msg = nil
     require('dap.utils').notify = function(m)

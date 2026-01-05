@@ -735,6 +735,12 @@ function M.step_into(opts)
       return
     end
 
+    if #response.targets == 0 then
+      notify('No targets found. Trying regular step_into.', vim.log.levels.INFO)
+      session:_step('stepIn', opts)
+      return
+    end
+
     lazy.ui.pick_if_many(
       response.targets,
       "Step into which function?",
