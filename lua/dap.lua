@@ -422,6 +422,15 @@ do
   M.listeners.on_config["dap.expand_variable"] = function(config)
     return vim.tbl_map(expand_config_variables, config)
   end
+
+  -- VSCode convention: processId: 0 triggers process picker
+  M.listeners.on_config["dap.pick_process"] = function(config)
+    if config.processId == 0 then
+      config = vim.deepcopy(config)
+      config.processId = lazy.utils.pick_process()
+    end
+    return config
+  end
 end
 
 
