@@ -668,13 +668,27 @@ function M.run(config, opts)
 end
 
 
---- Run the last debug session again
+--- Re-fetches the configuration by name from providers and executes it.
+--- This is useful when the environment or dynamic configuration changes
+--- between runs, as it ensures the latest config values are used.
 function M.run_last()
-  if last_run then
-    M.run(last_run.config, last_run.opts)
-  else
-    notify('No configuration available to re-run', vim.log.levels.INFO)
+  if not last_run then
+    return
   end
+
+  local bufnr = api.nvim_get_current_buf()
+  local name = last_run.config.name
+  for _, config_provider in pairs(providers.configs) do
+    local configs = config_provider(bufnr)
+    for _, v in ipairs(configs) do
+      if v.name == name then
+        M.run(v, last_run.opts)
+        return
+      end
+    end
+  end
+
+  notify("Could not find configuration with name: " .. name)
 end
 
 --- Step over the current line
