@@ -268,6 +268,11 @@ M.adapters = {}
 ---@field [string] any
 
 
+---@class dap.Compound
+---@field name string
+---@field configurations string[]
+
+
 --- Configurations per adapter. See `:help dap-configuration` for more help.
 ---
 --- An example:
@@ -285,8 +290,11 @@ M.adapters = {}
 ---@type table<string, dap.Configuration[]>
 M.configurations = {}
 
+---@type table<string, dap.Compound[]>
+M.compounds = {}
+
 local providers = {
-  ---@type table<string, fun(bufnr: integer): dap.Configuration[]>
+  ---@type table<string, fun(bufnr: integer): table<string, dap.Configuration[] | dap.Compound[]>>
   configs = {},
 }
 do
@@ -302,6 +310,7 @@ end
 providers.configs["dap.global"] = function(bufnr)
   local filetype = vim.b["dap-srcft"] or vim.bo[bufnr].filetype
   local configurations = M.configurations[filetype] or {}
+  local compounds = M.compounds[filetype] or {}
   assert(
     islist(configurations),
     string.format(
@@ -310,7 +319,19 @@ providers.configs["dap.global"] = function(bufnr)
       vim.inspect(configurations)
     )
   )
-  return configurations
+  assert(
+    islist(compounds),
+    string.format(
+      '`dap.compounds.%s` must be a list of compounds, got %s',
+      filetype,
+      vim.inspect(compounds)
+    )
+  )
+  local result = {
+    configurations = configurations,
+    compounds = compounds,
+  }
+  return result
 end
 
 providers.configs["dap.launch.json"] = function()
@@ -320,7 +341,11 @@ providers.configs["dap.launch.json"] = function()
     vim.notify_once(msg, vim.log.levels.WARN, {title = "DAP"})
     return {}
   end
-  return configs
+  local result = {
+    configurations = configs,
+    compounds = {},
+  }
+  return result
 end
 
 do
@@ -526,15 +551,23 @@ local function select_config_and_run(opts)
   local filetype = vim.bo[bufnr].filetype
   lazy.async.run(function()
     local all_configs = {}
+    local all_compounds = {}
     local provider_keys = vim.tbl_keys(providers.configs)
     table.sort(provider_keys)
     for _, provider in ipairs(provider_keys) do
-      local config_provider = providers.configs[provider]
-      local configs = config_provider(bufnr)
+      local config_provider = providers.configs[provider](bufnr)
+      local configs = config_provider.configurations
+      local compounds = config_provider.compounds
       if islist(configs) then
         vim.list_extend(all_configs, configs)
       else
         local msg = "Configuration provider %s must return a list of configurations. Got: %s"
+        notify(msg:format(provider, vim.inspect(configs)), vim.log.levels.WARN)
+      end
+      if islist(compounds) then
+        vim.list_extend(all_compounds, compounds)
+      else
+        local msg = "Configuration provider %s must return a list of compounds. Got: %s"
         notify(msg:format(provider, vim.inspect(configs)), vim.log.levels.WARN)
       end
     end
@@ -545,15 +578,28 @@ local function select_config_and_run(opts)
       return
     end
 
+    local all_options = {}
+    vim.list_extend(all_options, all_configs)
+    vim.list_extend(all_options, all_compounds)
     opts = opts or {}
     opts.filetype = opts.filetype or filetype
     lazy.ui.pick_if_many(
-      all_configs,
+      all_options,
       "Configuration: ",
       function(i) return i.name end,
-      function(configuration)
-        if configuration then
-          M.run(configuration, opts)
+      function(option)
+        if option then
+          if (option.configurations) then
+            for _, config_name in ipairs(option.configurations) do
+              for _, config in ipairs(all_configs) do
+                if config.name == config_name then
+                  M.run(config, opts)
+                end
+              end
+            end
+          else
+            M.run(option, opts)
+          end
         else
           notify('No configuration selected', vim.log.levels.INFO)
         end
