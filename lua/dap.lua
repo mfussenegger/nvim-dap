@@ -378,6 +378,9 @@ do
     ['${relativeFileDirname}'] = function(_)
       return vim.fn.fnamemodify(vim.fn.expand("%:.:h"), ":r")
     end,
+    ['${fileDirnameBasename}'] = function(_)
+      return vim.fn.fnamemodify(vim.fn.expand("%:p:h"), ":t")
+    end,
     ['${workspaceFolder}'] = function(_)
       return vim.fn.getcwd()
     end,
