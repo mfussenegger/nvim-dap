@@ -843,7 +843,7 @@ set_exception_breakpoints({filters}, {exceptionOptions})
         -- don't stop on exceptions
         require'dap'.set_exception_breakpoints({})
         -- stop only on certain exceptions (debugpy offers "raised", "uncaught")
-        require'dap'.set_exception_breakpoints({"uncaughted"})
+        require'dap'.set_exception_breakpoints({"uncaught"})
         require'dap'.set_exception_breakpoints({"raised", "uncaught"})
         -- use default settings of debug adapter
         require'dap'.set_exception_breakpoints("default")
