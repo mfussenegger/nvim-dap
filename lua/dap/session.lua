@@ -953,10 +953,8 @@ do
   function Session:set_breakpoints(bps, on_done)
     local num_requests = vim.tbl_count(bps)
     if num_requests == 0 then
-      if on_done then
-        on_done()
-      end
-      return
+	  local bufnr = vim.api.nvim_get_current_buf()
+      bps = { [bufnr] = {} }
     end
     for bufnr, buf_bps in pairs(bps) do
       notify_if_missing_capability(buf_bps, self.capabilities)
