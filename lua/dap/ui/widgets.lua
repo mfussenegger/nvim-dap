@@ -419,8 +419,8 @@ do
             local tree = ui.new_tree(spec)
             tree.render(view.layer(), variable)
           else
-            local msg = 'Cannot evaluate "'..expression..'"!'
-            layer.render({msg})
+            local msg = "Error evaluating '" .. expression .. "':"
+            layer.render({msg, "", tostring(err)})
           end
         elseif resp and resp.result then
           local attributes = (resp.presentationHint or {}).attributes or {}
