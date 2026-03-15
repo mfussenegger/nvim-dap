@@ -395,16 +395,13 @@ end
 ---@param text string
 ---@param opts? dap.repl.execute.Opts
 function M.execute(text, opts)
-  opts = opts or {}
-  if not opts.silent then
-    M.append(prompt .. text, "$", { newline = true })
-    local numlines = line_count(repl.buf)
-    if repl.win and api.nvim_win_is_valid(repl.win) then
-      pcall(api.nvim_win_set_cursor, repl.win, { numlines, 0 })
-      api.nvim_win_call(repl.win, function()
-        vim.cmd.normal({"zt", bang = true })
-      end)
-    end
+  M.append(prompt .. text, "$", { newline = true })
+  local numlines = line_count(repl.buf)
+  if repl.win and api.nvim_win_is_valid(repl.win) then
+    pcall(api.nvim_win_set_cursor, repl.win, { numlines, 0 })
+    api.nvim_win_call(repl.win, function()
+      vim.cmd.normal({"zt", bang = true })
+    end)
   end
   execute(text, opts)
 end
