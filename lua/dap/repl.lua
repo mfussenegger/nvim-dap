@@ -477,10 +477,8 @@ end
 function M.append(line, lnum, opts)
   opts = opts or {}
   local buf = repl._init_buf()
-  if vim.bo[buf].fileformat ~= "dos" then
-    line = line:gsub('\r\n', '\n')
-  end
-  local lines = vim.split(line, '\n')
+  line = line:gsub("\r\n", "\n")
+  local lines = vim.split(line, "\n")
   if lnum == '$' or not lnum then
     lnum = line_count(buf)
     if opts.newline == false then

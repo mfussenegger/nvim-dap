@@ -108,6 +108,13 @@ describe('dap.repl', function()
     assert.are.same({"foo", "bar", "", "baz", "", prompt_line}, lines)
   end)
 
+  it("replaces \\r\\n with \\n", function ()
+    local buf = repl.open()
+    repl.append("f\roo\r\nbar", nil, { newline = true })
+    local lines = api.nvim_buf_get_lines(buf, 0, -1, true)
+    assert.are.same({"f\roo", "bar", prompt_line}, lines)
+  end)
+
   it("repl.execute inserts text and executes it, shows result", function()
     server = require("spec.server").spawn()
     dap.adapters.dummy = server.adapter
