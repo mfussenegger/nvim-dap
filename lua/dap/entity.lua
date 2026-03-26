@@ -363,7 +363,7 @@ function threads_spec.fetch_children(thread, cb)
       local err, resp = session:request('stackTrace', params)
       if err then
         utils.notify('Error fetching stackTrace: ' .. tostring(err), vim.log.levels.WARN)
-      else
+      elseif resp then
         thread.frames = resp.stackFrames
       end
       if not is_stopped then
@@ -428,7 +428,12 @@ function threads_spec.compute_actions(info)
       table.insert(result, {
         label = 'Stop thread',
         fn = function()
-          session:_pause(thread.id, context.refresh)
+          session:_pause(thread.id, function(_, thread_id)
+            if thread_id then
+              utils.notify('Thread paused ' .. tostring(thread_id), vim.log.levels.INFO)
+            end
+            context.refresh()
+          end)
         end
       })
     end

@@ -793,7 +793,11 @@ end
 
 function M.pause(thread_id)
   if session then
-    session:_pause(thread_id)
+    session:_pause(thread_id, function(_, tid)
+      if tid then
+        notify('Thread paused ' .. tostring(tid), vim.log.levels.INFO)
+      end
+    end)
   end
 end
 

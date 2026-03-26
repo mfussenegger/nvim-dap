@@ -1648,6 +1648,9 @@ function Session.spawn(adapter, config, opts)
 end
 
 
+---@param session dap.Session
+---@param thread_id integer
+---@param cb? fun(err: dap.ErrorResponse?, thread_id: integer?)
 local function pause_thread(session, thread_id, cb)
   assert(session, 'Cannot pause thread without active session')
   assert(thread_id, 'thread_id is required to pause thread')
@@ -1656,19 +1659,20 @@ local function pause_thread(session, thread_id, cb)
     if err then
       utils.notify('Error pausing: ' .. tostring(err), vim.log.levels.ERROR)
     else
-      utils.notify('Thread paused ' .. thread_id, vim.log.levels.INFO)
       local thread = session.threads[thread_id]
       if thread then
         thread.stopped = true
       end
     end
     if cb then
-      cb(err)
+      cb(err, thread_id)
     end
   end)
 end
 
 
+---@param thread_id? integer
+---@param cb? fun(err: dap.ErrorResponse?, thread_id: integer)
 function Session:_pause(thread_id, cb)
   if thread_id then
     pause_thread(self, thread_id, cb)
