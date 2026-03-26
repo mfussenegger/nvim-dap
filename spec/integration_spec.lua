@@ -310,7 +310,12 @@ describe('dap with fake server', function()
       reason = 'breakpoint',
     })
     vim.wait(1000, function() return captured_msg ~= nil end)
-    local msg = 'Adapter reported a frame in buf %d line 40 column 3, but: Cursor position outside buffer. Ensure executable is up2date and if using a source mapping ensure it is correct'
+    local msg
+    if vim.fn.has("nvim-0.12") == 1 then
+      msg = "Adapter reported frame in buf %d line 40:3, but: Invalid cursor line: out of range. Ensure executable is up2date and if using a source mapping ensure it is correct"
+    else
+      msg = 'Adapter reported frame in buf %d line 40:3, but: Cursor position outside buffer. Ensure executable is up2date and if using a source mapping ensure it is correct'
+    end
     assert.are.same(string.format(msg, vim.uri_to_bufnr(path)), captured_msg)
   end)
 

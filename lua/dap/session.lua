@@ -401,7 +401,7 @@ local function set_cursor(win, line, column)
     end)
   else
     local msg = string.format(
-      "Adapter reported a frame in buf %d line %s column %s, but: %s. "
+      "Adapter reported frame in buf %d line %d:%d, but: %s. "
       .. "Ensure executable is up2date and if using a source mapping ensure it is correct",
       api.nvim_win_get_buf(win),
       line,

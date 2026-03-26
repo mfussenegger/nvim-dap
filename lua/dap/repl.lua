@@ -484,18 +484,12 @@ function M.append(line, lnum, opts)
   if lnum == '$' or not lnum then
     lnum = line_count(buf)
     if opts.newline == false then
-      local last_line = api.nvim_buf_get_lines(buf, lnum, lnum + 1, true)[1]
-      local insert_pos = last_line ~= nil and #last_line or 0
-      if last_line == prompt then
-        -- insert right in front of the empty prompt
-        insert_pos = 0
-        if lines[#lines] ~= '' then
-          table.insert(lines, #lines + 1, '')
-        end
-      elseif vim.startswith(last_line or "", prompt) then
-        table.insert(lines, 1, '')
+      if lnum == 0 then
+        api.nvim_buf_set_lines(buf, lnum, lnum, true, lines)
+      else
+        local last_line = api.nvim_buf_get_lines(buf, lnum - 1, lnum, true)[1]
+        api.nvim_buf_set_text(buf, lnum - 1, #last_line, lnum - 1, #last_line, lines)
       end
-      api.nvim_buf_set_text(buf, lnum, insert_pos, lnum, insert_pos, lines)
     else
       api.nvim_buf_set_lines(buf, lnum, lnum, true, lines)
     end

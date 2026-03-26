@@ -61,6 +61,7 @@ end
 
 
 describe('dap.repl', function()
+  local prompt_line = vim.fn.has("nvim-0.12") == 1 and "dap> " or ""
   local server
   after_each(function()
     if server then
@@ -74,16 +75,23 @@ describe('dap.repl', function()
     local buf = repl.open()
     api.nvim_buf_delete(buf, {force = true})
   end)
+
   it("append doesn't add newline with newline = false", function()
     local buf = repl.open()
     repl.append('foo', nil, { newline = false })
-    repl.append('bar', nil, { newline = false })
-    assert_prompt_mark(buf, 1)
-    repl.append('\nbaz\n', nil, { newline = false })
-
     local lines = api.nvim_buf_get_lines(buf, 0, -1, true)
-    assert.are.same({'foobar', 'baz', ''}, lines)
-    assert_prompt_mark(buf, 3)
+    assert.are.same({"foo", prompt_line}, lines)
+    assert_prompt_mark(buf, 2)
+
+    repl.append('bar', nil, { newline = false })
+    lines = api.nvim_buf_get_lines(buf, 0, -1, true)
+    assert.are.same({"foobar", prompt_line}, lines)
+    assert_prompt_mark(buf, 2)
+
+    repl.append('\nbaz\n', nil, { newline = false })
+    lines = api.nvim_buf_get_lines(buf, 0, -1, true)
+    assert.are.same({"foobar", "baz", "", prompt_line}, lines)
+    assert_prompt_mark(buf, 4)
   end)
 
   it("adds newline with newline = true", function()
@@ -97,7 +105,7 @@ describe('dap.repl', function()
     assert_prompt_mark(buf, 6)
 
     local lines = api.nvim_buf_get_lines(buf, 0, -1, true)
-    assert.are.same({"foo", "bar", "", "baz", "", ""}, lines)
+    assert.are.same({"foo", "bar", "", "baz", "", prompt_line}, lines)
   end)
 
   it("repl.execute inserts text and executes it, shows result", function()
@@ -124,7 +132,7 @@ describe('dap.repl', function()
       end
     )
     local lines = api.nvim_buf_get_lines(buf, 0, -1, true)
-    assert.are.same({"dap> 1 + 1", "2", ""}, lines)
+    assert.are.same({"dap> 1 + 1", "2", prompt_line}, lines)
     assert_prompt_mark(buf, 3)
   end)
   it("repl.execute shows structured results", function()
@@ -171,7 +179,7 @@ describe('dap.repl', function()
       "table xy",
       "  x: 1",
       "  y: 2",
-      "",
+      prompt_line,
     }
     assert.are.same(expected, api.nvim_buf_get_lines(buf, 0, -1, true))
     assert_prompt_mark(buf, 5)
@@ -198,7 +206,7 @@ describe('dap.repl', function()
       "table xy",
       "  x: 1",
       "  y: 2",
-      "",
+      prompt_line,
     }
     assert.are.same(expected, api.nvim_buf_get_lines(buf, 0, -1, true))
   end)
