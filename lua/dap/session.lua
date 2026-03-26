@@ -418,8 +418,8 @@ end
 ---@param column number
 ---@param switchbuf string|fun(bufnr: integer, line: integer, column: integer):nil
 ---@param filetype string
+---@return boolean
 local function jump_to_location(bufnr, line, column, switchbuf, filetype)
-  progress.report('Stopped at line ' .. line)
   -- vscode-go sends columns with 0
   -- That would cause a "Column value outside range" error calling nvim_win_set_cursor
   -- nvim-dap says "columnsStartAt1 = true" on initialize :/
@@ -430,7 +430,7 @@ local function jump_to_location(bufnr, line, column, switchbuf, filetype)
   if cur_buf == bufnr and api.nvim_win_get_cursor(0)[1] == line and column == 1 then
     -- A user might have positioned the cursor over a variable in anticipation of hitting a breakpoint
     -- Don't move the cursor to the beginning of the line if it's in the right place
-    return
+    return true
   end
 
   local cur_win = api.nvim_get_current_win()
@@ -525,20 +525,21 @@ local function jump_to_location(bufnr, line, column, switchbuf, filetype)
 
   if type(switchbuf) == "function" then
     switchbuf(bufnr, line, column)
-    return
+    return true
   end
 
   local opts = vim.split(switchbuf, ',', { plain = true })
   for _, opt in pairs(opts) do
     local fn = switchbuf_fn[opt]
     if fn and fn() then
-      return
+      return true
     end
   end
   utils.notify(
     'Stopped at line ' .. line .. ' but `switchbuf` setting prevented jump to location. Target buffer ' .. bufnr .. ' not open in any window?',
     vim.log.levels.WARN
   )
+  return false
 end
 
 
@@ -579,20 +580,21 @@ end
 ---@param frame dap.StackFrame
 ---@param preserve_focus_hint boolean
 ---@param stopped nil|dap.StoppedEvent
+---@return boolean
 local function jump_to_frame(session, frame, preserve_focus_hint, stopped)
   local source = frame.source
   if not source then
     utils.notify('Source missing, cannot jump to frame: ' .. frame.name, vim.log.levels.INFO)
-    return
+    return false
   end
   vim.fn.sign_unplace(session.sign_group)
   if preserve_focus_hint or frame.line < 0 then
-    return
+    return false
   end
   local bufnr = source_to_bufnr(session, frame.source)
   if not bufnr then
     utils.notify('Source missing, cannot jump to frame: ' .. frame.name, vim.log.levels.INFO)
-    return
+    return false
   end
   vim.fn.bufload(bufnr)
   vim.bo[bufnr].buflisted = true
@@ -601,10 +603,11 @@ local function jump_to_frame(session, frame, preserve_focus_hint, stopped)
     utils.notify(tostring(failure), vim.log.levels.ERROR)
   end
   local switchbuf = defaults(session).switchbuf or vim.o.switchbuf or 'uselast'
-  jump_to_location(bufnr, frame.line, frame.column, switchbuf, session.filetype)
+  local jumped = jump_to_location(bufnr, frame.line, frame.column, switchbuf, session.filetype)
   if stopped and stopped.reason == 'exception' then
     session:_show_exception_info(stopped.threadId, bufnr, frame)
   end
+  return jumped
 end
 
 
@@ -794,7 +797,10 @@ function Session:event_stopped(stopped)
     end
     if should_jump then
       self.current_frame = current_frame
-      jump_to_frame(self, current_frame, stopped.preserveFocusHint, stopped)
+      local jumped = jump_to_frame(self, current_frame, stopped.preserveFocusHint, stopped)
+      if jumped then
+        progress.report('Stopped at line ' .. tostring(current_frame.line))
+      end
       self:_request_scopes(current_frame)
     elseif stopped.reason == "exception" then
       local bufnr = source_to_bufnr(self, current_frame.source)
@@ -2008,7 +2014,10 @@ function Session:_frame_set(frame)
   end
   self.current_frame = frame
   coroutine.wrap(function()
-    jump_to_frame(self, frame, false)
+    local jumped = jump_to_frame(self, frame, false)
+    if jumped then
+      progress.report(string.format("Set frame: %s:%s:%s", frame.name, frame.line, frame.column))
+    end
     self:_request_scopes(frame)
   end)()
 end
