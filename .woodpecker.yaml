@@ -7,8 +7,8 @@ when:
 matrix:
   nvim_version:
     - latest
-    - 0.10
     - 0.11
+    - 0.12
 
 steps:
   - name: test
