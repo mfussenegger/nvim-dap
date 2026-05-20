@@ -1332,6 +1332,7 @@ local function spawn_server_executable(executable, session)
     args = executable.args or {},
     detached = utils.if_nil(executable.detached, true),
     cwd = executable.cwd,
+    hide = true,
   }
   local handle, pid_or_err
   local daplog = require("dap.log")
@@ -1600,6 +1601,7 @@ function Session.spawn(adapter, config, opts)
     cwd = options.cwd;
     env = options.env;
     detached = utils.if_nil(options.detached, true);
+    hide = true;
   }
   local session
   local stderrlog = require("dap.log").create_logger("dap-" .. config.type .. "-stderr.log")
