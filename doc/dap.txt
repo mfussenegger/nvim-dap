@@ -1055,10 +1055,10 @@ set_log_level(level)                                       *dap.set_log_level()*
           WARN
           ERROR
 
-        The log file is in the |stdpath| `cache` folder.
+        The log file is in the |stdpath| `log` folder.
         To print the location:  >
 
-            :lua print(vim.fn.stdpath('cache'))
+            :lua print(vim.fn.stdpath('log'))
 <
         The filename is `dap.log`
 

@@ -152,16 +152,16 @@ end
 
 ---@param fname string
 ---@return string path
----@return string cache_dir
+---@return string log_dir
 local function getpath(fname)
   local path_sep = vim.loop.os_uname().sysname == "Windows" and "\\" or "/"
   local joinpath = (vim.fs or {}).joinpath or function(...)
     ---@diagnostic disable-next-line: deprecated
     return table.concat(vim.tbl_flatten{...}, path_sep)
   end
-  local cache_dir = vim.fn.stdpath('cache')
-  assert(type(cache_dir) == "string")
-  return joinpath(cache_dir, fname), cache_dir
+  local log_dir = vim.fn.stdpath('log')
+  assert(type(log_dir) == "string")
+  return joinpath(log_dir, fname), log_dir
 end
 
 
@@ -173,7 +173,7 @@ function M.create_logger(filename)
     logger:open()
     return logger
   end
-  local path, cache_dir = getpath(filename)
+  local path, log_dir = getpath(filename)
   local log = {
     _fname = filename,
     _path = path,
@@ -182,7 +182,7 @@ function M.create_logger(filename)
   logger = setmetatable(log, log_mt)
   loggers[filename] = logger
 
-  vim.fn.mkdir(cache_dir, "p")
+  vim.fn.mkdir(log_dir, "p")
   logger:open()
   return logger
 end
