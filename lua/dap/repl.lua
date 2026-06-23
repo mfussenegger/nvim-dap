@@ -208,24 +208,31 @@ local function evaluate_handler(err, resp)
     M.append(tostring(err), nil, { newline = true })
     return
   end
-  local layer = ui.layer(repl.buf)
-  local attributes = (resp.presentationHint or {}).attributes or {}
-  if resp.variablesReference > 0 or vim.tbl_contains(attributes, 'rawString') then
-    local spec = require('dap.entity').variable.tree_spec
-    local tree = ui.new_tree(spec)
-    -- tree.render would "append" twice, once for the top element and once for the children
-    -- Appending twice would result in a intermediate "dap> " prompt
-    -- To avoid that this eagerly fetches the children; pre-renders the region
-    -- and lets tree.render override it
-    if spec.has_children(resp) then
-      spec.fetch_children(resp, function()
-        tree.render(layer, resp, nil)
-      end)
-    else
-      tree.render(layer, resp, nil)
-    end
+  local srcft = vim.b[repl.buf]["dap-srcft"] or ""
+  local hide_tree_filetypes = require("dap").defaults.fallback.repl_hide_tree_filetypes or {}
+  local shoudl_hide_tree = hide_tree_filetypes[srcft] or false
+  if shoudl_hide_tree then
+    M.append(resp.result, nil, { newline = true})
   else
-    M.append(resp.result, nil, { newline = true })
+    local layer = ui.layer(repl.buf)
+    local attributes = (resp.presentationHint or {}).attributes or {}
+    if resp.variablesReference > 0 or vim.tbl_contains(attributes, 'rawString') then
+      local spec = require('dap.entity').variable.tree_spec
+      local tree = ui.new_tree(spec)
+      -- tree.render would "append" twice, once for the top element and once for the children
+      -- Appending twice would result in a intermediate "dap> " prompt
+      -- To avoid that this eagerly fetches the children; pre-renders the region
+      -- and lets tree.render override it
+      if spec.has_children(resp) then
+        spec.fetch_children(resp, function()
+          tree.render(layer, resp, nil)
+        end)
+      else
+        tree.render(layer, resp, nil)
+      end
+    else
+      M.append(resp.result, nil, { newline = true })
+    end
   end
 end
 
