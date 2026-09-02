@@ -405,6 +405,41 @@
 ---@field endColumn? integer
 
 
+---@class dap.SetExpressionArguments
+---@field expression string
+---@field value string
+---@field frameId? number
+---@field format? dap.ValueFormat
+
+
+---@class dap.SetExpressionResponse
+---@field value string
+---@field type? string requires `supportsVariableType` capability
+---@field presentationHint? dap.VariablePresentationHint
+---@field variablesReference? number
+---@field namedVariables? number
+---@field indexedVariables? number
+---@field memoryReference? string requires `supportsMemoryReferences` capability
+---@field valueLocationReference? number
+
+
+---@class dap.SetVariableArguments
+---@field variablesReference number
+---@field name string
+---@field value string
+---@field format? dap.ValueFormat
+
+
+---@class dap.SetVariableResponse
+---@field value string
+---@field type? string requires `supportsVariableType` capability
+---@field variablesReference? number
+---@field namedVariables? number
+---@field indexedVariables? number
+---@field memoryReference? string requires `supportsMemoryReferences` capability
+---@field valueLocationReference? number
+
+
 ---@alias dap.CompletionItemType
 ---|'method'
 ---|'function'
