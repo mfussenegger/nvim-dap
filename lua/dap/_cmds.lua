@@ -60,14 +60,32 @@ function M.new(args)
 end
 
 
+---@param sessions table<number, dap.Session>
+---@param id number
+---@return dap.Session?
+local function rec_get_session(sessions, id)
+  local session = sessions[id]
+  if session then
+    return session
+  end
+  for _, s in pairs(sessions) do
+    local result = rec_get_session(s.children, id)
+    if result then
+      return result
+    end
+  end
+  return nil
+end
+
+
 ---@param buf integer
 function M.source(buf)
   local fname = api.nvim_buf_get_name(buf)
   local session_id, source_ref, source_path = fname:match("dap%-src://(%d+)/(%d+)/(.*)")
-  session_id = tonumber(session_id)
+  session_id = assert(tonumber(session_id), "dap-src:// uri must contain session id")
   source_ref = tonumber(source_ref)
   local dap = require("dap")
-  local session = dap.sessions()[session_id]
+  local session = rec_get_session(dap.sessions(), session_id)
   if not session then
     return
   end

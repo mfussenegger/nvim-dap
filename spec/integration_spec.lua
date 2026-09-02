@@ -824,6 +824,80 @@ describe('request source', function()
     assert.are.same({'foobar'}, lines)
   end)
 
+  it('can jump to frame if source needs to be fetched from nested session', function()
+    local srv2 = require('spec.server').spawn()
+    dap.adapters.dummy2 = srv2.adapter
+    local fname = nil
+
+    api.nvim_create_autocmd("BufReadCmd", {
+      group = api.nvim_create_augroup("dap-readcmds", { clear = true }),
+      pattern = "dap-src://*",
+      ---@param args vim.api.keyset.create_autocmd.callback_args
+      callback = function(args)
+        fname = args.file
+        require("dap._cmds").source(args.buf)
+      end,
+    })
+
+    local session1 = run_and_wait_until_initialized(config, server)
+    assert.are_not_same(session1.id, 2)
+    server.client:send_request("startDebugging", {
+      request = "launch",
+      configuration = {
+        type = "dummy2",
+        name = "Subprocess"
+      }
+    })
+    wait(
+      function() return vim.tbl_count(dap.session().children) == 1 end,
+      function() return dap.session() end
+    )
+
+    srv2.client.source = function(self, request)
+      self:send_response(request, {
+        content = 'foobar',
+        mimeType = 'text/x-lldb.disassembly',
+      })
+    end
+    srv2.client.threads = function(self, request)
+      self:send_response(request, {
+        threads = { { id = 1, name = 'thread1' }, }
+      })
+    end
+    srv2.client.stackTrace = function(self, request)
+      self:send_response(request, {
+        stackFrames = {
+          {
+            id = 1,
+            name = 'stackFrame1',
+            line = 1,
+            column = 1,
+            source = {
+              sourceReference = 1
+            }
+          },
+        },
+      })
+    end
+    srv2.client:send_event('stopped', {
+      threadId = 1,
+      reason = 'breakpoint',
+    })
+
+    srv2.spy.clear()
+    wait_for_response(srv2, 'source')
+    local child_session_id = next(session1.children)
+    assert.are.same(fname, string.format("dap-src://%d/1/", child_session_id))
+    wait(function()
+      return 'foobar' == api.nvim_buf_get_lines(0, 0, -1, false)[1]
+    end)
+    local lines = api.nvim_buf_get_lines(0, 0, -1, false)
+    assert.are.same({'foobar'}, lines)
+
+    session1:close()
+    srv2.stop()
+  end)
+
   it('sets filetype based on mimetype if available', function()
     server.client.source = function(self, request)
       self:send_response(request, {
@@ -905,7 +979,10 @@ describe('run_to_cursor', function()
     for _, buf in pairs(api.nvim_list_bufs()) do
       api.nvim_buf_delete(buf, { force = true })
     end
-    wait(function() return dap.session() == nil end)
+    wait(
+      function() return dap.session() == nil end,
+      "Session should become nil after close/stop"
+    )
   end)
 
   it('clears breakpoints from buffers, adds breakpoint for current line, continues, restores breakpoints', function()
