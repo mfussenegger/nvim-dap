@@ -444,7 +444,7 @@ local function jump_to_location(bufnr, line, column, switchbuf, filetype)
       set_cursor(cur_win, line, column)
     else
       local win = vim.fn.win_getid(vim.fn.winnr('#'))
-      if win then
+      if win and not vim.wo[win].winfixbuf then
         api.nvim_win_set_buf(win, bufnr)
         set_cursor(win, line, column)
       end
