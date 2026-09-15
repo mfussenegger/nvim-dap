@@ -173,6 +173,9 @@ M.defaults = setmetatable(
 
       ---@type nil|fun(session: dap.Session, output: dap.OutputEvent)
       on_output = nil,
+
+      ---@type table<string, boolean> File types where REPL should not show tree structure/metadata
+      repl_hide_tree_filetypes = {},
     },
   },
   {
